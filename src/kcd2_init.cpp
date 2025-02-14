@@ -49,6 +49,11 @@ namespace big
 				dummynode_external_address = (intptr_t)game_table->node;
 			}
 
+			// https://github.com/lp249839965/CryEngine-5.2.3/blob/ef4f45fe2ff05ad788fec1dd6ac56c038731e29d/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L747
+			{
+				L->l_G->storedebug = 1;
+			}
+
 			lua_manager_extension::g_lua_manager_instance = std::make_unique<lua_manager>(L,
 			                                                                              g_file_manager.get_project_folder("config"),
 			                                                                              g_file_manager.get_project_folder("plugins_data"),

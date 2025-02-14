@@ -26,6 +26,18 @@ index 76221587..d5fdc902 100644
  
  LUAI_DATA const TValue luaO_nilobject_;
  
+diff --git a/lstate.h b/lstate.h
+index 1ed893b4..be0d68d6 100644
+--- a/lstate.h
++++ b/lstate.h
+@@ -71,6 +71,7 @@ typedef struct global_State {
+   void *ud;         /* auxiliary data to `frealloc' */
+   lu_byte currentwhite;
+   lu_byte gcstate;  /* state of garbage collector */
++  lu_byte storedebug;	/* if false do not allocate lineinfo */
+   int sweepstrgc;  /* position of sweep in `strt' */
+   GCObject *rootgc;  /* list of all collectable objects */
+   GCObject **sweepgc;  /* position of sweep in `rootgc' */
 diff --git a/ltable.c b/ltable.c
 index b68d1486..9bc423eb 100644
 --- a/ltable.c
