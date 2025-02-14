@@ -1,6 +1,7 @@
 #include "lua_manager_extension.hpp"
 
 #include "bindings/gui_ext.hpp"
+#include "bindings/kcd2.hpp"
 #include "string/string.hpp"
 
 #include <lua/lua_manager.hpp>
@@ -41,16 +42,14 @@ namespace big::lua_manager_extension
 
 	void init_lua_state(sol::state_view& state, sol::table& lua_ext)
 	{
-		// TODO: Renable some of this stuff
-
 		// Register our cleanup functions when the state get destroyed.
 		{
-			/*sol::table my_takedown_metatable                           = state.create_table_with();
+			sol::table my_takedown_metatable                           = state.create_table_with();
 			my_takedown_metatable[sol::meta_function::garbage_collect] = the_state_is_going_down;
 			sol::table my_takedown_table                               = lua_ext.create_named(
                 std::format("..{}\xF0\x9F\x8F\xB4 \xF0\x9F\x8F\xB4 \xF0\x9F\x8F\xB4 \xF0\x9F\x8F\xB4 \xF0\x9F\x8F\xB4", rom::g_project_name),
                 sol::metatable_key,
-                my_takedown_metatable);*/
+                my_takedown_metatable);
 		}
 
 		// clang-format off
@@ -69,11 +68,9 @@ namespace big::lua_manager_extension
 		// clang-format on
 
 		// clang-format off
-		//state.open_libraries();
-		//state.open_libraries(
-			//sol::lib::os,
-			//sol::lib::io,
-			//sol::lib::utf8);
+		state.open_libraries(
+			sol::lib::os,
+			sol::lib::io);
 		// clang-format on
 
 		//lua_pushcfunction(state.lua_state(), open_debug_lib);
