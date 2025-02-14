@@ -1,4 +1,4 @@
-# Class: config.config_definition
+# Class: rom.config.config_definition
 
 Section and key of a setting.
 

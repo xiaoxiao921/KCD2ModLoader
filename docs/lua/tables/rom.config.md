@@ -1,4 +1,4 @@
-# Table: config
+# Table: rom.config
 
 Table containing helpers for mod configs.
 

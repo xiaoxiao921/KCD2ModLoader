@@ -1,4 +1,4 @@
-# Class: value_wrapper
+# Class: rom.value_wrapper
 
 Class for wrapping parameters and return value of functions, used mostly by the dynamic_hook system.
 
@@ -13,7 +13,7 @@ Get the value currently contained by the wrapper.
 
 **Example Usage:**
 ```lua
-any = value_wrapper:get()
+any = rom.value_wrapper:get()
 ```
 
 ### `set(new_value)`
@@ -25,7 +25,7 @@ Set the new value contained by the wrapper.
 
 **Example Usage:**
 ```lua
-value_wrapper:set(new_value)
+rom.value_wrapper:set(new_value)
 ```
 
 

@@ -1,4 +1,4 @@
-# Class: config.config_entry
+# Class: rom.config.config_entry
 
 Provides access to a single setting inside of a config_file.
 
@@ -19,7 +19,7 @@ Simple description of the setting shown to the user.
 
 **Example Usage:**
 ```lua
-val = config.config_entry:get()
+val = rom.config.config_entry:get()
 ```
 
 ### `set(new_value)`
@@ -29,7 +29,7 @@ val = config.config_entry:get()
 
 **Example Usage:**
 ```lua
-config.config_entry:set(new_value)
+rom.config.config_entry:set(new_value)
 ```
 
 

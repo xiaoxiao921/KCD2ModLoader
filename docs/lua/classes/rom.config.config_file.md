@@ -1,4 +1,4 @@
-# Class: config.config_file
+# Class: rom.config.config_file
 
 A helper class to handle persistent data.
 
@@ -56,7 +56,7 @@ trying to add a second setting will throw an exception.
 
 **Example Usage:**
 ```lua
-config_entry = config.config_file:bind(section, key, default_value, description)
+config_entry = rom.config.config_file:bind(section, key, default_value, description)
 ```
 
 ### `remove(section, key)`
@@ -69,7 +69,7 @@ Removes a setting from the config file.
 
 **Example Usage:**
 ```lua
-config.config_file:remove(section, key)
+rom.config.config_file:remove(section, key)
 ```
 
 ### `save()`
@@ -78,7 +78,7 @@ Writes the config to disk.
 
 **Example Usage:**
 ```lua
-config.config_file:save()
+rom.config.config_file:save()
 ```
 
 ### `reload()`
@@ -87,7 +87,7 @@ Reloads the config from disk. Unsaved changes are lost.
 
 **Example Usage:**
 ```lua
-config.config_file:reload()
+rom.config.config_file:reload()
 ```
 
 

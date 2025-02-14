@@ -1,4 +1,4 @@
-# Table: paths
+# Table: rom.paths
 
 Table containing helpers for retrieving project related IO file/folder paths.
 
@@ -13,7 +13,7 @@ Used for data that must persist between sessions and that can be manipulated by 
 
 **Example Usage:**
 ```lua
-string = paths.config()
+string = rom.paths.config()
 ```
 
 ### `plugins_data()`
@@ -25,7 +25,7 @@ Used for data that must persist between sessions but not be manipulated by the u
 
 **Example Usage:**
 ```lua
-string = paths.plugins_data()
+string = rom.paths.plugins_data()
 ```
 
 ### `plugins()`
@@ -37,7 +37,7 @@ Location of .lua, README, manifest.json files.
 
 **Example Usage:**
 ```lua
-string = paths.plugins()
+string = rom.paths.plugins()
 ```
 
 

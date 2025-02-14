@@ -28,6 +28,8 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, PVOID)
 			return true;
 		}
 
+		// Lua API: Namespace
+		// Name: rom
 		rom::init("KCD2ModLoader", "WHGame.dll", "rom");
 
 		// Purposely leak it, we are not unloading this module in any case.

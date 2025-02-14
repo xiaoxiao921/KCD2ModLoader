@@ -1,4 +1,4 @@
-# Table: mods
+# Table: rom.mods
 
 ## Fields (1)
 
@@ -17,7 +17,7 @@ Each mod once loaded will have a key in this table, the key will be their guid s
 
 **Example Usage:**
 ```lua
-table<int, string> = mods.loading_order()
+table<int, string> = rom.mods.loading_order()
 ```
 
 ### `on_all_mods_loaded(callback)`
@@ -29,7 +29,7 @@ Registers a callback that will be called once all mods are loaded. Will be calle
 
 **Example Usage:**
 ```lua
-mods.on_all_mods_loaded(callback)
+rom.mods.on_all_mods_loaded(callback)
 ```
 
 

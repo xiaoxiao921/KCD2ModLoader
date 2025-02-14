@@ -1,4 +1,4 @@
-# Table: memory
+# Table: rom.memory
 
 Table containing helper functions related to process memory.
 
@@ -16,7 +16,7 @@ Scans the specified memory pattern within the target main module and returns a p
 
 **Example Usage:**
 ```lua
-pointer = memory.scan_pattern(pattern)
+pointer = rom.memory.scan_pattern(pattern)
 ```
 
 ### `allocate(size)`
@@ -29,7 +29,7 @@ pointer = memory.scan_pattern(pattern)
 
 **Example Usage:**
 ```lua
-pointer = memory.allocate(size)
+pointer = rom.memory.allocate(size)
 ```
 
 ### `free(ptr)`
@@ -39,7 +39,7 @@ pointer = memory.allocate(size)
 
 **Example Usage:**
 ```lua
-memory.free(ptr)
+rom.memory.free(ptr)
 ```
 
 ### `dynamic_hook(hook_name, return_type, param_types, target_func_ptr, pre_callback, post_callback)`
@@ -48,7 +48,7 @@ memory.free(ptr)
 ```lua
 local ptr = memory.scan_pattern("some ida sig")
 -- Check the implementation of the asmjit::TypeId get_type_id function if you are unsure what to use for return type / parameters types
-memory.dynamic_hook("test_hook", "float", {"const char*"}, ptr,
+rom.memory.dynamic_hook("test_hook", "float", {"const char*"}, ptr,
 function(ret_val, str)
 
      --str:set("replaced str")
@@ -75,7 +75,7 @@ end)
 
 **Example Usage:**
 ```lua
-memory.dynamic_hook(hook_name, return_type, param_types, target_func_ptr, pre_callback, post_callback)
+rom.memory.dynamic_hook(hook_name, return_type, param_types, target_func_ptr, pre_callback, post_callback)
 ```
 
 ### `dynamic_hook_mid(hook_name, param_captures_targets, param_captures_types, stack_restore_offset, target_func_ptr, mid_callback)`
@@ -102,7 +102,7 @@ But scan_pattern may be affected by the other hooks.
 
 **Example Usage:**
 ```lua
-add(246) = memory.dynamic_hook_mid(hook_name, param_captures_targets, param_captures_types, stack_restore_offset, target_func_ptr, mid_callback)
+add(246) = rom.memory.dynamic_hook_mid(hook_name, param_captures_targets, param_captures_types, stack_restore_offset, target_func_ptr, mid_callback)
 ```
 
 ### `dynamic_call(return_type, param_types, target_func_ptr)`
@@ -121,7 +121,7 @@ if ptr:is_valid() then
      src_ptr:set_qword(123)
 
      -- Check the implementation of the asmjit::TypeId get_type_id function if you are unsure what to use for return type / parameters types
-     local func_to_call_test_global_name = memory.dynamic_call("int", {"void*", "uint64_t", "void*", "uint64_t"}, ptr)
+     local func_to_call_test_global_name = rom.memory.dynamic_call("int", {"void*", "uint64_t", "void*", "uint64_t"}, ptr)
      -- print zero.
      log.info(dest_ptr:get_qword())
      -- note: don't pass memory.pointer objects directly when you call the function, but use get_address() instead.
@@ -141,7 +141,7 @@ end
 
 **Example Usage:**
 ```lua
-string = memory.dynamic_call(return_type, param_types, target_func_ptr)
+string = rom.memory.dynamic_call(return_type, param_types, target_func_ptr)
 ```
 
 ### `resolve_pointer_to_type(target_address, target_type)`
@@ -150,9 +150,9 @@ string = memory.dynamic_call(return_type, param_types, target_func_ptr)
 ```lua
 memory.dynamic_hook("test", "RValue*", {"CInstance*","CInstance*","RValue*","int","RValue**"},
 ptr, function (ret_val, skill, player, result, arg_num, args_ptr)
-     log.info(memory.resolve_pointer_to_type(memory.get_usertype_pointer(skill), "YYObjectBase*").skill_id)
-     log.info(memory.resolve_pointer_to_type(args_ptr:deref():get_address(), "RValue*").value)
-     log.info(memory.resolve_pointer_to_type(args_ptr:add(8):deref():get_address(), "RValue*").value)
+     log.info(rom.memory.resolve_pointer_to_type(memory.get_usertype_pointer(skill), "YYObjectBase*").skill_id)
+     log.info(rom.memory.resolve_pointer_to_type(args_ptr:deref():get_address(), "RValue*").value)
+     log.info(rom.memory.resolve_pointer_to_type(args_ptr:add(8):deref():get_address(), "RValue*").value)
 end)
 ```
 
@@ -165,7 +165,7 @@ end)
 
 **Example Usage:**
 ```lua
-lua usertype. = memory.resolve_pointer_to_type(target_address, target_type)
+lua usertype. = rom.memory.resolve_pointer_to_type(target_address, target_type)
 ```
 
 ### `get_usertype_pointer(usertype_object)`
@@ -178,7 +178,7 @@ lua usertype. = memory.resolve_pointer_to_type(target_address, target_type)
 
 **Example Usage:**
 ```lua
-number = memory.get_usertype_pointer(usertype_object)
+number = rom.memory.get_usertype_pointer(usertype_object)
 ```
 
 

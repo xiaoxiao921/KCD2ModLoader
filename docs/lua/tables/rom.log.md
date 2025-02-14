@@ -1,4 +1,4 @@
-# Table: log
+# Table: rom.log
 
 Table containing functions for printing to console / log file.
 
@@ -13,7 +13,7 @@ Logs an informational message.
 
 **Example Usage:**
 ```lua
-log.info(args)
+rom.log.info(args)
 ```
 
 ### `warning(args)`
@@ -25,7 +25,7 @@ Logs a warning message.
 
 **Example Usage:**
 ```lua
-log.warning(args)
+rom.log.warning(args)
 ```
 
 ### `debug(args)`
@@ -37,7 +37,7 @@ Logs a debug message.
 
 **Example Usage:**
 ```lua
-log.debug(args)
+rom.log.debug(args)
 ```
 
 ### `error(arg, level)`
@@ -50,7 +50,7 @@ Logs an error message. This is a mirror of lua classic `error` function.
 
 **Example Usage:**
 ```lua
-log.error(arg, level)
+rom.log.error(arg, level)
 ```
 
 ### `refresh_filters()`
@@ -59,7 +59,7 @@ Refresh the log filters (Console and File) from the config file.
 
 **Example Usage:**
 ```lua
-log.refresh_filters()
+rom.log.refresh_filters()
 ```
 
 
