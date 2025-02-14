@@ -12,7 +12,7 @@ It's using [ReturnOfModdingBase](https://github.com/xiaoxiao921/ReturnOfModdingB
 
 ## Mod Manager Installation
 
-- [Follow the instructions here.](https://github.com/ebkr/r2modmanPlus?tab=readme-ov-file#first-time-installing)
+- TODO
 
 ## Manual Installation
 
