@@ -41,6 +41,8 @@ namespace big::lua_manager_extension
 
 	void init_lua_state(sol::state_view& state, sol::table& lua_ext)
 	{
+		// TODO: Renable some of this stuff
+
 		// Register our cleanup functions when the state get destroyed.
 		{
 			/*sol::table my_takedown_metatable                           = state.create_table_with();
