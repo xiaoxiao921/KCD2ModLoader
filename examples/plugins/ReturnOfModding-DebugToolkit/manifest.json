@@ -1,9 +1,0 @@
-﻿{
-	"name": "DebugToolkit",
-	"version_number": "1.0.0",
-	"website_url": "https://github.com/xiaoxiao921/KCD2ModLoader",
-	"description": "Debug tool for Kingdom Come: Deliverance II",
-	"dependencies": [
-		"KCD2ModLoader-KCD2ModLoader-1.0.0"
-	]
-}

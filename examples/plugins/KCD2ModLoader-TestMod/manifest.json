@@ -1,0 +1,9 @@
+{
+    "name": "TestMod",
+    "version_number": "1.0.0",
+    "website_url": "",
+    "description": "TestMod description",
+    "dependencies": [
+
+    ]
+}
