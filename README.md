@@ -1,12 +1,12 @@
 # KCD2ModLoader
 
-[Kingdom Come: Deliverance II Modding Discord](https://discord.gg/VjS57cszMq)
+[Kingdom Come: Deliverance II Modding Discord](https://discord.gg/8nSKqQCJ)
 
 ---
 
 KCD2ModLoader is a modding plugin / framework for Kingdom Come: Deliverance II.
 
-(A game made with CryEngine)
+(A game made with CryEngine 5)
 
 It's using [ReturnOfModdingBase](https://github.com/xiaoxiao921/ReturnOfModdingBase) as a base. You can check its README for more information on how it works.
 
