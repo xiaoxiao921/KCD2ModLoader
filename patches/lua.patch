@@ -1,7 +1,1678 @@
-﻿diff --git a/lobject.c b/lobject.c
-index a7ee87a6..b6d56118 100644
+﻿diff --git a/bugs b/bugs
+deleted file mode 100644
+index a9f53823..00000000
+--- a/bugs
++++ /dev/null
+@@ -1,1015 +0,0 @@
+---[=[
+-** lua.stx / llex.c
+-Tue Dec  2 10:45:48 EDT 1997
+->> BUG: "lastline" was not reset on function entry, so debug information
+->> started only in the 2nd line of a function.
+-
+-
+-
+-=================================================================
+---- Version 3.1 alpha
+-
+-** lua.c
+-Thu Jan 15 14:34:58 EDT 1998
+->> must include "stdlib.h" (for "exit()").
+-
+-** lbuiltin.c / lobject.h
+-Thu Jan 15 14:34:58 EDT 1998
+->> MAX_WORD may be bigger than MAX_INT
+-(by lhf)
+-
+-** llex.c
+-Mon Jan 19 18:17:18 EDT 1998
+->> wrong line number (+1) in error report when file starts with "#..."
+-
+-** lstrlib.c
+-Tue Jan 27 15:27:49 EDT 1998
+->> formats like "%020d" were considered too big (3 digits); moreover,
+->> some sistems limit printf to at most 500 chars, so we can limit sizes
+->> to 2 digits (99).
+-
+-** lapi.c
+-Tue Jan 27 17:12:36 EDT 1998
+->> "lua_getstring" may create a new string, so should check GC
+-
+-** lstring.c / ltable.c
+-Wed Jan 28 14:48:12 EDT 1998
+->> tables can become full of "empty" slots, and keep growing without limits.
+-
+-** lstrlib.c
+-Mon Mar  9 15:26:09 EST 1998
+->> gsub('a', '(b?)%1*' ...) loops (because the capture is empty).
+-
+-** lstrlib.c
+-Mon May 18 19:20:00 EST 1998
+->> arguments for "format" 'x', 'X', 'o' and 'u' must be unsigned int.
+-
+-
+-
+-=================================================================
+---- Version 3.1
+-
+-** liolib.c / lauxlib.c
+-Mon Sep  7 15:57:02 EST 1998
+->> function "luaL_argerror" prints wrong argument number (from a user's point
+-of view) when functions have upvalues.
+-
+-** lstrlib.c
+-Tue Nov 10 17:29:36 EDT 1998
+->> gsub/strfind do not check whether captures are properly finished.
+-(by roberto/tomas)
+-
+-** lbuiltin.c
+-Fri Dec 18 11:22:55 EDT 1998
+->> "tonumber" goes crazy with negative numbers in other bases (not 10),
+-because "strtol" returns long, not unsigned long.
+-(by Visual C++)
+-
+-** lstrlib.c
+-Mon Jan  4 10:41:40 EDT 1999
+->> "format" does not check size of format item (such as "%00000...00000d").
+-
+-** lapi.c
+-Wed Feb  3 14:40:21 EDT 1999
+->> getlocal cannot return the local itself, since lua_isstring and
+-lua_isnumber can modify it.
+-
+-** lstrlib.c
+-Thu Feb  4 17:08:50 EDT 1999
+->> format "%s" may break limit of "sprintf" on some machines.
+-(by Marcelo Sales)
+-
+-** lzio.c
+-Thu Mar  4 11:49:37 EST 1999
+->> file stream cannot call fread after EOF.
+-(by lhf)
+-
+-
+-
+-=================================================================
+---- Version 3.2 (beta)
+-
+-** lstrlib.c
+-Fri Apr 30 11:10:20 EST 1999
+->> '$' at end of pattern was matching regular '$', too.
+-(by anna; since 2.5)
+-
+-** lbuiltin.c
+-Fri May 21 17:15:11 EST 1999
+->> foreach, foreachi, foreachvar points to function in stack when stack
+-can be reallocated.
+-(by tomas; since 3.2 beta)
+-
+-** lparser.c
+-Wed Jun 16 10:32:46 EST 1999
+->> cannot assign to unlimited variables, because it causes overflow in
+-the number of returns of a function.
+-(since 3.1)
+-
+-
+-
+-=================================================================
+---- Version 3.2
+-
+-** lmathlib.c
+-Wed Aug 18 11:28:38 EST 1999
+->> random(0) and random(x,0) are wrong (0 is read as no argument!).
+-(by Dave Bollinger; since 3.1)
+-
+-** lparser.c
+-Thu Sep  2 10:07:20 EST 1999
+->> in the (old) expression << ls->fs->f->consts[checkname(ls)] >>, checkname
+-could realloc f->consts.
+-(by Supratik Champati; since 3.2 beta)
+-
+-** lobject.c / lbuiltin.c
+-Wed Sep  8 17:41:54 EST 1999
+->> tonumber'e1' and tonumber('  ', x), for x!=10, gave 0 instead of nil.
+-(since 3.1)
+-
+-** lstrlib.c
+-Thu Nov 11 14:36:30 EDT 1999
+->> `strfind' does not handle \0 in plain search.
+-(by Jon Kleiser; since 3.1)
+-
+-** lparser.c
+-Wed Dec 29 16:05:43 EDT 1999
+->> return gives wrong line in debug information
+-(by lhf; since 3.2 [at least])
+-
+-** ldo.c
+-Thu Dec 30 16:39:33 EDT 1999
+->> cannot reopen stdin (for binary mode)
+-(by lhf & roberto; since 3.1)
+-
+-** lapi.c
+-Thu Mar  2 09:41:53 EST 2000
+->> lua_settable should check stack space (it could call a T.M.)
+-(by lhf & celes; since 3.2; it was already fixed by fixed stack)
+-
+-** lparser.c
+-Mon Apr  3 09:59:06 EST 2000
+->> '%' should be in expfollow
+-(by Edgar Toernig; since 3.1; it was already fixed)
+-
+-** lbuiltin.c
+-Mon Apr  3 10:05:05 EST 2000
+->> tostring() without arguments gives seg. fault.
+-(by Edgar Toernig; since 3.0)
+-
+-
+-
+-=================================================================
+---- Version 4.0 alpha
+-
+-Tested with full test suites (as locked in Mon Apr 24 14:23:11 EST 2000)
+-in the following platforms:
+-* Linux   - gcc, g++
+-* AIX     - gcc
+-* Solaris - gcc, cc
+-* IRIX	  - cc, cc-purify
+-* Windows - Visual C++ (.c e .cpp, warning level=4)
+-
+-
+-** lstrlib.c
+-Tue May  2 15:27:58 EST 2000
+->> `strfind' gets wrong subject length when there is an offset
+-(by Jon Kleiser; since 4.0a)
+-
+-** lparser.c
+-Fri May 12 15:11:12 EST 2000
+->> first element in a list constructor is not adjusted to one value
+->> (e.g. ½a = {gsub('a','a','')}╗)
+-(by Tomas; since 4.0a)
+-
+-** lparser.c
+-Wed May 24 14:50:16 EST 2000
+->> record-constructor starting with an upvalue name gets an error
+->> (e.g. ½local a; function f() x = {a=1} end╗)
+-(by Edgar Toernig; since 3.1)
+-
+-** lparser.c
+-Tue Aug 29 15:56:05 EST 2000
+->> error message for `for' uses `while'
+-(since 4.0a; already corrected)
+-
+-** lgc.c
+-Tue Aug 29 15:57:41 EST 2000
+->> gc tag method for nil could call line hook
+-(by ry; since ?)
+-
+-
+-
+-=================================================================
+---- Version 4.0 Beta
+-
+-** liolib.c
+-Fri Sep 22 15:12:37 EST 2000
+->> `read("*w")' should return nil at EOF
+-(by roberto; since 4.0b)
+-
+-** lvm.c
+-Mon Sep 25 11:47:48 EST 2000
+->> lua_gettable does not get key from stack top
+-(by Philip Yi; since 4.0b)
+-
+-** lgc.c
+-Mon Sep 25 11:50:48 EST 2000
+->> GC may crash when checking locked C closures
+-(by Philip Yi; since 4.0b)
+-
+-** lapi.c
+-Wed Sep 27 09:50:19 EST 2000
+->> lua_tag should return LUA_NOTAG for non-valid indices
+-(by Paul Hankin; since 4.0b)
+-
+-** llex.h / llex.c / lparser.c
+-Wed Sep 27 13:39:45 EST 2000
+->> parser overwrites semantic information when looking ahead
+->> (e.g. ½a = {print'foo'}╗)
+-(by Edgar Toernig; since 4.0b, deriving from previous bug)
+-
+-** liolib.c
+-Thu Oct 26 10:50:46 EDT 2000
+->> in function `read_file', realloc() doesn't free the buffer if it can't
+->> allocate new memory
+-(by Mauro Vezzosi; since 4.0b)
+-
+-
+-
+-=================================================================
+---- Version 4.0
+-
+-** lparser.c
+-Wed Nov 29 09:51:44 EDT 2000
+->> parser does not accept a `;' after a `return'
+-(by lhf; since 4.0b)
+-
+-** liolib.c
+-Fri Dec 22 15:30:42 EDT 2000
+->> when `read' fails it must return nil (and not no value)
+-(by cassino; since at least 3.1)
+-
+-** lstring.c/lapi.c
+-Thu Feb  1 11:55:45 EDT 2001
+->> lua_pushuserdata(L, NULL) is buggy
+-(by Edgar Toernig; since 4.0)
+-
+-** ldo.c
+-Fri Feb  2 14:06:40 EDT 2001
+->> ½while 1 dostring[[print('hello\n')]] end╗ never reclaims memory
+-(by Andrew Paton; since 4.0b)
+-
+-** lbaselib.c
+-Tue Feb  6 11:57:13 EDT 2001
+->> ESC (which starts precompiled code) in C is \33, not \27
+-(by Edgar Toernig and lhf; since 4.0b)
+-
+-** lparser.c
+-Tue Jul 10 16:59:18 EST 2001
+->> error message for `%a' gave wrong line number
+-(by Leonardo Constantino; since 4.0)
+-
+-** lbaselib.c
+-Fri Dec 21 15:21:05 EDT 2001
+->> seg. fault when rawget/rawset get extra arguments
+-(by Eric Mauger; since 4.0b)
+-
+-** lvm.c
+-Wed Jun 19 13:28:20 EST 2002
+->> line hook gets wrong `ar'
+-(by Daniel C. Sinclair; since 4.0.b)
+-
+-** ldo.c
+-Wed Jun 19 13:31:49 EST 2002
+->> `protectedparser' may run GC, and then collect `filename'
+->> (in function `parse_file')
+-(by Alex Bilyk; since 4.0)
+-
+-
+-
+-
+-=================================================================
+---- Version 5.0 alpha
+-
+-** lgc.c
+-Fri Aug 30 13:49:14 EST 2002
+->> GC metamethod stored in a weak metatable being collected together with
+->> userdata may not be cleared properly
+-(by Roberto; since 5.0a)
+-
+-** lapi.c
+-Thu Nov 21 11:00:00 EST 2002
+->> ULONG_MAX>>10 may not fit into an int
+-(by Jeff Petkau; since 4.0)
+-
+-** lparser.c
+-Fri Dec  6 17:06:40 UTC 2002
+->> scope of generic for variables is not sound
+-(by Gavin Wraith; since 5.0a)
+-
+-
+-
+-
+-=================================================================
+---- Version 5.0 beta
+-** lbaselib.c
+-Fri Dec 20 09:53:19 UTC 2002
+->> `resume' was checking the wrong value for stack overflow
+-(by Maik Zimmermann; since 5.0b)
+-
+-** ldo.c
+-Thu Jan 23 11:29:06 UTC 2003
+->> error during garbage collection in luaD_protectedparser is not being
+->> protected
+-(by Benoit Germain; since 5.0a)
+-
+-** ldo.c (and others)
+-Fri Feb 28 14:20:33 EST 2003
+->> GC metamethod calls could mess C/Lua stack syncronization
+-(by Roberto; since 5.0b)
+-
+-** lzio.h/zlio.c
+-Thu Mar 20 11:40:12 EST 2003
+->> zio mixes a 255 as first char in a buffer with EOZ
+-(by lhf; since 5.0a)
+-
+-
+-
+---]=]
+------------------------------------------------------------------
+--- Lua 5.0 (final)
+-
+-Bug{
+-what = [[lua_closethread exists only in the manual]],
+-report = [[by Nguyen Binh, 28/04/2003]],
+-patch = [[no patch; the manual is wrong]],
+-}
+-
+-
+-Bug{
+-what = [[attempt to resume a running coroutine crashes Lua]],
+-example = [[
+-function co_func (current_co)
+-   coroutine.resume(co)
+-end
+-co = coroutine.create(co_func)
+-coroutine.resume(co)
+-coroutine.resume(co)     --> seg. fault
+-]],
+-report = [[by Alex Bilyk, 09/05/2003]], 
+-patch = [[
+-* ldo.c:
+-325,326c325
+-<     if (nargs >= L->top - L->base)
+-<       luaG_runerror(L, "cannot resume dead coroutine");
+----
+->     lua_assert(nargs < L->top - L->base);
+-329c328,329
+-<   else if (ci->state & CI_YIELD) {  /* inside a yield? */
+----
+->   else {  /* inside a yield */
+->     lua_assert(ci->state & CI_YIELD);
+-344,345d343
+-<   else
+-<     luaG_runerror(L, "cannot resume non-suspended coroutine");
+-351a350,358
+-> static int resume_error (lua_State *L, const char *msg) {
+->   L->top = L->ci->base;
+->   setsvalue2s(L->top, luaS_new(L, msg));
+->   incr_top(L);
+->   lua_unlock(L);
+->   return LUA_ERRRUN;
+-> }
+-> 
+-> 
+-355a363,368
+->   if (L->ci == L->base_ci) {
+->     if (nargs >= L->top - L->base)
+->       return resume_error(L, "cannot resume dead coroutine");
+->   }
+->   else if (!(L->ci->state & CI_YIELD))  /* not inside a yield? */
+->     return resume_error(L, "cannot resume non-suspended coroutine");
+-]],
+-}
+-
+-
+-Bug{
+-what = [[file:close cannot be called without a file. (results in seg fault)]],
+-example = [[
+-> io.stdin.close()    -- correct call shold be io.stdin:close()
+-]],
+-report = [[by Tuomo Valkonen, 27/05/2003]], 
+-patch = [[
+-* liolib.c:
+-161c161
+-<   if (lua_isnone(L, 1)) {
+----
+->   if (lua_isnone(L, 1) && lua_type(L, lua_upvalueindex(1)) == LUA_TTABLE) {
+-]],   --}}
+-}
+-
+-
+-Bug{
+-what = [[C functions also may have stacks larger than current top]],
+-example = [[
+-Must recompile lua with a change in lua.c and with lua_assert defined:
+-* lua.c:
+-381a382
+->   lua_checkstack(l, 1000);
+-]],
+-report = [[Alex Bilyk, 09/06/2003]],
+-patch = [[
+-* lgc.c:
+-247c247
+-<     if (!(ci->state & CI_C) && lim < ci->top)
+----
+->     if (lim < ci->top)
+-]],
+-}
+-
+-
+-Bug{
+-what = [[`pc' address is invalidated when a coroutine is suspended]],
+-example = [[
+-function g(x)
+-    coroutine.yield(x)
+-end
+-
+-function f (i)
+-  debug.sethook(print, "l")
+-  for j=1,1000 do
+-    g(i+j)
+-  end
+-end
+-
+-co = coroutine.wrap(f)
+-co(10)
+-pcall(co)
+-pcall(co)
+-]],
+-report = [[Nick Trout, 07/07/2003]],
+-patch = [[
+-* lvm.c:
+-402,403c402,403
+-<   L->ci->u.l.pc = &pc;
+-<   if (L->hookmask & LUA_MASKCALL)
+----
+->   if (L->hookmask & LUA_MASKCALL) {
+->     L->ci->u.l.pc = &pc;
+-404a405
+->   }
+-405a407
+->   L->ci->u.l.pc = &pc;
+-676,678c678
+-<           lua_assert(ci->u.l.pc == &pc &&
+-<                      ttisfunction(ci->base - 1) &&
+-<                      (ci->state & CI_SAVEDPC));
+----
+->           lua_assert(ttisfunction(ci->base - 1) && (ci->state & CI_SAVEDPC));
+-]]
+-}
+-
+-
+-Bug{
+-what = [[userdata to be collected still counts into new GC threshold,
+-increasing memory consumption]],
+-report = [[Roberto, 25/07/2003]],
+-example = [[
+-a = newproxy(true)
+-getmetatable(a).__gc = function () end
+-for i=1,10000000 do
+-  newproxy(a)
+-  if math.mod(i, 10000) == 0 then print(gcinfo()) end
+-end
+-]],
+-patch = [[
+-* lgc.h:
+-18c18
+-< void luaC_separateudata (lua_State *L);
+----
+-> size_t luaC_separateudata (lua_State *L);
+-
+-* lgc.c:
+-113c113,114
+-< void luaC_separateudata (lua_State *L) {
+----
+-> size_t luaC_separateudata (lua_State *L) {
+->   size_t deadmem = 0;
+-127a129
+->       deadmem += sizeudata(gcotou(curr)->uv.len);
+-136a139
+->   return deadmem;
+-390c393
+-< static void checkSizes (lua_State *L) {
+----
+-> static void checkSizes (lua_State *L, size_t deadmem) {
+-400c403
+-<   G(L)->GCthreshold = 2*G(L)->nblocks;  /* new threshold */
+----
+->   G(L)->GCthreshold = 2*G(L)->nblocks - deadmem;  /* new threshold */
+-454c457,458
+-< static void mark (lua_State *L) {
+----
+-> static size_t mark (lua_State *L) {
+->   size_t deadmem;
+-467c471
+-<   luaC_separateudata(L);  /* separate userdata to be preserved */
+----
+->   deadmem = luaC_separateudata(L);  /* separate userdata to be preserved */
+-475a480
+->   return deadmem;
+-480c485
+-<   mark(L);
+----
+->   size_t deadmem = mark(L);
+-482c487
+-<   checkSizes(L);
+----
+->   checkSizes(L, deadmem);
+-]]
+-}
+-
+-Bug{
+-what=[[IBM AS400 (OS400) has sizeof(void *)==16, and a `%p' may generate
+-up to 60 characters in a `printf'. That causes a buffer overflow in
+-`tostring'.]],
+-
+-report = [[David Burgess, 25/08/2003]],
+-
+-example = [[print{}; (in an AS400 machine)]],
+-
+-patch = [[
+-* liolib.c:
+-178c178
+-<   char buff[32];
+----
+->   char buff[128];
+-
+-* lbaselib.c:
+-327c327
+-<   char buff[64];
+----
+->   char buff[128];
+-]]
+-}
+-
+-
+-Bug{
+-what = [[syntax `local function' does not increment stack size]],
+-
+-report = [[Rici Lake, 26/09/2003]],
+-
+-example = [[
+--- must run this with precompiled code
+-local a,b,c
+-local function d () end
+-]],
+-
+-patch = [[
+-* lparser.c:
+-1143a1144
+->   FuncState *fs = ls->fs;
+-1145c1146,1147
+-<   init_exp(&v, VLOCAL, ls->fs->freereg++);
+----
+->   init_exp(&v, VLOCAL, fs->freereg);
+->   luaK_reserveregs(fs, 1);
+-1148c1150,1152
+-<   luaK_storevar(ls->fs, &v, &b);
+----
+->   luaK_storevar(fs, &v, &b);
+->   /* debug information will only see the variable after this point! */
+->   getlocvar(fs, fs->nactvar - 1).startpc = fs->pc;
+-]],
+-
+-}
+-
+-
+-Bug{
+-
+-what = [[count hook may be called without being set]],
+-
+-report = [[Andreas Stenius, 06/10/2003]],
+-
+-example = [[
+-set your hooks with
+-
+-  lua_sethook(L, my_hook, LUA_MASKLINE | LUA_MASKRET, 1);
+-
+-(It is weird to use a count > 0 without setting the count hook,
+-but it is not wrong.)
+-]],
+-
+-patch = [[
+-* lvm.c:
+-69c69
+-<   if (mask > LUA_MASKLINE) {  /* instruction-hook set? */
+----
+->   if (mask & LUA_MASKCOUNT) {  /* instruction-hook set? */
+-]],
+-
+-}
+-
+-
+-Bug{
+-
+-what = [[`dofile' eats one return value when called without arguments]],
+-
+-report = [[Frederico Abraham, 15/01/2004]],
+-
+-example = [[
+-a,b = dofile()   --< here you enter `return 1,2,3 <eof>'
+-print(a,b)   --> 2   3   (should be 1 and 2)
+-]],
+-
+-patch = [[
+-* lbaselib.c:
+-313a314
+->   int n = lua_gettop(L);
+-317c318
+-<   return lua_gettop(L) - 1;
+----
+->   return lua_gettop(L) - n;
+-]],
+-
+-}
+-
+-
+-
+------------------------------------------------------------------
+--- Lua 5.0.2
+-
+-Bug{
+-what = [[string concatenation may cause arithmetic overflow, leading
+-to a buffer overflow]],
+-
+-report = [[Rici Lake, 20/05/2004]],
+-
+-example = [[
+-longs = string.rep("\0", 2^25)
+-function catter(i)
+-    return assert(loadstring(
+-      string.format("return function(a) return a%s end",
+-                     string.rep("..a", i-1))))()
+-end
+-rep129 = catter(129)
+-rep129(longs)
+-]],
+-
+-patch = [[
+-* lvm.c:
+-@@ -321,15 +321,15 @@
+-         luaG_concaterror(L, top-2, top-1);
+-     } else if (tsvalue(top-1)->tsv.len > 0) {  /* if len=0, do nothing */
+-       /* at least two string values; get as many as possible */
+--      lu_mem tl = cast(lu_mem, tsvalue(top-1)->tsv.len) +
+--                  cast(lu_mem, tsvalue(top-2)->tsv.len);
+-+      size_t tl = tsvalue(top-1)->tsv.len;
+-       char *buffer;
+-       int i;
+--      while (n < total && tostring(L, top-n-1)) {  /* collect total length */
+--        tl += tsvalue(top-n-1)->tsv.len;
+--        n++;
+-+      /* collect total length */
+-+      for (n = 1; n < total && tostring(L, top-n-1); n++) {
+-+        size_t l = tsvalue(top-n-1)->tsv.len;
+-+        if (l >= MAX_SIZET - tl) luaG_runerror(L, "string length overflow");
+-+        tl += l;
+-       }
+--      if (tl > MAX_SIZET) luaG_runerror(L, "string size overflow");
+-       buffer = luaZ_openspace(L, &G(L)->buff, tl);
+-       tl = 0;
+-       for (i=n; i>0; i--) {  /* concat all strings */
+-]]
+-}
+-
+-
+-Bug{
+-what = [[lua_getupvalue and setupvalue do not check for index too small]],
+-
+-report = [[Mike Pall, ?/2004]],
+-
+-example = [[debug.getupvalue(function() end, 0)]],
+-
+-patch = [[
+-* lapi.c
+-941c941
+-<     if (n > f->c.nupvalues) return NULL;
+----
+->     if (!(1 <= n && n <= f->c.nupvalues)) return NULL;
+-947c947
+-<     if (n > p->sizeupvalues) return NULL;
+----
+->     if (!(1 <= n && n <= p->sizeupvalues)) return NULL;
+-]]
+-}
+-
+-
+-Bug{
+-what = [[values holded in open upvalues of suspended threads may be
+-incorrectly collected]],
+-
+-report = [[Spencer Schumann, 31/12/2004]],
+-
+-example = [[
+-local thread_id = 0
+-local threads = {}
+-
+-function fn(thread)
+-    thread_id = thread_id + 1
+-    threads[thread_id] = function()
+-                             thread = nil
+-                         end
+-    coroutine.yield()
+-end
+-
+-while true do
+-    local thread = coroutine.create(fn)
+-    coroutine.resume(thread, thread)
+-end
+-]],
+-
+-patch = [[
+-* lgc.c:
+-221,224c221,222
+-<       if (!u->marked) {
+-<         markobject(st, &u->value);
+-<         u->marked = 1;
+-<       }
+----
+->       markobject(st, u->v);
+->       u->marked = 1;
+-]],
+-}
+-
+-
+-Bug{
+-what = [[rawset/rawget do not ignore extra arguments]],
+-
+-report = [[Romulo Bahiense, 11/03/2005]],
+-
+-example = [[
+-a = {}
+-rawset(a, 1, 2, 3)
+-print(a[1], a[2])    -- should be 2 and nil
+-]],
+-
+-patch = [[
+-* lbaselib.c:
+-175a176
+->   lua_settop(L, 2);
+-183a185
+->   lua_settop(L, 3);
+-]],
+-}
+-
+-
+-Bug{
+-what = [[weak tables that survive one collection are never collected]],
+-
+-report = [[Chromix, 02/01/2006]],
+-
+-example = [[
+-a = {}
+-print(gcinfo())
+-for i = 1, 10000 do
+-  a[i] = setmetatable({}, {__mode = "v"})
+-end
+-collectgarbage()
+-a = nil
+-collectgarbage()
+-print(gcinfo())
+-]],
+-
+-patch = [[
+-* lgc.c
+-@@ -366,7 +366,7 @@
+-   GCObject *curr;
+-   int count = 0;  /* number of collected items */
+-   while ((curr = *p) != NULL) {
+--    if (curr->gch.marked > limit) {
+-+    if ((curr->gch.marked & ~(KEYWEAK | VALUEWEAK)) > limit) {
+-       unmark(curr);
+-       p = &curr->gch.next;
+-     }
+-]],
+-
+-}
+-
+-
+-
+------------------------------------------------------------------
+--- Lua 5.1
+-
+-Bug{
+-what = [[In 16-bit machines, expressions and/or with numeric constants as the
+-right operand may result in weird values]],
+-
+-report = [[Andreas Stenius/Kein-Hong Man, 15/03/2006]],
+-
+-example = [[
+-print(false or 0)   -- on 16-bit machines
+-]],
+-
+-patch = [[
+-* lcode.c:
+-@@ -731,17 +731,15 @@
+-     case OPR_AND: {
+-       lua_assert(e1->t == NO_JUMP);  /* list must be closed */
+-       luaK_dischargevars(fs, e2);
+--      luaK_concat(fs, &e1->f, e2->f);
+--      e1->k = e2->k; e1->u.s.info = e2->u.s.info;
+--      e1->u.s.aux = e2->u.s.aux; e1->t = e2->t;
+-+      luaK_concat(fs, &e2->f, e1->f);
+-+      *e1 = *e2;
+-       break;
+-     }
+-     case OPR_OR: {
+-       lua_assert(e1->f == NO_JUMP);  /* list must be closed */
+-       luaK_dischargevars(fs, e2);
+--      luaK_concat(fs, &e1->t, e2->t);
+--      e1->k = e2->k; e1->u.s.info = e2->u.s.info;
+--      e1->u.s.aux = e2->u.s.aux; e1->f = e2->f;
+-+      luaK_concat(fs, &e2->t, e1->t);
+-+      *e1 = *e2;
+-       break;
+-     }
+-]],
+-
+-}
+-
+-
+-Bug{
+-what = [[luaL_checkudata may produce wrong error message]],
+-
+-report = [[Greg Falcon, 21/03/2006]],
+-
+-example = [[
+-getmetatable(io.stdin).__gc()
+-  --> bad argument #1 to '__gc' (FILE* expected, got table)
+-]],
+-
+-patch = [[
+-* lauxlib.c:
+-@@ -123,11 +123,17 @@
+-
+- LUALIB_API void *luaL_checkudata (lua_State *L, int ud, const char *tname) {
+-   void *p = lua_touserdata(L, ud);
+--  lua_getfield(L, LUA_REGISTRYINDEX, tname);  /* get correct metatable */
+--  if (p == NULL || !lua_getmetatable(L, ud) || !lua_rawequal(L, -1, -2))
+--    luaL_typerror(L, ud, tname);
+--  lua_pop(L, 2);  /* remove both metatables */
+--  return p;
+-+  if (p != NULL) {  /* value is a userdata? */
+-+    if (lua_getmetatable(L, ud)) {  /* does it have a metatable? */
+-+      lua_getfield(L, LUA_REGISTRYINDEX, tname);  /* get correct metatable */
+-+      if (lua_rawequal(L, -1, -2)) {  /* does it have the correct mt? */
+-+        lua_pop(L, 2);  /* remove both metatables */
+-+        return p;
+-+      }
+-+    }
+-+  }
+-+  luaL_typerror(L, ud, tname);  /* else error */
+-+  return NULL;  /* to avoid warnings */
+- }
+-]]
+-
+-}
+-
+-
+-Bug{
+-what = [[
+-In Windows,
+-when Lua is used in an application that also uses DirectX,
+-it may present an erractic behavior.
+-THIS IS NOT A LUA BUG!
+-The problem is that DirectX violates an ABI that Lua depends on.]],
+-
+-patch = [[
+-The simplest solution is to use DirectX with
+-the D3DCREATE_FPU_PRESERVE flag.
+-
+-Otherwise, you can change the definition of lua_number2int,
+-in luaconf.h, to this one:
+-#define lua_number2int(i,d)   __asm fld d   __asm fistp i
+-]],
+-
+-}
+-
+-
+-Bug{
+-what = [[option '%q' in string.format does not handle '\r' correctly.]],
+-
+-example = [[
+-local s = "a string with \r and \n and \r\n and \n\r"
+-local c = string.format("return %q", s)
+-assert(assert(loadstring(c))() == s)
+-]],
+-
+-patch = [[
+-* lstrlib.c:
+-@@ -703,6 +703,10 @@
+-         luaL_addchar(b, *s);
+-         break;
+-       }
+-+      case '\r': {
+-+        luaL_addlstring(b, "\\r", 2);
+-+        break;
+-+      }
+-       case '\0': {
+-         luaL_addlstring(b, "\\000", 4);
+-         break;
+-]],
+-
+-}
+-
+-
+-Bug{
+-what = [[lua_dostring/lua_dofile should return any values returned
+-by the chunk]],
+-
+-patch = [[
+-* lauxlib.h:
+-@@ -108,9 +108,11 @@
+-
+- #define luaL_typename(L,i)     lua_typename(L, lua_type(L,(i)))
+-
+--#define luaL_dofile(L, fn)     (luaL_loadfile(L, fn) || lua_pcall(L, 0, 0, 0))
+-+#define luaL_dofile(L, fn) \
+-+       (luaL_loadfile(L, fn) || lua_pcall(L, 0, LUA_MULTRET, 0))
+-
+--#define luaL_dostring(L, s)    (luaL_loadstring(L, s) || lua_pcall(L, 0, 0, 0))+#define luaL_dostring(L, s) \
+-+       (luaL_loadstring(L, s) || lua_pcall(L, 0, LUA_MULTRET, 0))
+-
+- #define luaL_getmetatable(L,n) (lua_getfield(L, LUA_REGISTRYINDEX, (n)))
+-]],
+-
+-}
+-
+-
+-Bug{
+-
+-what = [[garbage collector does not compensate enough for finalizers]],
+-
+-patch = [[
+-lgc.c:
+-@@ -322,4 +322,6 @@
+-
+--static void propagateall (global_State *g) {
+--  while (g->gray) propagatemark(g);
+-+static size_t propagateall (global_State *g) {
+-+  size_t m = 0;
+-+  while (g->gray) m += propagatemark(g);
+-+  return m;
+- }
+-@@ -542,3 +544,3 @@
+-   marktmu(g);  /* mark `preserved' userdata */
+--  propagateall(g);  /* remark, to propagate `preserveness' */
+-+  udsize += propagateall(g);  /* remark, to propagate `preserveness' */
+-   cleartable(g->weak);  /* remove collected objects from weak tables */
+-@@ -592,2 +594,4 @@
+-         GCTM(L);
+-+        if (g->estimate > GCFINALIZECOST)
+-+          g->estimate -= GCFINALIZECOST;
+-]]
+-}
+-
+-
+-But{
+-
+-what = [[debug hooks may get wrong when mixed with coroutines]],
+-
+-report = [[by Ivko Stanilov, 03/06/2006]],
+-
+-example = [[
+-co = coroutine.create(function (a,b)
+-   coroutine.yield(a, b)
+-   return b, "end"
+-end)
+-
+-debug.sethook(co, function() end, "lcr")
+-coroutine.resume(co, 100, 2000)
+-coroutine.resume(co, 100, 2000)
+-]],
+-
+-patch = [[
+-* ldo.c:
+-@@ -389,6 +389,7 @@
+-       return;
+-   }
+-   else {  /* resuming from previous yield */
+-+    L->status = 0;
+-     if (!f_isLua(ci)) {  /* `common' yield? */
+-       /* finish interrupted execution of `OP_CALL' */
+-       lua_assert(GET_OPCODE(*((ci-1)->savedpc - 1)) == OP_CALL ||
+-@@ -399,7 +400,6 @@
+-     else  /* yielded inside a hook: just continue its execution */
+-       L->base = L->ci->base;
+-   }
+--  L->status = 0;
+-   luaV_execute(L, cast_int(L->ci - L->base_ci));
+- }
+-]],
+-
+-}
+diff --git a/lapi.c b/lapi.c
+index 0fa66eb4..b80426c7 100644
+--- a/lapi.c
++++ b/lapi.c
+@@ -1,12 +1,18 @@
+ /*
+-** $Id: lapi.c,v 2.54 2006/06/02 15:34:00 roberto Exp roberto $
++** $Id: lapi.c,v 2.55 2006/06/07 12:37:17 roberto Exp $
+ ** Lua API
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <assert.h>
+-#include <math.h>
++#if defined(PS3) && defined(PS3OPT) && !defined(__SPU__)
++	#define MATH_H <fastmath.h>
++#else
++	#define MATH_H <math.h>
++#endif
++#include MATH_H
++
+ #include <stdarg.h>
+ #include <string.h>
+ 
+@@ -875,7 +881,7 @@ LUA_API int lua_dump (lua_State *L, lua_Writer writer, void *data) {
+   api_checknelems(L, 1);
+   o = L->top - 1;
+   if (isLfunction(o))
+-    status = luaU_dump(L, clvalue(o)->l.p, writer, data, 0);
++    status = luaU_dump(L, clvalue(o)->l.p, writer, data, 0, 0);
+   else
+     status = 1;
+   lua_unlock(L);
+diff --git a/lapi.h b/lapi.h
+index bb522de5..9d1d4356 100644
+--- a/lapi.h
++++ b/lapi.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lapi.h,v 2.1 2003/12/10 12:13:36 roberto Exp roberto $
++** $Id: lapi.h,v 2.2 2005/04/25 19:24:10 roberto Exp $
+ ** Auxiliary functions from Lua API
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lauxlib.c b/lauxlib.c
+index 402dcd80..fedba2da 100644
+--- a/lauxlib.c
++++ b/lauxlib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lauxlib.c,v 1.158 2006/01/16 12:42:21 roberto Exp roberto $
++** $Id: lauxlib.c,v 1.159 2006/03/21 19:31:09 roberto Exp $
+ ** Auxiliary functions for building Lua libraries
+ ** See Copyright Notice in lua.h
+ */
+@@ -572,7 +572,7 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
+   }
+   if (c == LUA_SIGNATURE[0] && lf.f != stdin) {  /* binary file? */
+     fclose(lf.f);
+-    lf.f = fopen(filename, "rb");  /* reopen in binary mode */
++    lf.f = filename ? fopen(filename, "rb") : 0;  /* reopen in binary mode */
+     if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
+     /* skip eventual `#!...' */
+    while ((c = getc(lf.f)) != EOF && c != LUA_SIGNATURE[0]) ;
+diff --git a/lauxlib.h b/lauxlib.h
+index f7b02db5..1f343086 100644
+--- a/lauxlib.h
++++ b/lauxlib.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lauxlib.h,v 1.87 2005/12/29 15:32:11 roberto Exp roberto $
++** $Id: lauxlib.h,v 1.88 2006/04/12 20:31:15 roberto Exp $
+ ** Auxiliary functions for building Lua libraries
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lbaselib.c b/lbaselib.c
+index 4bd6a1f9..161bd4c5 100644
+--- a/lbaselib.c
++++ b/lbaselib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lbaselib.c,v 1.190 2006/05/31 16:50:40 roberto Exp roberto $
++** $Id: lbaselib.c,v 1.191 2006/06/02 15:34:00 roberto Exp $
+ ** Basic library
+ ** See Copyright Notice in lua.h
+ */
+@@ -209,7 +209,7 @@ static int luaB_collectgarbage (lua_State *L) {
+       return 1;
+     }
+     default: {
+-      lua_pushnumber(L, res);
++      lua_pushnumber(L, (lua_Number)res);
+       return 1;
+     }
+   }
+@@ -621,7 +621,7 @@ static void base_open (lua_State *L) {
+   luaL_register(L, "_G", base_funcs);
+   lua_pushliteral(L, LUA_VERSION);
+   lua_setglobal(L, "_VERSION");  /* set global _VERSION */
+-  /* `ipairs' and `pairs' need auxiliary functions as upvalues */
++  /* `ipairs' and `pairs' need auxliliary functions as upvalues */
+   auxopen(L, "ipairs", luaB_ipairs, ipairsaux);
+   auxopen(L, "pairs", luaB_pairs, luaB_next);
+   /* `newproxy' needs a weaktable as upvalue */
+diff --git a/lcode.c b/lcode.c
+index b8ba2a98..6a017da0 100644
+--- a/lcode.c
++++ b/lcode.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lcode.c,v 2.24 2005/12/22 16:19:56 roberto Exp roberto $
++** $Id: lcode.c,v 2.25 2006/03/21 19:28:49 roberto Exp $
+ ** Code generator for Lua
+ ** See Copyright Notice in lua.h
+ */
+@@ -641,9 +641,9 @@ static int constfolding (OpCode op, expdesc *e1, expdesc *e2) {
+       r = luai_numdiv(v1, v2); break;
+     case OP_MOD:
+       if (v2 == 0) return 0;  /* do not attempt to divide by 0 */
+-      r = luai_nummod(v1, v2); break;
+-    case OP_POW: r = luai_numpow(v1, v2); break;
+-    case OP_UNM: r = luai_numunm(v1); break;
++      r = (lua_Number)luai_nummod(v1, v2); break;
++    case OP_POW: r = (lua_Number)luai_numpow(v1, v2); break;
++    case OP_UNM: r = (lua_Number)luai_numunm(v1); break;
+     case OP_LEN: return 0;  /* no constant folding for 'len' */
+     default: lua_assert(0); r = 0; break;
+   }
+@@ -774,21 +774,26 @@ void luaK_posfix (FuncState *fs, BinOpr op, expdesc *e1, expdesc *e2) {
+ 
+ 
+ void luaK_fixline (FuncState *fs, int line) {
+-  fs->f->lineinfo[fs->pc - 1] = line;
++	fs->f->lineinfo[fs->pc - 1] = line;
+ }
+ 
+ 
+ static int luaK_code (FuncState *fs, Instruction i, int line) {
+   Proto *f = fs->f;
++	lua_State *L = fs->L;
++	global_State *g = G(L);
+   dischargejpc(fs);  /* `pc' will change */
+   /* put new instruction in code array */
+   luaM_growvector(fs->L, f->code, fs->pc, f->sizecode, Instruction,
+                   MAX_INT, "code size overflow");
+   f->code[fs->pc] = i;
+-  /* save corresponding line information */
+-  luaM_growvector(fs->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
+-                  MAX_INT, "code size overflow");
+-  f->lineinfo[fs->pc] = line;
++	if ( g->storedebug )	/* save memory when debugger will not be used */
++	{
++		/* save corresponding line information */
++		luaM_growvector(fs->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
++										MAX_INT, "code size overflow");
++		f->lineinfo[fs->pc] = line;
++	}
+   return fs->pc++;
+ }
+ 
+diff --git a/lcode.h b/lcode.h
+index ff5ee27d..c02cb2b7 100644
+--- a/lcode.h
++++ b/lcode.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lcode.h,v 1.47 2005/11/08 19:44:31 roberto Exp roberto $
++** $Id: lcode.h,v 1.48 2006/03/21 19:28:03 roberto Exp $
+ ** Code generator for Lua
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ldblib.c b/ldblib.c
+index 6a07237b..26a19b6a 100644
+--- a/ldblib.c
++++ b/ldblib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ldblib.c,v 1.103 2005/11/01 16:08:32 roberto Exp roberto $
++** $Id: ldblib.c,v 1.104 2005/12/29 15:32:11 roberto Exp $
+ ** Interface from Lua to its debug API
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ldebug.c b/ldebug.c
+index 4fa42ac9..dabde757 100644
+--- a/ldebug.c
++++ b/ldebug.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ldebug.c,v 2.28 2005/11/01 16:08:52 roberto Exp roberto $
++** $Id: ldebug.c,v 2.29 2005/12/22 16:19:56 roberto Exp $
+ ** Debug Interface
+ ** See Copyright Notice in lua.h
+ */
+@@ -611,10 +611,17 @@ void luaG_errormsg (lua_State *L) {
+ 
+ 
+ void luaG_runerror (lua_State *L, const char *fmt, ...) {
+-  va_list argp;
+-  va_start(argp, fmt);
+-  addinfo(L, luaO_pushvfstring(L, fmt, argp));
+-  va_end(argp);
+-  luaG_errormsg(L);
++	if ( G(L)->storedebug )
++	{
++	  va_list argp;
++	  va_start(argp, fmt);
++			addinfo(L, luaO_pushvfstring(L, fmt, argp));
++	  va_end(argp);
++	}
++	else
++	{
++		addinfo(L, luaO_pushfstring(L, "[Error] Lua error. Please run with -lua_storedebug 1 to enable lua debug info." ));
++	}
++	luaG_errormsg(L);
+ }
+ 
+diff --git a/ldebug.h b/ldebug.h
+index fcb0b901..9c76aa10 100644
+--- a/ldebug.h
++++ b/ldebug.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ldebug.h,v 2.2 2004/06/02 19:07:55 roberto Exp roberto $
++** $Id: ldebug.h,v 2.3 2005/04/25 19:24:10 roberto Exp $
+ ** Auxiliary functions from Debug Interface module
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ldo.c b/ldo.c
+index d7a587e9..ab86fb70 100644
+--- a/ldo.c
++++ b/ldo.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ldo.c,v 2.37 2005/12/22 16:19:56 roberto Exp roberto $
++** $Id: ldo.c,v 2.38 2006/06/05 19:36:14 roberto Exp $
+ ** Stack and Call structure of Lua
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ldo.h b/ldo.h
+index 5aa65480..b2de92bb 100644
+--- a/ldo.h
++++ b/ldo.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ldo.h,v 2.6 2005/08/22 19:58:29 roberto Exp roberto $
++** $Id: ldo.h,v 2.7 2005/08/24 16:15:49 roberto Exp $
+ ** Stack and Call structure of Lua
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ldump.c b/ldump.c
+index f08277d3..992e38ec 100644
+--- a/ldump.c
++++ b/ldump.c
+@@ -21,9 +21,9 @@ typedef struct {
+  void* data;
+  int strip;
+  int status;
++ int swap;
+ } DumpState;
+ 
+-#define DumpMem(b,n,size,D)	DumpBlock(b,(n)*(size),D)
+ #define DumpVar(x,D)	 	DumpMem(&x,1,sizeof(x),D)
+ 
+ static void DumpBlock(const void* b, size_t size, DumpState* D)
+@@ -36,6 +36,54 @@ static void DumpBlock(const void* b, size_t size, DumpState* D)
+  }
+ }
+ 
++static void DumpMem(const void* b, size_t n, size_t size, DumpState* D)
++{
++	if (D->swap)
++	{
++		char* p=(char*) b;
++		char c[8];
++		switch (size)
++		{
++		case 1:
++			DumpBlock(b, n * size, D);
++			break;
++		case 2:
++			while (n--)
++			{
++				c[0] = p[1];
++				c[1] = p[0];
++				p += 2;
++				DumpBlock(c, 2, D);
++			}
++			break;
++		case 4:
++			while (n--)
++			{
++				c[0] = p[3]; c[1] = p[2]; c[2] = p[1]; c[3] = p[0];
++				p += 4;
++				DumpBlock(c, 4, D);
++			}
++			break;
++		case 8:
++			while (n--)
++			{
++				c[0] = p[7]; c[1] = p[6]; c[2] = p[5]; c[3] = p[4];
++				c[4] = p[3]; c[5] = p[2]; c[6] = p[1]; c[7] = p[0];
++				p+=8;
++				DumpBlock(c, 8, D);
++			}
++			break;
++		default:
++			//	IF(1, "bad size");
++			break;
++		}
++	}
++	else
++	{
++		DumpBlock(b, n * size, D);
++	}
++}
++
+ static void DumpChar(int y, DumpState* D)
+ {
+  char x=(char)y;
+@@ -142,15 +190,19 @@ static void DumpFunction(const Proto* f, const TString* p, DumpState* D)
+ 
+ static void DumpHeader(DumpState* D)
+ {
+- char h[LUAC_HEADERSIZE];
+- luaU_header(h);
+- DumpBlock(h,LUAC_HEADERSIZE,D);
++	char h[LUAC_HEADERSIZE];
++	luaU_header(h);
++	if (D->swap)
++	{
++		h[sizeof(LUA_SIGNATURE) - 1 + 2] ^= 1;
++	}
++	DumpBlock(h,LUAC_HEADERSIZE,D);
+ }
+ 
+ /*
+ ** dump Lua function as precompiled chunk
+ */
+-int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data, int strip)
++int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data, int strip, int bigEndian)
+ {
+  DumpState D;
+  D.L=L;
+@@ -158,6 +210,7 @@ int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data, int strip
+  D.data=data;
+  D.strip=strip;
+  D.status=0;
++ D.swap = bigEndian;
+  DumpHeader(&D);
+  DumpFunction(f,NULL,&D);
+  return D.status;
+diff --git a/lfunc.c b/lfunc.c
+index 8c3b811a..b8cd67b2 100644
+--- a/lfunc.c
++++ b/lfunc.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lfunc.c,v 2.11 2005/05/05 20:47:02 roberto Exp roberto $
++** $Id: lfunc.c,v 2.12 2005/12/22 16:19:56 roberto Exp $
+ ** Auxiliary functions to manipulate prototypes and closures
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lfunc.h b/lfunc.h
+index 6f19e2fa..2e02419b 100644
+--- a/lfunc.h
++++ b/lfunc.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lfunc.h,v 2.3 2005/02/18 12:40:02 roberto Exp roberto $
++** $Id: lfunc.h,v 2.4 2005/04/25 19:24:10 roberto Exp $
+ ** Auxiliary functions to manipulate prototypes and closures
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lgc.c b/lgc.c
+index 935d8c1b..2d24a127 100644
+--- a/lgc.c
++++ b/lgc.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lgc.c,v 2.37 2005/12/22 16:19:56 roberto Exp roberto $
++** $Id: lgc.c,v 2.38 2006/05/24 14:34:06 roberto Exp $
+ ** Garbage Collector
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lgc.h b/lgc.h
+index 6079c03d..5f69acb1 100644
+--- a/lgc.h
++++ b/lgc.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lgc.h,v 2.14 2005/06/07 18:53:45 roberto Exp roberto $
++** $Id: lgc.h,v 2.15 2005/08/24 16:15:49 roberto Exp $
+ ** Garbage Collector
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/linit.c b/linit.c
+index 5f3ceda7..483d9c8c 100644
+--- a/linit.c
++++ b/linit.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: linit.c,v 1.13 2005/08/26 17:36:32 roberto Exp roberto $
++** $Id: linit.c,v 1.14 2005/12/29 15:32:11 roberto Exp $
+ ** Initialization of libraries for lua.c
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/liolib.c b/liolib.c
+index 7c2d3147..55ea96e1 100644
+--- a/liolib.c
++++ b/liolib.c
+@@ -1,9 +1,9 @@
+ /*
+-** $Id: liolib.c,v 2.72 2006/01/28 12:59:13 roberto Exp roberto $
++** $Id: liolib.c,v 2.73 2006/05/08 20:14:16 roberto Exp $
+ ** Standard I/O (and system) library
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <errno.h>
+ #include <stdio.h>
+@@ -166,7 +166,11 @@ static int io_popen (lua_State *L) {
+ 
+ static int io_tmpfile (lua_State *L) {
+   FILE **pf = newfile(L);
++#if defined(PS3) || defined(ORBIS)
++  return 0;
++#else
+   *pf = tmpfile();
++#endif
+   return (*pf == NULL) ? pushresult(L, 0, NULL) : 1;
+ }
+ 
+diff --git a/llex.c b/llex.c
+index 6a8c158e..773426d2 100644
+--- a/llex.c
++++ b/llex.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: llex.c,v 2.19 2006/02/06 18:28:16 roberto Exp roberto $
++** $Id: llex.c,v 2.20 2006/03/09 18:14:31 roberto Exp $
+ ** Lexical Analyzer
+ ** See Copyright Notice in lua.h
+ */
+@@ -176,9 +176,14 @@ static void buffreplace (LexState *ls, char from, char to) {
+ 
+ static void trydecpoint (LexState *ls, SemInfo *seminfo) {
+   /* format error: try to update decimal point separator */
+-  struct lconv *cv = localeconv();
+   char old = ls->decpoint;
++#if defined(ANDROID)
++  // Android NDK does not have an implementation of lconv
++  ls->decpoint = '.';
++#else
++  struct lconv *cv = localeconv();
+   ls->decpoint = (cv ? cv->decimal_point[0] : '.');
++#endif
+   buffreplace(ls, old, ls->decpoint);  /* try updated decimal separator */
+   if (!luaO_str2d(luaZ_buffer(ls->buff), &seminfo->r)) {
+     /* format error with correct decimal point: no more options */
+@@ -357,6 +362,36 @@ static int llex (LexState *ls, SemInfo *seminfo) {
+           next(ls);
+         continue;
+       }
++			//	support for // and /* */ style comments
++			case '/': {
++        next(ls);
++        if (ls->current == '/') 
++				{
++          while (ls->current != '\n' && ls->current != EOZ)
++            next(ls);
++          continue;
++        } 
++				else if (ls->current == '*') 
++				{
++          next(ls);
++          while (ls->current != EOZ) 
++					{
++            if (ls->current == '*') 
++						{
++              next(ls);
++              if (ls->current == '/') 
++							{
++                next(ls);
++                break;
++              }
++            }
++            next(ls);
++          }
++          continue;
++        } 
++				else
++          return '/';
++			}
+       case '[': {
+         int sep = skip_sep(ls);
+         if (sep >= 0) {
+diff --git a/llex.h b/llex.h
+index cbe88403..ff07e83d 100644
+--- a/llex.h
++++ b/llex.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: llex.h,v 1.57 2005/12/07 15:43:05 roberto Exp roberto $
++** $Id: llex.h,v 1.58 2006/03/23 18:23:32 roberto Exp $
+ ** Lexical Analyzer
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/llimits.h b/llimits.h
+index e0065649..b03221ae 100644
+--- a/llimits.h
++++ b/llimits.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: llimits.h,v 1.68 2005/12/22 16:19:56 roberto Exp roberto $
++** $Id: llimits.h,v 1.69 2005/12/27 17:12:00 roberto Exp $
+ ** Limits, basic types, and some other `installation-dependent' definitions
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lmathlib.c b/lmathlib.c
+index 9be0f160..c795e1e4 100644
+--- a/lmathlib.c
++++ b/lmathlib.c
+@@ -1,12 +1,17 @@
+ /*
+-** $Id: lmathlib.c,v 1.66 2005/08/15 14:12:32 roberto Exp roberto $
++** $Id: lmathlib.c,v 1.67 2005/08/26 17:36:32 roberto Exp $
+ ** Standard mathematical library
+ ** See Copyright Notice in lua.h
+ */
+ 
+ 
+ #include <stdlib.h>
+-#include <math.h>
++#if defined(PS3) && defined(PS3OPT) && !defined(__SPU__)
++	#define MATH_H <fastmath.h>
++#else
++	#define MATH_H <math.h>
++#endif
++#include MATH_H
+ 
+ #define lmathlib_c
+ #define LUA_LIB
+@@ -17,11 +22,13 @@
+ #include "lualib.h"
+ 
+ 
++#pragma warning(disable: 4305)
++
+ #undef PI
+ #define PI (3.14159265358979323846)
+ #define RADIANS_PER_DEGREE (PI/180.0)
+ 
+-
++#pragma warning(disable: 4244)
+ 
+ static int math_abs (lua_State *L) {
+   lua_pushnumber(L, fabs(luaL_checknumber(L, 1)));
+@@ -177,11 +184,18 @@ static int math_max (lua_State *L) {
+   return 1;
+ }
+ 
++float script_frand0_1() {
++	return 0.0f;
++}
++
++void script_randseed(unsigned int seed) {
++
++}
+ 
+ static int math_random (lua_State *L) {
+   /* the `%' avoids the (rare) case of r==1, and is needed also because on
+      some systems (SunOS!) `rand()' may return a value larger than RAND_MAX */
+-  lua_Number r = (lua_Number)(rand()%RAND_MAX) / (lua_Number)RAND_MAX;
++  lua_Number r = (lua_Number)script_frand0_1();
+   switch (lua_gettop(L)) {  /* check number of arguments */
+     case 0: {  /* no arguments */
+       lua_pushnumber(L, r);  /* Number between 0 and 1 */
+@@ -207,7 +221,7 @@ static int math_random (lua_State *L) {
+ 
+ 
+ static int math_randomseed (lua_State *L) {
+-  srand(luaL_checkint(L, 1));
++  script_randseed( luaL_checkint(L, 1) );
+   return 0;
+ }
+ 
+diff --git a/lmem.c b/lmem.c
+index 1a3e25c4..cef2bc5f 100644
+--- a/lmem.c
++++ b/lmem.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lmem.c,v 1.69 2005/02/23 17:30:22 roberto Exp roberto $
++** $Id: lmem.c,v 1.70 2005/12/26 13:35:47 roberto Exp $
+ ** Interface to Memory Manager
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lmem.h b/lmem.h
+index d6bbdd9f..19df1fbb 100644
+--- a/lmem.h
++++ b/lmem.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lmem.h,v 1.30 2005/03/18 16:38:02 roberto Exp roberto $
++** $Id: lmem.h,v 1.31 2005/04/25 19:24:10 roberto Exp $
+ ** Interface to Memory Manager
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/loadlib.c b/loadlib.c
+index b9ac3761..16a4a743 100644
+--- a/loadlib.c
++++ b/loadlib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: loadlib.c,v 1.51 2005/12/29 15:32:11 roberto Exp roberto $
++** $Id: loadlib.c,v 1.52 2006/04/10 18:27:23 roberto Exp $
+ ** Dynamic library loader for Lua
+ ** See Copyright Notice in lua.h
+ **
+@@ -91,7 +91,6 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
+ 
+ #include <windows.h>
+ 
+-
+ #undef setprogdir
+ 
+ static void setprogdir (lua_State *L) {
+@@ -588,7 +587,11 @@ static int ll_seeall (lua_State *L) {
+ 
+ static void setpath (lua_State *L, const char *fieldname, const char *envname,
+                                    const char *def) {
++#if !defined(_XBOX_VER) && !defined(PS3) && !defined(DURANGO) && !defined(ORBIS)
+   const char *path = getenv(envname);
++#else
++  const char *path = NULL;
++#endif
+   if (path == NULL)  /* no environment variable? */
+     lua_pushstring(L, def);  /* use default */
+   else {
+diff --git a/lobject.c b/lobject.c
+index a7ee87a6..14010d29 100644
 --- a/lobject.c
 +++ b/lobject.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lobject.c,v 2.21 2006/01/10 12:50:00 roberto Exp roberto $
++** $Id: lobject.c,v 2.22 2006/02/10 17:43:52 roberto Exp $
+ ** Some generic functions over Lua objects
+ ** See Copyright Notice in lua.h
+ */
 @@ -23,7 +23,7 @@
  #include "lvm.h"
  
@@ -11,25 +1682,385 @@ index a7ee87a6..b6d56118 100644
  const TValue luaO_nilobject_ = {{NULL}, LUA_TNIL};
  
  
+@@ -89,7 +89,7 @@ int luaO_rawequalObj (const TValue *t1, const TValue *t2) {
+ 
+ int luaO_str2d (const char *s, lua_Number *result) {
+   char *endptr;
+-  *result = lua_str2number(s, &endptr);
++  *result = (lua_Number)lua_str2number(s, &endptr);
+   if (endptr == s) return 0;  /* conversion failed */
+   if (*endptr == 'x' || *endptr == 'X')  /* maybe an hexadecimal constant? */
+     *result = cast_num(strtoul(s, &endptr, 16));
 diff --git a/lobject.h b/lobject.h
-index 76221587..d5fdc902 100644
+index 76221587..63c2d350 100644
 --- a/lobject.h
 +++ b/lobject.h
-@@ -359,8 +359,8 @@ typedef struct Table {
- #define twoto(x)	(1<<(x))
- #define sizenode(t)	(twoto((t)->lsizenode))
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lobject.h,v 2.19 2006/01/10 12:51:53 roberto Exp roberto $
++** $Id: lobject.h,v 2.20 2006/01/18 11:37:34 roberto Exp $
+ ** Type definitions for Lua objects
+ ** See Copyright Notice in lua.h
+ */
+@@ -355,13 +355,17 @@ typedef struct Table {
+ #define lmod(s,size) \
+ 	(check_exp((size&(size-1))==0, (cast(int, (s) & ((size)-1)))))
  
 -
++#if (SIZE_MAX == UINT_MAX)
+ #define twoto(x)	(1<<(x))
+-#define sizenode(t)	(twoto((t)->lsizenode))
++#else
++#define twoto(x) (((unsigned long long)1)<<((unsigned long long)(x)))
++#endif
+ 
++#define sizenode(t)	(twoto((t)->lsizenode))
+ 
 -#define luaO_nilobject		(&luaO_nilobject_)
+ 
 +extern volatile intptr_t luaO_nilobject_external_address;
 +#define luaO_nilobject		((TValue*)luaO_nilobject_external_address)
- 
  LUAI_DATA const TValue luaO_nilobject_;
  
+ #define ceillog2(x)	(luaO_log2((x)-1) + 1)
+diff --git a/lopcodes.c b/lopcodes.c
+index 169a1730..bf9cd522 100644
+--- a/lopcodes.c
++++ b/lopcodes.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lopcodes.c,v 1.36 2005/10/13 12:22:05 roberto Exp roberto $
++** $Id: lopcodes.c,v 1.37 2005/11/08 19:45:36 roberto Exp $
+ ** See Copyright Notice in lua.h
+ */
+ 
+diff --git a/lopcodes.h b/lopcodes.h
+index dd811cac..48105f1e 100644
+--- a/lopcodes.h
++++ b/lopcodes.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lopcodes.h,v 1.124 2005/12/02 18:42:08 roberto Exp roberto $
++** $Id: lopcodes.h,v 1.125 2006/03/14 19:04:44 roberto Exp $
+ ** Opcodes for Lua virtual machine
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/loslib.c b/loslib.c
+index 3a1e8409..9d818170 100644
+--- a/loslib.c
++++ b/loslib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: loslib.c,v 1.18 2006/03/09 18:08:22 roberto Exp roberto $
++** $Id: loslib.c,v 1.19 2006/04/26 18:19:49 roberto Exp $
+ ** Standard Operating System library
+ ** See Copyright Notice in lua.h
+ */
+@@ -19,6 +19,7 @@
+ #include "lauxlib.h"
+ #include "lualib.h"
+ 
++#pragma warning(disable: 4244)
+ 
+ static int os_pushresult (lua_State *L, int i, const char *filename) {
+   int en = errno;  /* calls to Lua API may change this value */
+@@ -35,8 +36,13 @@ static int os_pushresult (lua_State *L, int i, const char *filename) {
+ }
+ 
+ 
+-static int os_execute (lua_State *L) {
++static int os_execute (lua_State *L)
++{
++#if !defined(_XBOX_VER) && !defined(PS3) && !defined(DURANGO) && !defined(ORBIS)
+   lua_pushinteger(L, system(luaL_optstring(L, 1, NULL)));
++#else
++  lua_pushinteger(L, 0);
++#endif
+   return 1;
+ }
+ 
+@@ -55,18 +61,27 @@ static int os_rename (lua_State *L) {
+ 
+ 
+ static int os_tmpname (lua_State *L) {
++#if !defined(PS3) && !defined(ORBIS) && !defined(APPLE)
+   char buff[LUA_TMPNAMBUFSIZE];
+   int err;
+   lua_tmpnam(buff, err);
+   if (err)
++#endif
+     return luaL_error(L, "unable to generate a unique filename");
++#if !defined(PS3) && !defined(ORBIS) && !defined(APPLE)
+   lua_pushstring(L, buff);
+   return 1;
++#endif
+ }
+ 
+ 
+-static int os_getenv (lua_State *L) {
++static int os_getenv (lua_State *L)
++{
++#if !defined(_XBOX_VER) && !defined(PS3) && !defined(DURANGO) && !defined(ORBIS)
+   lua_pushstring(L, getenv(luaL_checkstring(L, 1)));  /* if NULL push nil */
++#else
++  lua_pushstring(L, "nil");  /* if NULL push nil */
++#endif
+   return 1;
+ }
+ 
+diff --git a/lparser.c b/lparser.c
+index f98eb258..125792a8 100644
+--- a/lparser.c
++++ b/lparser.c
+@@ -1,9 +1,9 @@
+ /*
+-** $Id: lparser.c,v 2.41 2006/03/09 18:15:48 roberto Exp roberto $
++** $Id: lparser.c,v 2.42 2006/06/05 15:57:59 roberto Exp $
+ ** Lua Parser
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <string.h>
+ 
+@@ -141,15 +141,15 @@ static void checkname(LexState *ls, expdesc *e) {
+ 
+ 
+ static int registerlocalvar (LexState *ls, TString *varname) {
+-  FuncState *fs = ls->fs;
+-  Proto *f = fs->f;
+-  int oldsize = f->sizelocvars;
+-  luaM_growvector(ls->L, f->locvars, fs->nlocvars, f->sizelocvars,
+-                  LocVar, SHRT_MAX, "too many local variables");
+-  while (oldsize < f->sizelocvars) f->locvars[oldsize++].varname = NULL;
+-  f->locvars[fs->nlocvars].varname = varname;
+-  luaC_objbarrier(ls->L, f, varname);
+-  return fs->nlocvars++;
++	FuncState *fs = ls->fs;
++	Proto *f = fs->f;
++	int oldsize = f->sizelocvars;
++	luaM_growvector(ls->L, f->locvars, fs->nlocvars, f->sizelocvars,
++		LocVar, SHRT_MAX, "too many local variables");
++	while (oldsize < f->sizelocvars) f->locvars[oldsize++].varname = NULL;
++	f->locvars[fs->nlocvars].varname = varname;
++	luaC_objbarrier(ls->L, f, varname);
++	return fs->nlocvars++;
+ }
+ 
+ 
+@@ -165,18 +165,18 @@ static void new_localvar (LexState *ls, TString *name, int n) {
+ 
+ 
+ static void adjustlocalvars (LexState *ls, int nvars) {
+-  FuncState *fs = ls->fs;
+-  fs->nactvar = cast_byte(fs->nactvar + nvars);
+-  for (; nvars; nvars--) {
+-    getlocvar(fs, fs->nactvar - nvars).startpc = fs->pc;
+-  }
++  FuncState *fs = ls->fs;	
++	fs->nactvar = cast_byte(fs->nactvar + nvars);
++	for (; nvars; nvars--) {
++		getlocvar(fs, fs->nactvar - nvars).startpc = fs->pc;
++	}
+ }
+ 
+ 
+ static void removevars (LexState *ls, int tolevel) {
+-  FuncState *fs = ls->fs;
+-  while (fs->nactvar > tolevel)
+-    getlocvar(fs, --fs->nactvar).endpc = fs->pc;
++	FuncState *fs = ls->fs;
++	while (fs->nactvar > tolevel)
++		getlocvar(fs, --fs->nactvar).endpc = fs->pc;
+ }
+ 
+ 
+@@ -206,10 +206,10 @@ static int indexupvalue (FuncState *fs, TString *name, expdesc *v) {
+ 
+ static int searchvar (FuncState *fs, TString *n) {
+   int i;
+-  for (i=fs->nactvar-1; i >= 0; i--) {
+-    if (n == getlocvar(fs, i).varname)
+-      return i;
+-  }
++	for (i=fs->nactvar-1; i >= 0; i--) {
++		if (n == getlocvar(fs, i).varname)
++			return i;
++	}
+   return -1;  /* not found */
+ }
+ 
+@@ -355,20 +355,24 @@ static void open_func (LexState *ls, FuncState *fs) {
+ 
+ static void close_func (LexState *ls) {
+   lua_State *L = ls->L;
++  global_State *g = G(L);
+   FuncState *fs = ls->fs;
+   Proto *f = fs->f;
+   removevars(ls, 0);
+   luaK_ret(fs, 0, 0);  /* final return */
+   luaM_reallocvector(L, f->code, f->sizecode, fs->pc, Instruction);
+   f->sizecode = fs->pc;
+-  luaM_reallocvector(L, f->lineinfo, f->sizelineinfo, fs->pc, int);
+-  f->sizelineinfo = fs->pc;
++	if ( g->storedebug )	/* save memory when debugger will not be used */
++	{
++	  luaM_reallocvector(L, f->lineinfo, f->sizelineinfo, fs->pc, int);
++	  f->sizelineinfo = fs->pc;
++	}
+   luaM_reallocvector(L, f->k, f->sizek, fs->nk, TValue);
+   f->sizek = fs->nk;
+   luaM_reallocvector(L, f->p, f->sizep, fs->np, Proto *);
+-  f->sizep = fs->np;
+-  luaM_reallocvector(L, f->locvars, f->sizelocvars, fs->nlocvars, LocVar);
+-  f->sizelocvars = fs->nlocvars;
++  f->sizep = fs->np;	
++	luaM_reallocvector(L, f->locvars, f->sizelocvars, fs->nlocvars, LocVar);
++	f->sizelocvars = fs->nlocvars;
+   luaM_reallocvector(L, f->upvalues, f->sizeupvalues, f->nups, TString *);
+   f->sizeupvalues = f->nups;
+   lua_assert(luaG_checkcode(f));
+@@ -607,6 +611,8 @@ static int explist1 (LexState *ls, expdesc *v) {
+ 
+ 
+ static void funcargs (LexState *ls, expdesc *f) {
++	lua_State *L = ls->L;
++	global_State *g = G(L);
+   FuncState *fs = ls->fs;
+   expdesc args;
+   int base, nparams;
+@@ -649,7 +655,10 @@ static void funcargs (LexState *ls, expdesc *f) {
+     nparams = fs->freereg - (base+1);
+   }
+   init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams+1, 2));
+-  luaK_fixline(fs, line);
++	if ( g->storedebug )	/* save memory when debugger will not be used */
++	{
++		luaK_fixline(fs, line);
++	}
+   fs->freereg = base+1;  /* call remove function and arguments and leaves
+                             (unless changed) one result */
+ }
+@@ -1042,6 +1051,8 @@ static int exp1 (LexState *ls) {
+ 
+ 
+ static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
++	lua_State *L = ls->L;
++	global_State *g = G(L);
+   /* forbody -> DO block */
+   BlockCnt bl;
+   FuncState *fs = ls->fs;
+@@ -1057,7 +1068,10 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
+   luaK_patchtohere(fs, prep);
+   endfor = (isnum) ? luaK_codeAsBx(fs, OP_FORLOOP, base, NO_JUMP) :
+                      luaK_codeABC(fs, OP_TFORLOOP, base, 0, nvars);
+-  luaK_fixline(fs, line);  /* pretend that `OP_FOR' starts the loop */
++	if ( g->storedebug )	/* save memory when debugger will not be used */
++	{
++		luaK_fixline(fs, line);  /* pretend that `OP_FOR' starts the loop */
++	}
+   luaK_patchlist(fs, (isnum ? endfor : luaK_jump(fs)), prep + 1);
+ }
+ 
+@@ -1162,15 +1176,15 @@ static void ifstat (LexState *ls, int line) {
+ 
+ static void localfunc (LexState *ls) {
+   expdesc v, b;
+-  FuncState *fs = ls->fs;
++  FuncState *fs = ls->fs;	
+   new_localvar(ls, str_checkname(ls), 0);
+   init_exp(&v, VLOCAL, fs->freereg);
+   luaK_reserveregs(fs, 1);
+   adjustlocalvars(ls, 1);
+   body(ls, &b, 0, ls->linenumber);
+-  luaK_storevar(fs, &v, &b);
+-  /* debug information will only see the variable after this point! */
+-  getlocvar(fs, fs->nactvar - 1).startpc = fs->pc;
++  luaK_storevar(fs, &v, &b);		
++	/* debug information will only see the variable after this point! */
++	getlocvar(fs, fs->nactvar - 1).startpc = fs->pc;
+ }
+ 
+ 
+@@ -1209,13 +1223,18 @@ static int funcname (LexState *ls, expdesc *v) {
+ 
+ static void funcstat (LexState *ls, int line) {
+   /* funcstat -> FUNCTION funcname body */
++	lua_State *L = ls->L;
++	global_State *g = G(L);
+   int needself;
+   expdesc v, b;
+   luaX_next(ls);  /* skip FUNCTION */
+   needself = funcname(ls, &v);
+   body(ls, &b, needself, line);
+   luaK_storevar(ls->fs, &v, &b);
+-  luaK_fixline(ls->fs, line);  /* definition `happens' in the first line */
++	if ( g->storedebug )	/* save memory when debugger will not be used */
++	{
++		luaK_fixline(ls->fs, line);  /* definition `happens' in the first line */
++	}
+ }
+ 
+ 
+diff --git a/lparser.h b/lparser.h
+index 7e1d487d..e5b5b57e 100644
+--- a/lparser.h
++++ b/lparser.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lparser.h,v 1.56 2005/10/03 14:02:40 roberto Exp roberto $
++** $Id: lparser.h,v 1.57 2006/03/09 18:14:31 roberto Exp $
+ ** Lua Parser
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lstate.c b/lstate.c
+index 8da02ed5..e0344e3c 100644
+--- a/lstate.c
++++ b/lstate.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lstate.c,v 2.35 2005/10/06 20:46:25 roberto Exp roberto $
++** $Id: lstate.c,v 2.36 2006/05/24 14:15:50 roberto Exp $
+ ** Global State
+ ** See Copyright Notice in lua.h
+ */
+@@ -167,6 +167,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
+   luaZ_initbuffer(L, &g->buff);
+   g->panic = NULL;
+   g->gcstate = GCSpause;
++  g->storedebug = 1;
+   g->rootgc = obj2gco(L);
+   g->sweepstrgc = 0;
+   g->sweepgc = &g->rootgc;
+@@ -189,6 +190,16 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
+   return L;
+ }
+ 
++LUA_API void lua_storedebuginfo (lua_State *L, int e) {
++  global_State *g = G(L);
++  g->storedebug = e;
++}
++
++LUA_API int lua_isstoredebuginfo (lua_State *L) {
++	global_State *g = G(L);
++	return g->storedebug;
++}
++
+ 
+ static void callallgcTM (lua_State *L, void *ud) {
+   UNUSED(ud);
 diff --git a/lstate.h b/lstate.h
-index 1ed893b4..be0d68d6 100644
+index 1ed893b4..b02f09ef 100644
 --- a/lstate.h
 +++ b/lstate.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lstate.h,v 2.23 2005/07/09 13:22:34 roberto Exp roberto $
++** $Id: lstate.h,v 2.24 2006/02/06 18:27:59 roberto Exp $
+ ** Global State
+ ** See Copyright Notice in lua.h
+ */
 @@ -71,6 +71,7 @@ typedef struct global_State {
    void *ud;         /* auxiliary data to `frealloc' */
    lu_byte currentwhite;
@@ -38,15 +2069,76 @@ index 1ed893b4..be0d68d6 100644
    int sweepstrgc;  /* position of sweep in `strt' */
    GCObject *rootgc;  /* list of all collectable objects */
    GCObject **sweepgc;  /* position of sweep in `rootgc' */
+diff --git a/lstring.c b/lstring.c
+index 08dbe87f..4319930c 100644
+--- a/lstring.c
++++ b/lstring.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lstring.c,v 2.7 2005/02/18 12:40:02 roberto Exp roberto $
++** $Id: lstring.c,v 2.8 2005/12/22 16:19:56 roberto Exp $
+ ** String table (keeps all strings handled by Lua)
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lstring.h b/lstring.h
+index 29bdcb9d..1d2e91ea 100644
+--- a/lstring.h
++++ b/lstring.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lstring.h,v 1.42 2005/02/23 17:30:22 roberto Exp roberto $
++** $Id: lstring.h,v 1.43 2005/04/25 19:24:10 roberto Exp $
+ ** String table (keep all strings handled by Lua)
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lstrlib.c b/lstrlib.c
+index b6eda2cf..5b3c8a54 100644
+--- a/lstrlib.c
++++ b/lstrlib.c
+@@ -1,9 +1,9 @@
+ /*
+-** $Id: lstrlib.c,v 1.131 2006/04/12 20:13:52 roberto Exp roberto $
++** $Id: lstrlib.c,v 1.132 2006/04/26 20:41:19 roberto Exp $
+ ** Standard library for string operations and pattern-matching
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <ctype.h>
+ #include <stddef.h>
 diff --git a/ltable.c b/ltable.c
-index b68d1486..9bc423eb 100644
+index b68d1486..c71b1f84 100644
 --- a/ltable.c
 +++ b/ltable.c
-@@ -69,8 +69,8 @@
- #define numints		cast_int(sizeof(lua_Number)/sizeof(int))
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ltable.c,v 2.31 2006/01/10 13:13:06 roberto Exp roberto $
++** $Id: ltable.c,v 2.32 2006/01/18 11:49:02 roberto Exp $
+ ** Lua tables (hash)
+ ** See Copyright Notice in lua.h
+ */
+@@ -18,7 +18,15 @@
+ ** Hence even when the load factor reaches 100%, performance remains good.
+ */
+ 
+-#include <math.h>
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
++
++#if defined(PS3) && defined(PS3OPT) && !defined(__SPU__)
++	#define MATH_H <fastmath.h>
++#else
++	#define MATH_H <math.h>
++#endif
++#include MATH_H
++
+ #include <string.h>
+ 
+ #define ltable_c
+@@ -70,7 +78,8 @@
  
  
--
+ 
 -#define dummynode		(&dummynode_)
 +volatile intptr_t dummynode_external_address = 0;
 +#define dummynode		((Node*)dummynode_external_address)
@@ -54,9 +2146,16 @@ index b68d1486..9bc423eb 100644
  static const Node dummynode_ = {
    {{NULL}, LUA_TNIL},  /* value */
 diff --git a/ltable.h b/ltable.h
-index e87597fd..13b0a9a5 100644
+index e87597fd..c9e77f0f 100644
 --- a/ltable.h
 +++ b/ltable.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ltable.h,v 2.9 2006/01/10 12:51:53 roberto Exp roberto $
++** $Id: ltable.h,v 2.10 2006/01/10 13:13:06 roberto Exp $
+ ** Lua tables (hash)
+ ** See Copyright Notice in lua.h
+ */
 @@ -17,6 +17,7 @@
  
  #define key2tval(n)	(&(n)->i_key.tvk)
@@ -65,3 +2164,492 @@ index e87597fd..13b0a9a5 100644
  
  LUAI_FUNC const TValue *luaH_getnum (Table *t, int key);
  LUAI_FUNC TValue *luaH_setnum (lua_State *L, Table *t, int key);
+diff --git a/ltablib.c b/ltablib.c
+index c2323eb2..453b23b3 100644
+--- a/ltablib.c
++++ b/ltablib.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ltablib.c,v 1.37 2005/10/21 13:47:42 roberto Exp roberto $
++** $Id: ltablib.c,v 1.38 2005/10/23 17:38:15 roberto Exp $
+ ** Library for Table Manipulation
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/ltm.c b/ltm.c
+index 3b4715dd..d1decee4 100644
+--- a/ltm.c
++++ b/ltm.c
+@@ -1,9 +1,9 @@
+ /*
+-** $Id: ltm.c,v 2.7 2005/12/22 16:19:56 roberto Exp roberto $
++** $Id: ltm.c,v 2.8 2006/01/10 12:50:00 roberto Exp $
+ ** Tag methods
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <string.h>
+ 
+diff --git a/ltm.h b/ltm.h
+index dcb14fc6..866c7966 100644
+--- a/ltm.h
++++ b/ltm.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: ltm.h,v 2.5 2005/05/20 15:53:42 roberto Exp roberto $
++** $Id: ltm.h,v 2.6 2005/06/06 13:30:25 roberto Exp $
+ ** Tag methods
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lua.c b/lua.c
+index b8cf32ed..5cee7fa9 100644
+--- a/lua.c
++++ b/lua.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lua.c,v 1.159 2006/05/24 14:16:39 roberto Exp roberto $
++** $Id: lua.c,v 1.160 2006/06/02 15:34:00 roberto Exp $
+ ** Lua stand-alone interpreter
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lua.h b/lua.h
+index fd1e46e5..5ce635e8 100644
+--- a/lua.h
++++ b/lua.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lua.h,v 1.217 2006/05/31 16:50:40 roberto Exp roberto $
++** $Id: lua.h,v 1.218 2006/06/02 15:34:00 roberto Exp $
+ ** Lua - An Extensible Extension Language
+ ** Lua.org, PUC-Rio, Brazil (http://www.lua.org)
+ ** See Copyright Notice at the end of this file
+@@ -9,6 +9,8 @@
+ #ifndef lua_h
+ #define lua_h
+ 
++#pragma warning( disable : 4996 )
++
+ #include <stdarg.h>
+ #include <stddef.h>
+ 
+@@ -108,6 +110,8 @@ typedef LUA_INTEGER lua_Integer;
+ ** state manipulation
+ */
+ LUA_API lua_State *(lua_newstate) (lua_Alloc f, void *ud);
++LUA_API void       (lua_storedebuginfo) (lua_State *L, int e);	/* save memory when debugger will not be used */
++LUA_API int        (lua_isstoredebuginfo) (lua_State *L);
+ LUA_API void       (lua_close) (lua_State *L);
+ LUA_API lua_State *(lua_newthread) (lua_State *L);
+ 
+diff --git a/luaconf.h b/luaconf.h
+index 0d42a985..003da0af 100644
+--- a/luaconf.h
++++ b/luaconf.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: luaconf.h,v 1.81 2006/02/10 17:44:06 roberto Exp roberto $
++** $Id: luaconf.h,v 1.82 2006/04/10 18:27:23 roberto Exp $
+ ** Configuration file for Lua
+ ** See Copyright Notice in lua.h
+ */
+@@ -29,7 +29,7 @@
+ #endif
+ 
+ 
+-#if !defined(LUA_ANSI) && defined(_WIN32)
++#if !defined(LUA_ANSI) && defined(WIN32)
+ #define LUA_WIN
+ #endif
+ 
+@@ -501,7 +501,7 @@
+ */
+ 
+ #define LUA_NUMBER_DOUBLE
+-#define LUA_NUMBER	double
++#define LUA_NUMBER	float
+ 
+ /*
+ @@ LUAI_UACNUMBER is the result of an 'usual argument conversion'
+@@ -517,8 +517,8 @@
+ @@ LUAI_MAXNUMBER2STR is maximum size of previous conversion.
+ @@ lua_str2number converts a string to a number.
+ */
+-#define LUA_NUMBER_SCAN		"%lf"
+-#define LUA_NUMBER_FMT		"%.14g"
++#define LUA_NUMBER_SCAN		"%f"
++#define LUA_NUMBER_FMT		"%g"
+ #define lua_number2str(s,n)	sprintf((s), LUA_NUMBER_FMT, (n))
+ #define LUAI_MAXNUMBER2STR	32 /* 16 digits, sign, point, and \0 */
+ #define lua_str2number(s,p)	strtod((s), (p))
+@@ -528,7 +528,14 @@
+ @@ The luai_num* macros define the primitive operations over numbers.
+ */
+ #if defined(LUA_CORE)
+-#include <math.h>
++
++#if defined(PS3) && defined(PS3OPT) && !defined(__SPU__)
++	#define MATH_H <fastmath.h>
++#else
++	#define MATH_H <math.h>
++#endif
++#include MATH_H
++
+ #define luai_numadd(a,b)	((a)+(b))
+ #define luai_numsub(a,b)	((a)-(b))
+ #define luai_nummul(a,b)	((a)*(b))
+@@ -566,10 +573,16 @@
+    with a DirectX idiosyncrasy */
+ #else
+ 
+-union luai_Cast { double l_d; long l_l; };
++/*
++union luai_Cast { float l_d; long l_l; };
+ #define lua_number2int(i,d) \
+   { volatile union luai_Cast u; u.l_d = (d) + 6755399441055744.0; (i) = u.l_l; }
+ #define lua_number2integer(i,n)		lua_number2int(i, n)
++*/
++
++/* this option always works, but may be slow */
++#define lua_number2int(i,d)	((i)=(int)(d))
++#define lua_number2integer(i,d)	((i)=(lua_Integer)(d))
+ 
+ #endif
+ 
+diff --git a/lualib.h b/lualib.h
+index 3afa4591..0c76232c 100644
+--- a/lualib.h
++++ b/lualib.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lualib.h,v 1.35 2005/08/10 18:06:58 roberto Exp roberto $
++** $Id: lualib.h,v 1.36 2005/12/27 17:12:00 roberto Exp $
+ ** Lua standard libraries
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lundump.c b/lundump.c
+index 7fc635ee..dd98a725 100644
+--- a/lundump.c
++++ b/lundump.c
+@@ -4,6 +4,8 @@
+ ** See Copyright Notice in lua.h
+ */
+ 
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
++
+ #include <string.h>
+ 
+ #define lundump_c
+@@ -25,6 +27,7 @@ typedef struct {
+  ZIO* Z;
+  Mbuffer* b;
+  const char* name;
++ int swap;
+ } LoadState;
+ 
+ #ifdef LUAC_TRUST_BINARIES
+@@ -39,7 +42,6 @@ static void error(LoadState* S, const char* why)
+ }
+ #endif
+ 
+-#define LoadMem(S,b,n,size)	LoadBlock(S,b,(n)*(size))
+ #define	LoadByte(S)		(lu_byte)LoadChar(S)
+ #define LoadVar(S,x)		LoadMem(S,&x,1,sizeof(x))
+ #define LoadVector(S,b,n,size)	LoadMem(S,b,n,size)
+@@ -50,6 +52,49 @@ static void LoadBlock(LoadState* S, void* b, size_t size)
+  IF (r!=0, "unexpected end");
+ }
+ 
++static void LoadMem (LoadState* S, void* b, int n, size_t size)
++{
++	LoadBlock(S,b,n*size);
++	if (S->swap)
++	{
++		char* p=(char*) b;
++		char c;
++		switch (size)
++		{
++		case 1:
++			break;
++		case 2:
++			while (n--)
++			{
++				c=p[0]; p[0]=p[1]; p[1]=c;
++				p+=2;
++			}
++			break;
++		case 4:
++			while (n--)
++			{
++				c=p[0]; p[0]=p[3]; p[3]=c;
++				c=p[1]; p[1]=p[2]; p[2]=c;
++				p+=4;
++			}
++			break;
++		case 8:
++			while (n--)
++			{
++				c=p[0]; p[0]=p[7]; p[7]=c;
++				c=p[1]; p[1]=p[6]; p[6]=c;
++				c=p[2]; p[2]=p[5]; p[5]=c;
++				c=p[3]; p[3]=p[4]; p[4]=c;
++				p+=8;
++			}
++			break;
++		default:
++			IF(1, "bad size");
++			break;
++		}
++	}
++}
++
+ static int LoadChar(LoadState* S)
+ {
+  char x;
+@@ -200,6 +245,7 @@ Proto* luaU_undump (lua_State* L, ZIO* Z, Mbuffer* buff, const char* name)
+  S.L=L;
+  S.Z=Z;
+  S.b=buff;
++ S.swap = 0;
+  LoadHeader(&S);
+  return LoadFunction(&S,luaS_newliteral(L,"=?"));
+ }
+diff --git a/lundump.h b/lundump.h
+index 2f064694..c69d337c 100644
+--- a/lundump.h
++++ b/lundump.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lundump.h,v 1.39 2005/11/01 17:04:55 lhf Exp lhf $
++** $Id: lundump.h,v 1.40 2005/11/11 14:03:13 lhf Exp $
+ ** load precompiled Lua chunks
+ ** See Copyright Notice in lua.h
+ */
+@@ -17,7 +17,7 @@ LUAI_FUNC Proto* luaU_undump (lua_State* L, ZIO* Z, Mbuffer* buff, const char* n
+ LUAI_FUNC void luaU_header (char* h);
+ 
+ /* dump one chunk; from ldump.c */
+-LUAI_FUNC int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data, int strip);
++LUAI_FUNC int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data, int strip, int bigEndian);
+ 
+ #ifdef luac_c
+ /* print one chunk; from print.c */
+diff --git a/lvm.c b/lvm.c
+index 6c92567f..6a8057b3 100644
+--- a/lvm.c
++++ b/lvm.c
+@@ -1,9 +1,9 @@
+ /*
+-** $Id: lvm.c,v 2.62 2006/01/23 19:51:43 roberto Exp roberto $
++** $Id: lvm.c,v 2.63 2006/06/05 15:58:59 roberto Exp $
+ ** Lua virtual machine
+ ** See Copyright Notice in lua.h
+ */
+-
++#pragma warning(disable:6385 6386 6011 6294 6201 6387 6326)
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -26,7 +26,7 @@
+ #include "ltm.h"
+ #include "lvm.h"
+ 
+-
++#pragma warning(disable: 4244)
+ 
+ /* limit for table tag-method chains (to avoid loops) */
+ #define MAXTAGLOOP	100
+diff --git a/lvm.h b/lvm.h
+index adca8cdd..788423f8 100644
+--- a/lvm.h
++++ b/lvm.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lvm.h,v 2.4 2005/04/25 19:24:10 roberto Exp roberto $
++** $Id: lvm.h,v 2.5 2005/08/22 18:54:49 roberto Exp $
+ ** Lua virtual machine
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lzio.c b/lzio.c
+index a09dbdad..5121ada8 100644
+--- a/lzio.c
++++ b/lzio.c
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lzio.c,v 1.30 2005/05/17 19:49:15 roberto Exp roberto $
++** $Id: lzio.c,v 1.31 2005/06/03 20:15:29 roberto Exp $
+ ** a generic input stream interface
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/lzio.h b/lzio.h
+index 85843679..8f403b8e 100644
+--- a/lzio.h
++++ b/lzio.h
+@@ -1,5 +1,5 @@
+ /*
+-** $Id: lzio.h,v 1.20 2005/04/25 19:24:10 roberto Exp roberto $
++** $Id: lzio.h,v 1.21 2005/05/17 19:49:15 roberto Exp $
+ ** Buffered streams
+ ** See Copyright Notice in lua.h
+ */
+diff --git a/makefile b/makefile
+deleted file mode 100644
+index d57ecbad..00000000
+--- a/makefile
++++ /dev/null
+@@ -1,155 +0,0 @@
+-# makefile for building Lua
+-# see INSTALL for installation instructions
+-# see ../Makefile and luaconf.h for further customization
+-
+-# == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
+-
+-CWARNS= -pedantic -Waggregate-return -Wcast-align \
+-        -Wmissing-prototypes -Wpointer-arith -Wshadow \
+-        -Wsign-compare -Wstrict-prototypes -Wundef -Wwrite-strings
+-# -Wcast-qual
+-
+-# -DEXTERNMEMCHECK -DHARDSTACKTESTS
+-# -g -DLUA_USER_H='"ltests.h"'
+-# -fomit-frame-pointer #-pg -malign-double
+-TESTS= -g -DLUA_USER_H='"ltests.h"'
+-
+-LOCAL = $(TESTS) $(CWARNS)
+-
+-
+-CC= gcc
+-CFLAGS= -Wall $(MYCFLAGS) -O2
+-AR= ar rcu
+-RANLIB= ranlib
+-RM= rm -f
+-
+-MYCFLAGS= $(LOCAL)
+-MYLDFLAGS=
+-MYLIBS=
+-
+-
+-# enable Linux goodies
+-MYCFLAGS= $(LOCAL) -DLUA_USE_LINUX
+-MYLDFLAGS= -Wl,-E
+-MYLIBS= -ldl -lreadline -lhistory -lncurses
+-
+-
+-
+-# == END OF USER SETTINGS. NO NEED TO CHANGE ANYTHING BELOW THIS LINE =========
+-
+-
+-LIBS = -lm
+-
+-CORE_T=	liblua.a
+-CORE_O=	lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o lmem.o \
+-	lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltm.o  \
+-	lundump.o lvm.o lzio.o ltests.o
+-AUX_O=	lauxlib.o
+-LIB_O=	lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o lstrlib.o \
+-	loadlib.o linit.o
+-
+-LUA_T=	lua
+-LUA_O=	lua.o
+-
+-LUAC_T=	luac
+-LUAC_O=	luac.o print.o
+-
+-ALL_T= $(CORE_T) $(LUA_T) $(LUAC_T)
+-ALL_O= $(CORE_O) $(LUA_O) $(LUAC_O) $(AUX_O) $(LIB_O)
+-ALL_A= $(CORE_T)
+-
+-all:	$(ALL_T)
+-
+-o:	$(ALL_O)
+-
+-a:	$(ALL_A)
+-
+-$(CORE_T): $(CORE_O) $(AUX_O) $(LIB_O)
+-	$(AR) $@ $?
+-	$(RANLIB) $@
+-
+-$(LUA_T): $(LUA_O) $(CORE_T)
+-	$(CC) -o $@ $(MYLDFLAGS) $(LUA_O) $(CORE_T) $(LIBS) $(MYLIBS) $(DL)
+-
+-$(LUAC_T): $(LUAC_O) $(CORE_T)
+-	$(CC) -o $@ $(MYLDFLAGS) $(LUAC_O) $(CORE_T) $(LIBS) $(MYLIBS)
+-
+-clean:
+-	rcsclean -u
+-	$(RM) $(ALL_T) $(ALL_O)
+-
+-depend:
+-	@$(CC) $(CFLAGS) -MM *.c
+-
+-echo:
+-	@echo "CC = $(CC)"
+-	@echo "CFLAGS = $(CFLAGS)"
+-	@echo "AR = $(AR)"
+-	@echo "RANLIB = $(RANLIB)"
+-	@echo "RM = $(RM)"
+-	@echo "MYCFLAGS = $(MYCFLAGS)"
+-	@echo "MYLDFLAGS = $(MYLDFLAGS)"
+-	@echo "MYLIBS = $(MYLIBS)"
+-	@echo "DL = $(DL)"
+-
+-# DO NOT DELETE
+-
+-lapi.o: lapi.c lua.h luaconf.h lapi.h lobject.h llimits.h ldebug.h \
+-  lstate.h ltm.h lzio.h lmem.h ldo.h lfunc.h lgc.h lstring.h ltable.h \
+-  lundump.h lvm.h
+-lauxlib.o: lauxlib.c lua.h luaconf.h lauxlib.h
+-lbaselib.o: lbaselib.c lua.h luaconf.h lauxlib.h lualib.h
+-lcode.o: lcode.c lua.h luaconf.h lcode.h llex.h lobject.h llimits.h \
+-  lzio.h lmem.h lopcodes.h lparser.h ltable.h ldebug.h lstate.h ltm.h \
+-  ldo.h lgc.h
+-ldblib.o: ldblib.c lua.h luaconf.h lauxlib.h lualib.h
+-ldebug.o: ldebug.c lua.h luaconf.h lapi.h lobject.h llimits.h lcode.h \
+-  llex.h lzio.h lmem.h lopcodes.h lparser.h ltable.h ldebug.h lstate.h \
+-  ltm.h ldo.h lfunc.h lstring.h lgc.h lvm.h
+-ldo.o: ldo.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h ltm.h \
+-  lzio.h lmem.h ldo.h lfunc.h lgc.h lopcodes.h lparser.h ltable.h \
+-  lstring.h lundump.h lvm.h
+-ldump.o: ldump.c lua.h luaconf.h lobject.h llimits.h lopcodes.h lstate.h \
+-  ltm.h lzio.h lmem.h lundump.h
+-lfunc.o: lfunc.c lua.h luaconf.h lfunc.h lobject.h llimits.h lgc.h lmem.h \
+-  lstate.h ltm.h lzio.h
+-lgc.o: lgc.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h ltm.h \
+-  lzio.h lmem.h ldo.h lfunc.h lgc.h lstring.h ltable.h
+-linit.o: linit.c lua.h luaconf.h lualib.h lauxlib.h
+-liolib.o: liolib.c lua.h luaconf.h lauxlib.h lualib.h
+-llex.o: llex.c lua.h luaconf.h ldo.h lobject.h llimits.h lstate.h ltm.h \
+-  lzio.h lmem.h llex.h lparser.h ltable.h lstring.h lgc.h
+-lmathlib.o: lmathlib.c lua.h luaconf.h lauxlib.h lualib.h
+-lmem.o: lmem.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h \
+-  ltm.h lzio.h lmem.h ldo.h
+-loadlib.o: loadlib.c lua.h luaconf.h lauxlib.h lualib.h
+-lobject.o: lobject.c lua.h luaconf.h ldo.h lobject.h llimits.h lstate.h \
+-  ltm.h lzio.h lmem.h lstring.h lgc.h lvm.h
+-lopcodes.o: lopcodes.c lua.h luaconf.h lobject.h llimits.h lopcodes.h
+-loslib.o: loslib.c lua.h luaconf.h lauxlib.h lualib.h
+-lparser.o: lparser.c lua.h luaconf.h lcode.h llex.h lobject.h llimits.h \
+-  lzio.h lmem.h lopcodes.h lparser.h ltable.h ldebug.h lstate.h ltm.h \
+-  ldo.h lfunc.h lstring.h lgc.h
+-lstate.o: lstate.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h \
+-  ltm.h lzio.h lmem.h ldo.h lfunc.h lgc.h llex.h lstring.h ltable.h
+-lstring.o: lstring.c lua.h luaconf.h lmem.h llimits.h lobject.h lstate.h \
+-  ltm.h lzio.h lstring.h lgc.h
+-lstrlib.o: lstrlib.c lua.h luaconf.h lauxlib.h lualib.h
+-ltable.o: ltable.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h \
+-  ltm.h lzio.h lmem.h ldo.h lgc.h ltable.h
+-ltablib.o: ltablib.c lua.h luaconf.h lauxlib.h lualib.h
+-ltests.o: ltests.c lua.h luaconf.h lapi.h lobject.h llimits.h lauxlib.h \
+-  lcode.h llex.h lzio.h lmem.h lopcodes.h lparser.h ltable.h ldebug.h \
+-  lstate.h ltm.h ldo.h lfunc.h lstring.h lgc.h lualib.h
+-ltm.o: ltm.c lua.h luaconf.h lobject.h llimits.h lstate.h ltm.h lzio.h \
+-  lmem.h lstring.h lgc.h ltable.h
+-lua.o: lua.c lua.h luaconf.h lauxlib.h lualib.h
+-lundump.o: lundump.c lua.h luaconf.h ldebug.h lstate.h lobject.h \
+-  llimits.h ltm.h lzio.h lmem.h ldo.h lfunc.h lopcodes.h lstring.h lgc.h \
+-  lundump.h
+-lvm.o: lvm.c lua.h luaconf.h ldebug.h lstate.h lobject.h llimits.h ltm.h \
+-  lzio.h lmem.h ldo.h lfunc.h lgc.h lopcodes.h lstring.h ltable.h lvm.h
+-lzio.o: lzio.c lua.h luaconf.h llimits.h lmem.h lstate.h lobject.h ltm.h \
+-  lzio.h
+-
+-# (end of Makefile)
