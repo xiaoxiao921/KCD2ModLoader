@@ -199,6 +199,8 @@ namespace big
 		return game_func(L, reader, dt, chunkname);
 	}
 
+	std::unordered_map<std::string, int *> g_cryengine_attached_variables;
+
 	void *__fastcall hook_attachVariable(void *this_, const char *szVarName, int *pContainer, const char *szComment, int dwFlags)
 	{
 		if (strcmp(szVarName, "sys_PakPriority") == 0)
@@ -206,6 +208,8 @@ namespace big
 			LOG(INFO) << "sys_PakPriority intercepted. Setting to 0.";
 			*pContainer = 0;
 		}
+
+		g_cryengine_attached_variables[szVarName] = pContainer;
 
 		const auto res = big::g_hooking->get_original<hook_attachVariable>()(this_, szVarName, pContainer, szComment, dwFlags);
 
