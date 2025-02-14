@@ -1,0 +1,55 @@
+﻿diff --git a/lobject.c b/lobject.c
+index a7ee87a6..b6d56118 100644
+--- a/lobject.c
++++ b/lobject.c
+@@ -23,7 +23,7 @@
+ #include "lvm.h"
+ 
+ 
+-
++volatile intptr_t luaO_nilobject_external_address = 0;
+ const TValue luaO_nilobject_ = {{NULL}, LUA_TNIL};
+ 
+ 
+diff --git a/lobject.h b/lobject.h
+index 76221587..d5fdc902 100644
+--- a/lobject.h
++++ b/lobject.h
+@@ -359,8 +359,8 @@ typedef struct Table {
+ #define twoto(x)	(1<<(x))
+ #define sizenode(t)	(twoto((t)->lsizenode))
+ 
+-
+-#define luaO_nilobject		(&luaO_nilobject_)
++extern volatile intptr_t luaO_nilobject_external_address;
++#define luaO_nilobject		((TValue*)luaO_nilobject_external_address)
+ 
+ LUAI_DATA const TValue luaO_nilobject_;
+ 
+diff --git a/ltable.c b/ltable.c
+index b68d1486..9bc423eb 100644
+--- a/ltable.c
++++ b/ltable.c
+@@ -69,8 +69,8 @@
+ #define numints		cast_int(sizeof(lua_Number)/sizeof(int))
+ 
+ 
+-
+-#define dummynode		(&dummynode_)
++volatile intptr_t dummynode_external_address = 0;
++#define dummynode		((Node*)dummynode_external_address)
+ 
+ static const Node dummynode_ = {
+   {{NULL}, LUA_TNIL},  /* value */
+diff --git a/ltable.h b/ltable.h
+index e87597fd..13b0a9a5 100644
+--- a/ltable.h
++++ b/ltable.h
+@@ -17,6 +17,7 @@
+ 
+ #define key2tval(n)	(&(n)->i_key.tvk)
+ 
++extern volatile intptr_t dummynode_external_address;
+ 
+ LUAI_FUNC const TValue *luaH_getnum (Table *t, int key);
+ LUAI_FUNC TValue *luaH_setnum (lua_State *L, Table *t, int key);
