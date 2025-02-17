@@ -15,6 +15,8 @@ namespace big
 		ImU32 frame_color      = 2'942'518'340;
 		float scale            = 1.0f;
 
+		bool let_game_input_go_through_gui_layer = false;
+
 	public:
 		gui();
 		virtual ~gui();

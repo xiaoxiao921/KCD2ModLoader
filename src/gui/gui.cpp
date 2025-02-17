@@ -199,6 +199,8 @@ namespace big
 						editing_gui_keybind = true;
 					}
 
+					ImGui::Checkbox("Let Game Input Go Through Gui Layer", &let_game_input_go_through_gui_layer);
+
 					ImGui::EndMenu();
 				}
 

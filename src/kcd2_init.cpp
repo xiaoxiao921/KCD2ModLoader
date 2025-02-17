@@ -4,6 +4,8 @@
 #include "kcd2_address.hpp"
 #include "memory/gm_address.hpp"
 
+#include <config/config.hpp>
+#include <gui/gui.hpp>
 #include <gui/renderer.hpp>
 #include <lua_extensions/lua_manager_extension.hpp>
 
@@ -199,8 +201,6 @@ namespace big
 		return game_func(L, reader, dt, chunkname);
 	}
 
-	std::unordered_map<std::string, int *> g_cryengine_attached_variables;
-
 	void *__fastcall hook_attachVariable(void *this_, const char *szVarName, int *pContainer, const char *szComment, int dwFlags)
 	{
 		if (strcmp(szVarName, "sys_PakPriority") == 0)
@@ -209,11 +209,75 @@ namespace big
 			*pContainer = 0;
 		}
 
-		g_cryengine_attached_variables[szVarName] = pContainer;
-
 		const auto res = big::g_hooking->get_original<hook_attachVariable>()(this_, szVarName, pContainer, szComment, dwFlags);
 
 		return res;
+	}
+
+	static void hook_PostInputEvent(char **a1, __int64 a2, __int64 a3, __int64 a4)
+	{
+		if (big::g_gui && big::g_gui->is_open() && !big::g_gui->let_game_input_go_through_gui_layer)
+		{
+			return;
+		}
+
+		big::g_hooking->get_original<hook_PostInputEvent>()(a1, a2, a3, a4);
+	}
+
+	enum CryEngine_ELogType
+	{
+		eMessage,
+		eWarning,
+		eError,
+		eAlways,
+		eWarningAlways,
+		eErrorAlways,
+		eInput,         //!< e.g. "e_CaptureFolder ?" or all printouts from history or auto completion.
+		eInputResponse, //!< e.g. "Set output folder for video capturing" in response to "e_CaptureFolder ?".
+		eComment,
+		eAssert
+	};
+
+	toml_v2::config_file::config_entry<bool> *g_hook_log_write_enabled = nullptr;
+
+	static void __fastcall hook_CLog_LogV(__int64 this_, __int64 a2, unsigned int a3, CryEngine_ELogType elogtype, int a5, const char *szFormat, va_list args)
+	{
+		if (szFormat && g_hook_log_write_enabled->get_value())
+		{
+			va_list args_copy;
+			va_copy(args_copy, args);
+
+			// Determine required buffer size (excluding null terminator)
+			int required_size = vsnprintf(nullptr, 0, szFormat, args_copy);
+			va_end(args_copy);
+
+			if (required_size > 0) // Ensure formatting succeeded
+			{
+				// Stack allocation using alloca (adds +1 for null terminator)
+				char *buffer = (char *)alloca(required_size + 1);
+
+				va_copy(args_copy, args);
+				vsnprintf(buffer, required_size + 1, szFormat, args_copy);
+				va_end(args_copy);
+
+				switch (elogtype)
+				{
+				case eMessage:       LOG(INFO) << buffer; break;
+				case eWarning:       LOG(WARNING) << buffer; break;
+				case eError:         LOG(ERROR) << buffer; break;
+				case eAlways:        LOG(INFO) << buffer; break;
+				case eWarningAlways: LOG(WARNING) << buffer; break;
+				case eErrorAlways:   LOG(ERROR) << buffer; break;
+				case eInput:         LOG(INFO) << buffer; break;
+				case eInputResponse: LOG(INFO) << buffer; break;
+				case eComment:       LOG(INFO) << buffer; break;
+				case eAssert:        LOG(ERROR) << "[Assert] " << buffer; break;
+				default:             LOG(INFO) << buffer; break;
+				}
+			}
+		}
+
+		big::g_hooking->get_original<hook_CLog_LogV>()(this_, a2, a3, elogtype, a5, szFormat, args);
 	}
 
 	void kcd2_init()
@@ -274,6 +338,30 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_Initializing_Direct3D>("hook_Initializing_Direct3D", init_renderer);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan(
+			    "48 89 5C 24 ? 57 48 83 EC ? 48 8B DA 48 8B F9 45 84 C0 75 ? 44 38 81 ? ? ? ? 74 ? 83 7A");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find PostInputEvent";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_PostInputEvent>("hook_hook_PostInputEvent", ptr);
+		}
+
+		{
+			g_hook_log_write_enabled = big::config::general().bind("Logging", "Output Vanilla Game Log", true, "Output to the KCD2ModLoader log the vanilla game log kcd.log");
+
+			const auto ptr = kcd2_address::scan(
+			    "40 53 56 57 41 54 41 55 41 56 41 57 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 0F 29 B4 24 ? ? ? ? 48 8B 05");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CLog_LogV";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CLog_LogV>("hook_CLog_LogV", ptr);
 		}
 	}
 } // namespace big

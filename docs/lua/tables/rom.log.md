@@ -2,7 +2,7 @@
 
 Table containing functions for printing to console / log file.
 
-## Functions (5)
+## Functions (6)
 
 ### `info(args)`
 
@@ -60,6 +60,18 @@ Refresh the log filters (Console and File) from the config file.
 **Example Usage:**
 ```lua
 rom.log.refresh_filters()
+```
+
+### `set_output_vanilla_game_log(new_value)`
+
+Pass true to include vanilla game log messages in the console and file log output.
+
+- **Parameters:**
+  - `new_value` ()
+
+**Example Usage:**
+```lua
+rom.log.set_output_vanilla_game_log(new_value)
 ```
 
 
