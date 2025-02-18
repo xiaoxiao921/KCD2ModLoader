@@ -9,9 +9,6 @@
 #include <backends/imgui_impl_win32.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
-#include <lua/lua_manager.hpp>
-#include <lua_extensions/lua_manager_extension.hpp>
-#include <memory/gm_address.hpp>
 #include <typeinfo>
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -656,16 +653,17 @@ namespace big
 			::UnregisterClass(wc.lpszClassName, wc.hInstance);
 		}
 
-		hooking::detour_hook_helper::add<hook_CreateSwapChain>("CSC", dxgi_factory_vtable[10]);
-		hooking::detour_hook_helper::add<hook_CreateSwapChainForHwnd>("CSCFH", dxgi_factory_vtable[15]);
-		hooking::detour_hook_helper::add<hook_CreateSwapChainForCoreWindow>("CSCFCW", dxgi_factory_vtable[16]);
-		hooking::detour_hook_helper::add<hook_CreateSwapChainForComposition>("CSCFC", dxgi_factory_vtable[24]);
+		hooking::detour_hook_helper::add_queue<hook_CreateSwapChain>("CSC", dxgi_factory_vtable[10]);
+		hooking::detour_hook_helper::add_queue<hook_CreateSwapChainForHwnd>("CSCFH", dxgi_factory_vtable[15]);
+		hooking::detour_hook_helper::add_queue<hook_CreateSwapChainForCoreWindow>("CSCFCW", dxgi_factory_vtable[16]);
+		hooking::detour_hook_helper::add_queue<hook_CreateSwapChainForComposition>("CSCFC", dxgi_factory_vtable[24]);
 
-		hooking::detour_hook_helper::add<hook_Present>("P", swapchain_vtable[8]);
-		hooking::detour_hook_helper::add<hook_Present1>("P1", swapchain_vtable[22]);
+		hooking::detour_hook_helper::add_queue<hook_Present>("P", swapchain_vtable[8]);
+		hooking::detour_hook_helper::add_queue<hook_Present1>("P1", swapchain_vtable[22]);
 
-		hooking::detour_hook_helper::add<hook_ResizeBuffers>("RB", swapchain_vtable[13]);
-		hooking::detour_hook_helper::add<hook_ResizeBuffers1>("RB1", swapchain_vtable[39]);
+		hooking::detour_hook_helper::add_queue<hook_ResizeBuffers>("RB", swapchain_vtable[13]);
+		hooking::detour_hook_helper::add_queue<hook_ResizeBuffers1>("RB1", swapchain_vtable[39]);
+		hooking::detour_hook_helper::execute_queue();
 
 		return true;
 	}

@@ -201,7 +201,45 @@ namespace big
 		return game_func(L, reader, dt, chunkname);
 	}
 
-	void *__fastcall hook_attachVariable(void *this_, const char *szVarName, int *pContainer, const char *szComment, int dwFlags)
+	static char hook_CryScriptSystem_Init(void *this_, __int64 a2)
+	{
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
+		const auto early_main_state = lua_manager_extension::g_lua_manager_instance->lua_state();
+		lua_manager_extension::g_lua_manager_instance.reset();
+		LOG(INFO) << "Lua manager early main reset";
+		lua_close(early_main_state);
+
+		LOG(INFO) << "Starting hook queue";
+		Logger::FlushQueue();
+
+		// no idea if all these hook are necessary, the one that did the trick was lua_load i'm pretty sure
+		big::hooking::detour_hook_helper::add_queue<hook_luaV_execute>("", &luaV_execute);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_call>("", &lua_call);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_checkstack>("", &lua_checkstack);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_createtable>("", &lua_createtable);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_error>("", &lua_error);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_gc>("", &lua_gc);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_getfenv>("", &lua_getfenv);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_getfield>("", &lua_getfield);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_getmetatable>("", &lua_getmetatable);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_gettable>("", &lua_gettable);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_insert>("", &lua_insert);
+		game_lua_pcall = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
+		big::hooking::detour_hook_helper::add_queue<hook_game_lua_pcall>("", game_lua_pcall);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_pcall>("", &lua_pcall);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_load>("lua_load hook", &lua_load);
+		big::hooking::detour_hook_helper::execute_queue();
+
+		LOG(INFO) << "Ending hook queue";
+		Logger::FlushQueue();
+
+		const auto res = big::g_hooking->get_original<hook_CryScriptSystem_Init>()(this_, a2);
+
+		return res;
+	}
+
+	static void *__fastcall hook_attachVariable(void *this_, const char *szVarName, int *pContainer, const char *szComment, int dwFlags)
 	{
 		if (strcmp(szVarName, "sys_PakPriority") == 0)
 		{
