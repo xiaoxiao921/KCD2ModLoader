@@ -74,24 +74,10 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, PVOID)
 #endif
 
 		// Purposely leak it, we are not unloading this module in any case.
-		auto thread_pool_instance = new thread_pool();
-		LOG(INFO) << "Thread pool initialized.";
-
-		// Purposely leak it, we are not unloading this module in any case.
 		auto byte_patch_manager_instance = new byte_patch_manager();
 		LOG(INFO) << "Byte Patch Manager initialized.";
 
 		kcd2_init();
-
-		/*while (true)
-		{
-			if (FindWindowA("CryENGINE", nullptr))
-			{
-				break;
-			}
-
-			std::this_thread::sleep_for(10ms);
-		}*/
 
 		// Purposely leak it, we are not unloading this module in any case.
 		auto hooking_instance = new hooking();
