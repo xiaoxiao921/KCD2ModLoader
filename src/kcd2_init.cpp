@@ -318,7 +318,51 @@ namespace big
 		big::g_hooking->get_original<hook_CLog_LogV>()(this_, a2, a3, elogtype, a5, szFormat, args);
 	}
 
+	__int64 hook_fmodstudio_loadbankfile(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank)
+	{
+		g_fmodstudio_instance = this_;
+
+		return fmodstudio_loadbankfile_orig(this_, filename, fmod_studio_load_bank_flags, bank);
+	}
+
+	static __int64 hook_fmodstudio_getevent(void *fmodstudio_event_system_this, const char *event_name, void **event_description_result)
+	{
+		//return fmodstudio_getevent_orig(fmodstudio_event_system_this, event_name, event_description_result);
+
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
+		std::string new_event_name = event_name;
+
+		if (g_lua_manager)
+		{
+			std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+			for (const auto &mod_ : g_lua_manager->m_modules)
+			{
+				auto mod = (lua_module_ext *)mod_.get();
+				for (const auto &cb : mod->m_data_ext.m_on_fmod_getevent)
+				{
+					auto res = cb(new_event_name);
+					if (res.get_type() == sol::type::string)
+					{
+						new_event_name = res.get<std::string>();
+					}
+				}
+			}
+		}
+		g_fmod_events.insert(new_event_name.c_str());
+
+		const auto res = fmodstudio_getevent_orig(fmodstudio_event_system_this, new_event_name.c_str(), event_description_result);
+		if (res != 0)
+		{
+			LOG(WARNING) << "Failed playing " << new_event_name.c_str() << " - " << res << " - " << event_description_result;
+		}
+
+		return res;
+	}
+
 	const char *g_xml_current_parsed_filename = nullptr;
+
 	static __int64 *__fastcall hook_XmlParserImp_ParseFile(void *this_, __int64 *a2, const char *filename, char a4)
 	{
 		g_xml_current_parsed_filename = filename;
@@ -372,6 +416,7 @@ namespace big
 
 		return big::g_hooking->get_original<hook_XML_Parse>()(parser, pFileContents, fileSize);
 	}
+
 	void kcd2_init()
 	{
 		{
@@ -454,6 +499,28 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CLog_LogV>("hook_CLog_LogV", ptr);
+		}
+
+		{
+			EachImportFunction(::GetModuleHandleA("WHGame.dll"),
+			                   "fmodstudio.dll",
+			                   [](const char *funcname, void *&func)
+			                   {
+				                   if (strcmp(funcname, "?getEvent@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAPEAVEventDescription@23@@Z") == 0)
+				                   {
+					                   fmodstudio_getevent_orig = (fmodstudio_getevent_t)func;
+					                   ForceWrite<void *>(func, hook_fmodstudio_getevent);
+				                   }
+				                   else if (strcmp(funcname, "?loadBankFile@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEBDIPEAPEAVBank@23@@Z") == 0)
+				                   {
+					                   fmodstudio_loadbankfile_orig = (fmodstudio_loadbankfile_t)func;
+					                   big::ForceWrite<void *>(func, hook_fmodstudio_loadbankfile);
+				                   }
+				                   else if (strcmp(funcname, "?unload@Bank@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ") == 0)
+				                   {
+					                   fmodstudio_bank_unload_orig = (fmodstudio_bank_unload_t)func;
+				                   }
+			                   });
 		}
 
 		{
