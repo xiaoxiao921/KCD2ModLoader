@@ -1,5 +1,8 @@
 #include "kcd2.hpp"
 
+#include <kcd2_init.hpp>
+#include <lua_extensions/lua_module_ext.hpp>
+
 namespace big
 {
 	extern toml_v2::config_file::config_entry<bool>* g_hook_log_write_enabled;
@@ -33,7 +36,7 @@ namespace lua::kcd2
 		g_file_path_to_bank[file_path] = bank;
 
 		return true;
-}
+	}
 
 	// Lua API: Function
 	// Table: audio
@@ -53,7 +56,7 @@ namespace lua::kcd2
 		const auto res = big::fmodstudio_bank_unload_orig(it->second);
 
 		if (res)
-{
+		{
 			LOG(ERROR) << "Failed unloading fmod bank, fmod error code: " << res;
 
 			return false;
@@ -75,6 +78,24 @@ namespace lua::kcd2
 			ns["set_output_vanilla_game_log"] = [](bool new_value)
 			{
 				big::g_hook_log_write_enabled->set_value(new_value);
+			};
+		}
+
+		{
+			auto ns = state.create_named("xml");
+
+			// Lua API: Function
+			// Table: xml
+			// Name: on_xml_parse
+			// Param: function: function: signature (string file_name, string file_content) return new_file_content or nil
+			// The passed function will be called before the game loads a .lua script from the vanilla game. is_early_main setup/check required for some of the files.
+			ns["on_xml_parse"] = [](sol::protected_function f, sol::this_environment env)
+			{
+				auto mod = (big::lua_module_ext*)big::lua_module::this_from(env);
+				if (mod)
+				{
+					mod->m_data_ext.m_on_xml_parse.push_back(f);
+				}
 			};
 		}
 

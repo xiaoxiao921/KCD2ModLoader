@@ -6,6 +6,7 @@ namespace big
 {
 	struct lua_module_data_ext
 	{
+		std::vector<sol::protected_function> m_on_xml_parse;
 	};
 
 	class lua_module_ext : public lua_module

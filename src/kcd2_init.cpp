@@ -318,6 +318,60 @@ namespace big
 		big::g_hooking->get_original<hook_CLog_LogV>()(this_, a2, a3, elogtype, a5, szFormat, args);
 	}
 
+	const char *g_xml_current_parsed_filename = nullptr;
+	static __int64 *__fastcall hook_XmlParserImp_ParseFile(void *this_, __int64 *a2, const char *filename, char a4)
+	{
+		g_xml_current_parsed_filename = filename;
+
+		const auto res = big::g_hooking->get_original<hook_XmlParserImp_ParseFile>()(this_, a2, filename, a4);
+
+		g_xml_current_parsed_filename = nullptr;
+
+		return res;
+	}
+
+	static __int64 __fastcall hook_XML_Parse(__int64 parser, const char *pFileContents, int fileSize)
+	{
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
+		if (g_lua_manager)
+		{
+			std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+			bool should_copy_xml = false;
+			for (const auto &mod_ : g_lua_manager->m_modules)
+			{
+				auto mod = (lua_module_ext *)mod_.get();
+				if (mod->m_data_ext.m_on_xml_parse.size())
+				{
+					should_copy_xml = true;
+					break;
+				}
+			}
+
+			std::string new_file_content;
+			if (should_copy_xml)
+			{
+				new_file_content.assign(pFileContents, fileSize);
+				for (const auto &mod_ : g_lua_manager->m_modules)
+				{
+					auto mod = (lua_module_ext *)mod_.get();
+					for (const auto &cb : mod->m_data_ext.m_on_xml_parse)
+					{
+						auto res = cb(g_xml_current_parsed_filename ? g_xml_current_parsed_filename : "", new_file_content);
+						if (res.get_type() == sol::type::string)
+						{
+							new_file_content = res.get<std::string>();
+						}
+					}
+				}
+
+				return big::g_hooking->get_original<hook_XML_Parse>()(parser, new_file_content.c_str(), new_file_content.size());
+			}
+		}
+
+		return big::g_hooking->get_original<hook_XML_Parse>()(parser, pFileContents, fileSize);
+	}
 	void kcd2_init()
 	{
 		{
@@ -400,6 +454,27 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CLog_LogV>("hook_CLog_LogV", ptr);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan(
+			    "40 53 56 57 41 56 41 57 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 84 24 ? ? ? ? 41 8A D9");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find XmlParserImp_ParseFile";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_XmlParserImp_ParseFile>("hook_XmlParserImp_ParseFile", ptr);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8D 4D ? 83 F8");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find XML_Parse";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_XML_Parse>("hook_XML_Parse", ptr.get_call());
 		}
 	}
 } // namespace big
