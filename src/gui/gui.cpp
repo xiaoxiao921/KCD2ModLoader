@@ -15,6 +15,8 @@
 
 namespace big
 {
+	extern toml_v2::config_file::config_entry<bool>* g_hook_log_write_enabled;
+
 	gui::gui()
 	{
 		init_pref();
@@ -200,6 +202,15 @@ namespace big
 					}
 
 					ImGui::Checkbox("Let Game Input Go Through Gui Layer", &let_game_input_go_through_gui_layer);
+
+					{
+						static bool val = g_hook_log_write_enabled->get_value();
+						if (ImGui::Checkbox("Output to the KCD2ModLoader log the vanilla game log (kcd.log)", &val))
+						{
+							g_hook_log_write_enabled->set_value(val);
+						}
+					}
+
 
 					ImGui::EndMenu();
 				}
@@ -433,7 +444,7 @@ namespace big
 				{
 					orig_ClipCursor = &ClipCursor;
 
-					EachImportFunction(::GetModuleHandleA(0),
+					EachImportFunction(::GetModuleHandleA("WHGame.dll"),
 					                   "user32.dll",
 					                   [](const char* funcname, void*& func)
 					                   {
