@@ -6,6 +6,9 @@ namespace big
 {
 	struct lua_module_data_ext
 	{
+		std::vector<sol::protected_function> m_on_pre_import;
+		std::vector<sol::protected_function> m_on_post_import;
+
 		std::vector<sol::protected_function> m_on_xml_parse;
 
 		std::vector<sol::protected_function> m_on_fmod_getevent;

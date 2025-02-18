@@ -20,62 +20,24 @@ extern "C"
 
 namespace big
 {
+	static lua_State *g_early_main_lua_state = nullptr;
+
 	extern void render_imgui_frame();
 
-	//static bool __fastcall hook_lua_init_system(__int64 a1, __int64 a2, char a3)
+	static bool lua_init_once = true;
+
 	// Currently this is not the lua init function, it's the CryScriptSystem::Update function
-	static __int64 __fastcall hook_lua_init_system(__int64 a1)
+	static __int64 __fastcall hook_CScriptSystem_Update(__int64 a1)
 	{
+		//return big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
+
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		//const auto res = big::g_hooking->get_original<hook_lua_init_system>()(a1, a2, a3);
-		const auto res = big::g_hooking->get_original<hook_lua_init_system>()(a1);
+		const auto res = big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
 
-		static bool once = true;
-		if (once)
-		{
-			once = false;
+		render_imgui_frame();
 
-			lua_State *L = *reinterpret_cast<lua_State **>(a1 + 16);
-
-			// must ensure dummynode / luaO_nilobject from the game WHGame.dll is used and not ours.
-			{
-				static auto game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr").as_func<intptr_t(lua_State *, int)>();
-				luaO_nilobject_external_address = game_index2adr(L, 999'999);
-				static auto game_luaH_new =
-				    kcd2_address::scan(
-				        "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0",
-				        "game luaH_new")
-				        .as_func<Table *(lua_State *, int, int)>();
-				auto game_table            = game_luaH_new(L, 0, 0);
-				dummynode_external_address = (intptr_t)game_table->node;
-			}
-
-			// https://github.com/lp249839965/CryEngine-5.2.3/blob/ef4f45fe2ff05ad788fec1dd6ac56c038731e29d/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L747
-			{
-				L->l_G->storedebug = 1;
-			}
-
-			lua_manager_extension::g_lua_manager_instance = std::make_unique<lua_manager>(L,
-			                                                                              g_file_manager.get_project_folder("config"),
-			                                                                              g_file_manager.get_project_folder("plugins_data"),
-			                                                                              g_file_manager.get_project_folder("plugins"),
-			                                                                              [](sol::state_view &state, sol::table &lua_ext)
-			                                                                              {
-				                                                                              lua_manager_extension::init_lua_manager(state, lua_ext);
-			                                                                              });
-
-			lua_manager_extension::g_lua_manager_instance->init<lua_module_ext>();
-
-			lua_manager_extension::g_is_lua_state_valid = true;
-		}
-
-		if (lua_manager_extension::g_lua_manager_instance)
-		{
-			render_imgui_frame();
-
-			lua_manager_extension::g_lua_manager_instance->process_file_watcher_queue();
-		}
+		lua_manager_extension::g_lua_manager_instance->process_file_watcher_queue();
 
 		return res;
 	}
@@ -86,33 +48,17 @@ namespace big
 
 		const auto res = big::g_hooking->get_original<hook_Initializing_Direct3D>()(a1, a2, a3, a4, a5, a6, a7, a8, a9);
 
-		std::thread(
-		    []()
-		    {
-			    g_running = true;
-			    //Sleep(15'000);
-			    big::g_renderer->hook();
-		    })
-		    .detach();
+		//std::thread(
+		//[]()
+		//{
+		g_running = true;
+		big::g_renderer->hook();
+		//})
+		//.detach();
 
 		LOG(INFO) << "Initializing_Direct3D finished";
 
 		return res;
-	}
-
-	static void *__fastcall hook_lua_allocator(void *ud, void *ptr, size_t osize, size_t nsize)
-	{
-		(void)ud;
-		(void)osize;
-		if (nsize == 0)
-		{
-			free(ptr);
-			return NULL;
-		}
-		else
-		{
-			return realloc(ptr, nsize);
-		}
 	}
 
 	static void hook_lua_call(lua_State *L, int nargs, int nresults)
@@ -182,10 +128,22 @@ namespace big
 		return game_func(L, index);
 	}
 
+	static sol::optional<sol::environment> env_to_add;
+	static kcd2_address game_lua_pcall;
+
+	static int hook_game_lua_pcall(lua_State *L, int nargs, int nresults, int errfunc)
+	{
+		if (env_to_add.has_value() && env_to_add.value().valid())
+		{
+			sol::set_environment(env_to_add.value(), sol::stack_reference(L, -1));
+		}
+
+		return big::g_hooking->get_original<hook_game_lua_pcall>()(L, nargs, nresults, errfunc);
+	}
+
 	static int hook_lua_pcall(lua_State *L, int nargs, int nresults, int errfunc)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call().as_func<decltype(lua_pcall)>();
-		return game_func(L, nargs, nresults, errfunc);
+		return game_lua_pcall.as_func<decltype(lua_pcall)>()(L, nargs, nresults, errfunc);
 	}
 
 	static void hook_luaV_execute(lua_State *L, int nexeccalls)
@@ -318,6 +276,116 @@ namespace big
 		big::g_hooking->get_original<hook_CLog_LogV>()(this_, a2, a3, elogtype, a5, szFormat, args);
 	}
 
+	bool __fastcall hook_CScriptSystem_ExecuteBuffer(__int64 this_, const char *sBuffer, __int64 size, const char *sBufferDescription, __int64 pEnvironmentLua)
+	{
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
+		if (lua_init_once)
+		{
+			lua_init_once = false;
+
+			lua_State *L = *reinterpret_cast<lua_State **>(this_ + 16);
+
+			// must ensure dummynode / luaO_nilobject from the game WHGame.dll is used and not ours.
+			{
+				static auto game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr").as_func<intptr_t(lua_State *, int)>();
+				luaO_nilobject_external_address = game_index2adr(L, 999'999);
+				static auto game_luaH_new =
+				    kcd2_address::scan(
+				        "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0",
+				        "game luaH_new")
+				        .as_func<Table *(lua_State *, int, int)>();
+				auto game_table            = game_luaH_new(L, 0, 0);
+				dummynode_external_address = (intptr_t)game_table->node;
+			}
+
+			// https://github.com/lp249839965/CryEngine-5.2.3/blob/ef4f45fe2ff05ad788fec1dd6ac56c038731e29d/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L747
+			{
+				L->l_G->storedebug = 1;
+			}
+
+			LOG(INFO) << "Lua manager init";
+			lua_manager_extension::g_lua_manager_instance = std::make_unique<lua_manager>(
+			    L,
+			    g_file_manager.get_project_folder("config"),
+			    g_file_manager.get_project_folder("plugins_data"),
+			    g_file_manager.get_project_folder("plugins"),
+			    [](sol::state_view &state, sol::table &lua_ext)
+			    {
+				    lua_manager_extension::init_lua_manager(state, lua_ext, false);
+			    },
+			    [](sol::state_view &state) -> sol::environment
+			    {
+				    // rom.game = _G
+				    state[rom::g_lua_api_namespace]["game"] = state["_G"];
+
+				    // local plugin_G = {}
+				    sol::table plugin_G = state.create_table();
+
+				    sol::table all_g = state["_G"];
+				    for (const auto &[k, v] : all_g)
+				    {
+					    if (k.is<const char *>())
+					    {
+						    auto key_str = k.as<const char *>();
+						    // Bad heuristic for filtering out native functions from the game code
+						    if (!std::isupper(static_cast<unsigned char>(key_str[0])))
+						    {
+							    plugin_G[k] = v;
+						    }
+					    }
+					    else
+					    {
+						    plugin_G[k] = v;
+					    }
+				    }
+
+				    // plugin_G.rom = rom
+				    plugin_G[rom::g_lua_api_namespace] = state[rom::g_lua_api_namespace];
+
+				    // plugin_G._G = plugin_G
+				    plugin_G["_G"] = plugin_G;
+
+				    // when you give plugins an _ENV, plugin_G is the __index instead
+				    return sol::environment(state, sol::create, plugin_G);
+			    });
+
+			lua_manager_extension::g_lua_manager_instance->init<lua_module_ext>(true);
+		}
+
+		std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+		for (const auto &mod_ : g_lua_manager->m_modules)
+		{
+			auto mod = (lua_module_ext *)mod_.get();
+			for (const auto &cb : mod->m_data_ext.m_on_pre_import)
+			{
+				auto res        = cb(sBufferDescription, env_to_add.has_value() ? env_to_add.value() : sol::lua_nil);
+				auto env_to_set = res.get<sol::optional<sol::environment>>();
+				if (env_to_set && env_to_set.value() && env_to_set.value().valid())
+				{
+					env_to_add = env_to_set;
+					LOG(INFO) << "Setting _ENV for this script to " << mod->guid();
+				}
+			}
+		}
+
+		const auto res = big::g_hooking->get_original<hook_CScriptSystem_ExecuteBuffer>()(this_, sBuffer, size, sBufferDescription, pEnvironmentLua);
+
+		env_to_add = {};
+
+		for (const auto &mod_ : g_lua_manager->m_modules)
+		{
+			auto mod = (lua_module_ext *)mod_.get();
+			for (const auto &cb : mod->m_data_ext.m_on_post_import)
+			{
+				cb(sBufferDescription);
+			}
+		}
+
+		return res;
+	}
+
 	__int64 hook_fmodstudio_loadbankfile(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank)
 	{
 		g_fmodstudio_instance = this_;
@@ -350,6 +418,7 @@ namespace big
 				}
 			}
 		}
+
 		g_fmod_events.insert(new_event_name.c_str());
 
 		const auto res = fmodstudio_getevent_orig(fmodstudio_event_system_this, new_event_name.c_str(), event_description_result);
@@ -431,41 +500,6 @@ namespace big
 		}
 
 		{
-			// must ensure dummynode / luaO_nilobject from the game WHGame.dll is used and not ours.
-			//const intptr_t game_base_address = (intptr_t)GetModuleHandleA("WHGame.dll");
-			//dummynode_external_address       = game_base_address + 0x3'98'B7'A0;
-			//luaO_nilobject_external_address  = game_base_address + 0x3'98'B7'90;
-
-			//const auto lua_init_system = kcd2_address::scan("E8 ? ? ? ? 84 C0 0F 84 ? ? ? ? 48 89 5F").get_call();
-			const auto lua_init_system =
-			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B 3D ? ? ? ? 48 8B F1 33 D2");
-			if (!lua_init_system)
-			{
-				LOG(ERROR) << "Failed to find CryScriptSystem::Update";
-				return;
-			}
-			big::hooking::detour_hook_helper::add<hook_lua_init_system>("hook_lua_init_system", lua_init_system);
-
-			// no idea if all these hook are necessary, the one that did the trick was lua_load i'm pretty sure
-			big::hooking::detour_hook_helper::add<hook_luaV_execute>("", &luaV_execute);
-			big::hooking::detour_hook_helper::add<hook_lua_call>("", &lua_call);
-			big::hooking::detour_hook_helper::add<hook_lua_checkstack>("", &lua_checkstack);
-			big::hooking::detour_hook_helper::add<hook_lua_createtable>("", &lua_createtable);
-			big::hooking::detour_hook_helper::add<hook_lua_error>("", &lua_error);
-			big::hooking::detour_hook_helper::add<hook_lua_gc>("", &lua_gc);
-			big::hooking::detour_hook_helper::add<hook_lua_getfenv>("", &lua_getfenv);
-			big::hooking::detour_hook_helper::add<hook_lua_getfield>("", &lua_getfield);
-			big::hooking::detour_hook_helper::add<hook_lua_getmetatable>("", &lua_getmetatable);
-			big::hooking::detour_hook_helper::add<hook_lua_gettable>("", &lua_gettable);
-			big::hooking::detour_hook_helper::add<hook_lua_insert>("", &lua_insert);
-			big::hooking::detour_hook_helper::add<hook_lua_pcall>("", &lua_pcall);
-			big::hooking::detour_hook_helper::add<hook_lua_allocator>(
-			    "hook_lua_allocator",
-			    kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88").get_call());
-			big::hooking::detour_hook_helper::add<hook_lua_load>("lua_load hook", &lua_load);
-		}
-
-		{
 			const auto init_renderer =
 			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 "
 			                       "41 57 48 8B EC 48 83 EC ? 48 8B F1 45 8B F1");
@@ -542,6 +576,65 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_XML_Parse>("hook_XML_Parse", ptr.get_call());
+		}
+
+		// Early main Lua
+		{
+			static const TValue luaO_nilobject_ = {{NULL}, LUA_TNIL};
+			static const Node dummynode_        = {
+                {{NULL}, LUA_TNIL},        /* value */
+                {{{NULL}, LUA_TNIL, NULL}} /* key */
+            };
+			luaO_nilobject_external_address = (uintptr_t)&luaO_nilobject_;
+			dummynode_external_address      = (uintptr_t)&dummynode_;
+
+			g_early_main_lua_state = luaL_newstate();
+
+			std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
+			lua_manager_extension::g_lua_manager_instance = std::make_unique<lua_manager>(g_early_main_lua_state,
+			                                                                              g_file_manager.get_project_folder("config"),
+			                                                                              g_file_manager.get_project_folder("plugins_data"),
+			                                                                              g_file_manager.get_project_folder("plugins"),
+			                                                                              [](sol::state_view &state, sol::table &lua_ext)
+			                                                                              {
+				                                                                              lua_manager_extension::init_lua_api(state, lua_ext, true);
+			                                                                              });
+
+			sol::state_view sol_state_view(g_early_main_lua_state);
+			sol::table lua_ext = sol_state_view.create_named_table(rom::g_lua_api_namespace);
+			lua_manager_extension::init_lua_state(sol_state_view, lua_ext, true);
+			lua_manager_extension::g_lua_manager_instance->init<lua_module_ext>(false);
+		}
+
+		{
+			const auto cryscriptsystem_init =
+			    kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? 48 8B 46 ? 48 8B 88 ? ? ? ? 48 8B 01");
+			if (!cryscriptsystem_init)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::Init";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CryScriptSystem_Init>("hook_CryScriptSystem_Init",
+			                                                                 cryscriptsystem_init.get_call());
+
+			const auto lua_system_update_tick =
+			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B 3D ? ? ? ? 48 8B F1 33 D2");
+			if (!lua_system_update_tick)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::Update";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CScriptSystem_Update>("hook_lua_system_update_tick", lua_system_update_tick);
+
+			const auto lua_execute_buffer = kcd2_address::scan(
+			    "48 8B C4 48 89 58 ? 48 89 68 ? 48 89 70 ? 48 89 78 ? 41 56 48 83 EC ? 48 8B F9 48 89 50");
+			if (!lua_execute_buffer)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::ExecuteBuffer";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CScriptSystem_ExecuteBuffer>("hook_lua_execute_buffer", lua_execute_buffer);
 		}
 	}
 } // namespace big
