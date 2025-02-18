@@ -8,7 +8,6 @@
 #include "logger/exception_handler.hpp"
 #include "memory/byte_patch_manager.hpp"
 #include "paths/paths.hpp"
-#include "threads/thread_pool.hpp"
 #include "threads/util.hpp"
 #include "version.hpp"
 
@@ -76,7 +75,6 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, PVOID)
 		// Purposely leak it, we are not unloading this module in any case.
 		auto byte_patch_manager_instance = new byte_patch_manager();
 		LOG(INFO) << "Byte Patch Manager initialized.";
-
 		kcd2_init();
 
 		// Purposely leak it, we are not unloading this module in any case.

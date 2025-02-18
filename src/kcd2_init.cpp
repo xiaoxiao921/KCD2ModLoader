@@ -352,7 +352,7 @@ namespace big
 		}
 
 		{
-			g_hook_log_write_enabled = big::config::general().bind("Logging", "Output Vanilla Game Log", true, "Output to the KCD2ModLoader log the vanilla game log kcd.log");
+			g_hook_log_write_enabled = big::config::general().bind("Logging", "Output Vanilla Game Log", false, "Output to the KCD2ModLoader log the vanilla game log kcd.log");
 
 			const auto ptr = kcd2_address::scan(
 			    "40 53 56 57 41 54 41 55 41 56 41 57 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 0F 29 B4 24 ? ? ? ? 48 8B 05");
