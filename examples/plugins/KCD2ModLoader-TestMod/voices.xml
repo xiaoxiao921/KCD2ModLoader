@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<ATLConfig atl_name="voices">
+	<AudioTriggers>
+		<ATLTrigger atl_name="male_spit">
+			<FmodEvent fmod_id="4145629" fmod_name="event:/voice/npc/male_spit" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_4_choke">
+			<FmodEvent fmod_id="4103570" fmod_name="event:/voice/npc/soldier_4_choke" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_3_death">
+			<FmodEvent fmod_id="4102767" fmod_name="event:/voice/npc/soldier_3_death" distance_culling="50" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_2_hit">
+			<FmodEvent fmod_id="4102541" fmod_name="event:/voice/npc/soldier_2_hit" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_2_attack">
+			<FmodEvent fmod_id="4102542" fmod_name="event:/voice/npc/soldier_2_attack" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_1_hit">
+			<FmodEvent fmod_id="4102543" fmod_name="event:/voice/npc/soldier_1_hit" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_soldier_1_attack">
+			<FmodEvent fmod_id="4102544" fmod_name="event:/voice/npc/soldier_1_attack" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_jolanda">
+			<FmodEvent fmod_id="4027926" fmod_name="event:/voice/npc/jolanda" distance_culling="50" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_eating_apple">
+			<FmodEvent fmod_id="3635032" fmod_name="event:/voice/npc/eating_apple" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_reznik">
+			<FmodEvent fmod_id="3633343" fmod_name="event:/voice/npc/marty" distance_culling="25" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_jirka">
+			<FmodEvent fmod_id="3633342" fmod_name="event:/voice/npc/jirka" distance_culling="25" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_eating_meat">
+			<FmodEvent fmod_id="3591946" fmod_name="event:/voice/npc/eating_meat" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_falling_scream3">
+			<FmodEvent fmod_id="1298035" fmod_name="event:/voice/npc/male_falling_scream3" distance_culling="50" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_eat_apple" />
+		<ATLTrigger atl_name="male_injured_ss_short" path="male_injured_facial">
+			<FmodEvent fmod_id="732426" fmod_name="event:/voice/npc/male_injured_facial/male_injured_ss_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="male_injured_ss_long" path="male_injured_facial">
+			<FmodEvent fmod_id="732425" fmod_name="event:/voice/npc/male_injured_facial/male_injured_ss_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="male_injured_open_mouth_short" path="male_injured_facial">
+			<FmodEvent fmod_id="732424" fmod_name="event:/voice/npc/male_injured_facial/male_injured_open_mouth_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="male_injured_open_mouth_long" path="male_injured_facial">
+			<FmodEvent fmod_id="732423" fmod_name="event:/voice/npc/male_injured_facial/male_injured_open_mouth_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="male_injured_closed_mouth_short" path="male_injured_facial">
+			<FmodEvent fmod_id="732422" fmod_name="event:/voice/npc/male_injured_facial/male_injured_closed_mouth_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="male_injured_closed_mouth_long" path="male_injured_facial">
+			<FmodEvent fmod_id="732421" fmod_name="event:/voice/npc/male_injured_facial/male_injured_closed_mouth_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_injured_reaction1" />
+		<ATLTrigger atl_name="v_male_scream_in_pain1" />
+		<ATLTrigger atl_name="v_eating_gruel">
+			<FmodEvent fmod_id="686050" fmod_name="event:/voice/npc/eating_gruel" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_drowning">
+			<FmodEvent fmod_id="747545" fmod_name="event:/voice/npc/female/female_drown" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_drowning">
+			<FmodEvent fmod_id="686049" fmod_name="event:/voice/npc/male_drowning" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_slit_thoat">
+			<FmodEvent fmod_id="682197" fmod_name="event:/voice/npc/male_slit_throat" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_slit_throat">
+			<FmodEvent fmod_id="682098" fmod_name="event:/voice/npc/male_slit_throat" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_choking">
+			<FmodEvent fmod_id="682097" fmod_name="event:/voice/npc/male_choking" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_falling_scream2">
+			<FmodEvent fmod_id="680845" fmod_name="event:/voice/npc/male_falling_scream2" distance_culling="75" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_falling_scream1">
+			<FmodEvent fmod_id="680844" fmod_name="event:/voice/npc/male_falling_scream1" distance_culling="75" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_crying_long" path="female">
+			<FmodEvent fmod_id="2821200" fmod_name="event:/voice/npc/female/female_crying_long" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_crying_short" path="female">
+			<FmodEvent fmod_id="2821199" fmod_name="event:/voice/npc/female/female_crying_short" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_eat_apple" path="female" />
+		<ATLTrigger atl_name="v_female_choke" path="female">
+			<FmodEvent fmod_id="751792" fmod_name="event:/voice/npc/female/female_choke" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_panic_scream" path="female">
+			<FmodEvent fmod_id="751791" fmod_name="event:/voice/npc/female/female_panic_scream" distance_culling="20" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_yawn" path="female">
+			<FmodEvent fmod_id="747548" fmod_name="event:/voice/npc/female/female_yawn" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_ss_short" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747544" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_ss_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_ss_long" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747543" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_ss_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_open_mouth_short" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747542" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_open_mouth_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_open_mouth_long" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747541" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_open_mouth_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_closed_mouth_short" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747540" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_closed_mouth_short" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="female_injured_closed_mouth_long" path="female/female_injured_facial">
+			<FmodEvent fmod_id="747539" fmod_name="event:/voice/npc/female/female_injured_facial/female_injured_closed_mouth_long" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_injured_reaction1" path="female" />
+		<ATLTrigger atl_name="v_blow_kiss" path="female">
+			<FmodEvent fmod_id="630921" fmod_name="event:/voice/npc/female/female_blow_kiss" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_kiss" path="female">
+			<FmodEvent fmod_id="4997700" fmod_name="event:/voice/npc/female/female_kiss" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_sneeze">
+			<FmodEvent fmod_id="748836" fmod_name="event:/voice/npc/female/female_sneeze" distance_culling="15" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_blow_fireplace" />
+		<ATLTrigger atl_name="v_female_breath_out" />
+		<ATLTrigger atl_name="v_female_breath_in" />
+		<ATLTrigger atl_name="v_taste">
+			<FmodEvent fmod_id="567242" fmod_name="event:/voice/npc/taste" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_female_sniff">
+			<FmodEvent fmod_id="748972" fmod_name="event:/voice/npc/female/female_sniff" distance_culling="5" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_sneeze">
+			<FmodEvent fmod_id="542350" fmod_name="event:/voice/npc/male_sneeze" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_sniff">
+			<FmodEvent fmod_id="539828" fmod_name="event:/voice/npc/male_sniff" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_male_breathe_in">
+			<FmodEvent fmod_id="539649" fmod_name="event:/voice/npc/male_breathe_in" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		
+
+
+		<ATLTrigger atl_name="v_air_blow_fireplace">
+			<FmodEvent fmod_id="534028" fmod_name="event:/voice/npc/air_blow_fireplace" distance_culling="10" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_lure_someone_away">
+			<FmodEvent fmod_id="21500" fmod_name="event:/voice/player/lure_someone_away" distance_culling="10000" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_henry_deer_luring" />
+		<ATLTrigger atl_name="v_stealth_stealthkill_woman" />
+		<ATLTrigger atl_name="v_stealth_stealthkill_man" />
+		<ATLTrigger atl_name="v_henry_hit_soft" />
+		<ATLTrigger atl_name="v_henry_hit_medium" />
+		<ATLTrigger atl_name="v_henry_hit_heavy" />
+		<ATLTrigger atl_name="v_player_drunked">
+			<FmodEvent fmod_id="711564" fmod_name="event:/voice/player/player_drunked" distance_culling="65535" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_henry_hyje" />
+		<ATLTrigger atl_name="v_henry_nostamina_sigh" />
+		<ATLTrigger atl_name="v_stealth_takedown_woman_short" />
+		<ATLTrigger atl_name="v_stealth_takedown_man_short" />
+		<ATLTrigger atl_name="v_stealth_takedown_woman" />
+		<ATLTrigger atl_name="v_stealth_takedown_man" />
+		<ATLTrigger atl_name="v_attack" />
+		<ATLTrigger atl_name="n_sick_man_dying1" />
+		<ATLTrigger atl_name="n_sick_man_dying2" />
+		<ATLTrigger atl_name="v_hit_passed" />
+		<ATLTrigger atl_name="v_hit_stopped" />
+		<ATLTrigger atl_name="v_horse_whistle">
+			<FmodEvent fmod_id="21524" fmod_name="event:/voice/player/horse_whistlee" distance_culling="2000" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
+
+		</ATLTrigger>
+		<ATLTrigger atl_name="v_player_death" />
+	</AudioTriggers>
+</ATLConfig>

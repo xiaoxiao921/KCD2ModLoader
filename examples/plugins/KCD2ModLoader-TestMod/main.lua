@@ -3,19 +3,39 @@
 -- or when some xml files are parsed by the game.
 -- Generally the lua documentation files will tell you if some game events require a is_early_main check
 -- for them to do anything meaningful.
-if rom.is_early_main then
-	rom.log.warning("hello from early")
+if rom.core.is_early_main then
+	rom.log.warning("hello from early main")
 	
-	rom.audio.on_fmod_getevent(function(event_name)
-		rom.log.info(event_name)
-	end)
+	-- rom.audio.on_fmod_getevent(function(event_name)
+		-- rom.log.info(event_name)
+
+		-- return the new event_name if you ever modify it
+		-- return event_name
+	-- end)
 	
-	rom.xml.on_xml_parse(function(filename, file_content)
-		rom.log.info(filename)
-	end)
+	-- rom.xml.on_xml_parse(function(filename, file_content)
+		-- rom.log.info(filename)
+
+		-- return the new file_content if you ever modify it
+		-- return file_content
+	-- end)
 	
+	-- local old_voices_file_path = "data/libs/gameaudio/voices.xml"
+	-- local new_voices_file_path = rom.path.combine(_PLUGIN.plugins_mod_folder_path, "voices.xml")
+	-- rom.game_data.on_cryfile_open(old_voices_file_path, new_voices_file_path)
+	
+	--rom.game_data.on_pak_openable(function()
+	--	rom.game_data.open_pak("data", "C:/Users/User/SomePath/Data/SomePakFile.pak")
+	--	rom.game_data.open_pak("localization", "C:/Users/User/SomePath/Localization/english_xml.pak")
+	--end)
+	
+
 	return
 end
+
+-- print(rom.game.player.inventory:CreateItem("some-item-guid", 1, 1))
+
+-- UI Showcase
 
 local example_bool = false
 rom.gui.add_to_menu_bar(function()
@@ -24,20 +44,6 @@ rom.gui.add_to_menu_bar(function()
         example_bool = new_value
 		rom.log.info(example_bool)
 	end
-end)
-
--- for k,v in pairs(_G) do
-	-- rom.log.warning(k,v)
--- end
-
--- for k,v in pairs(rom.audio.events) do
-	-- rom.log.warning(k,v)
--- end
-
--- rom.log.set_output_vanilla_game_log(false)
-
-rom.xml.on_xml_parse(function(filename, file_content)
-	rom.log.info(filename)
 end)
 
 rom.gui.add_imgui(function()
