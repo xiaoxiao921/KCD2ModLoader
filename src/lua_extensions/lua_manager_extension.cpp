@@ -45,7 +45,14 @@ namespace big::lua_manager_extension
 
 	void init_lua_api(sol::state_view& state, sol::table& lua_ext, bool is_early_main)
 	{
-		lua_ext.set("is_early_main", is_early_main);
+		// Lua API: Field
+		// Table: core
+		// Field: is_early_main: boolean
+		// Whether or not the early main Lua VM is running.
+		// This Lua VM is there to allow Lua code to be injected into the game process before the CryEngine vanilla game Lua VM is init.
+		// Some KCD2ModLoader Lua api functions need to be executed under this early VM to do anything significant.
+		// These functions are documented when such usage is needed and there are examples in the TestMod example mod files.
+		lua_ext.create_named("core").set("is_early_main", is_early_main);
 
 		auto on_import_table = lua_ext.create_named("on_import");
 
