@@ -1,12 +1,16 @@
 #include "kcd2.hpp"
 
+#include <hooks/hooking.hpp>
+#include <kcd2_address.hpp>
 #include <kcd2_init.hpp>
+#include <lua/lua_manager.hpp>
 #include <lua_extensions/lua_module_ext.hpp>
 
 namespace big
 {
 	extern toml_v2::config_file::config_entry<bool>* g_hook_log_write_enabled;
 	extern std::unordered_set<std::string> g_fmod_events;
+	extern uintptr_t g_CCryPak;
 } // namespace big
 
 namespace lua::kcd2
@@ -65,6 +69,29 @@ namespace lua::kcd2
 		return true;
 	}
 
+	static char CCryPak_OpenPacks_definition(__int64 a1, const char* szBindRoot, const char* pWildcardIn, int nFlags, __int64 pFullPaths)
+	{
+	}
+
+	static __int64 __fastcall hook_mod_init_after_stream_engine_init(__int64 a1, unsigned __int64 a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_mod_init_after_stream_engine_init>()(a1, a2);
+
+		using namespace big;
+		std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+		for (const auto& mod_ : g_lua_manager->m_modules)
+		{
+			auto mod = (lua_module_ext*)mod_.get();
+			for (const auto& cb : mod->m_data_ext.m_on_pak_openable)
+			{
+				cb();
+			}
+		}
+
+		return res;
+	}
+
 	void bind(sol::table& state)
 	{
 		{
@@ -82,13 +109,14 @@ namespace lua::kcd2
 		}
 
 		{
-			auto ns = state.create_named("xml");
+			auto ns = state.create_named("game_data");
 
 			// Lua API: Function
-			// Table: xml
+			// Table: game_data
 			// Name: on_xml_parse
 			// Param: function: function: signature (string file_name, string file_content) return new_file_content or nil
-			// The passed function will be called before the game loads a .lua script from the vanilla game. is_early_main setup/check required for some of the files.
+			// The passed function will be called before the game parses a .cfg file.
+			// is_early_main setup/check required for some of the files.
 			ns["on_xml_parse"] = [](sol::protected_function f, sol::this_environment env)
 			{
 				auto mod = (big::lua_module_ext*)big::lua_module::this_from(env);
@@ -97,6 +125,73 @@ namespace lua::kcd2
 					mod->m_data_ext.m_on_xml_parse.push_back(f);
 				}
 			};
+
+			// Lua API: Function
+			// Table: game_data
+			// Name: on_cryfile_open
+			// Param: old_filename: string: old filename that should get replaced
+			// Param: new_filename: string: new filename that will replace the old one.
+			// When the game opens a CryFile (Which can be a lot of different kind of files: .pak, .xml, .cfg and so on),
+			// you can tell KCD2ModLoader to instead load a certain new file instead.
+			// is_early_main setup/check required for some of the files.
+			ns["on_cryfile_open"] = [](const std::string& old_filename, const std::string& new_filename, sol::this_environment env)
+			{
+				auto mod = (big::lua_module_ext*)big::lua_module::this_from(env);
+				if (mod)
+				{
+					mod->m_data_ext.m_cryfile_open_replace_map[old_filename] = new_filename;
+					LOG(INFO) << "Replacing " << old_filename << " with " << new_filename;
+				}
+			};
+
+			// Lua API: Function
+			// Table: game_data
+			// Name: open_pak
+			// Param: root: string: root used for the pak file, game uses `data`, `localization`...
+			// Param: path: string: file path to the .pak file to be opened.
+			// To be used with `on_pak_openable`.
+			// is_early_main setup/check required.
+			ns["open_pak"] = [](const std::string& root, const std::string& path, sol::this_environment env)
+			{
+				static auto game_func = kcd2_address::scan("40 53 55 56 57 B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 8B 05 ? ? "
+				                                           "? ? 48 33 C4 48 89 84 24 ? ? ? ? 48 8B 01")
+				                            .as_func<decltype(CCryPak_OpenPacks_definition)>();
+
+				if (game_func && big::g_CCryPak)
+				{
+					// Usage found in the "Opening paks" string function (vanilla mod loader)
+					game_func(big::g_CCryPak, root.c_str(), path.c_str(), 0x1'04'00LL, 0);
+				}
+			};
+
+			// Lua API: Function
+			// Table: game_data
+			// Name: on_pak_openable
+			// Param: function: function: signature () return void / nil
+			// The passed function will be called when the game is loading mods .pak files
+			// is_early_main setup/check is required.
+			ns["on_pak_openable"] = [](sol::protected_function f, sol::this_environment env)
+			{
+				auto mod = (big::lua_module_ext*)big::lua_module::this_from(env);
+				if (mod)
+				{
+					mod->m_data_ext.m_on_pak_openable.push_back(f);
+				}
+			};
+		}
+
+		{
+			static auto game_func = kcd2_address::scan("E8 ? ? ? ? 48 8D 4C 24 ? E8 ? ? ? ? 48 8B 8E ? ? ? ? E8");
+			if (game_func)
+			{
+				big::hooking::detour_hook_helper::add<hook_mod_init_after_stream_engine_init>(
+				    "hook_mod_init_after_stream_engine_init",
+				    game_func.get_call());
+			}
+			else
+			{
+				LOG(ERROR) << "failed hook_mod_init_after_stream_engine_init";
+			}
 		}
 
 		{

@@ -486,6 +486,47 @@ namespace big
 		return big::g_hooking->get_original<hook_XML_Parse>()(parser, pFileContents, fileSize);
 	}
 
+	uintptr_t g_CCryPak = 0;
+
+	static __int64 __fastcall hook_CCryPak_ctor(__int64 a1, __int64 a2, void *a3)
+	{
+		g_CCryPak = a1;
+
+		return big::g_hooking->get_original<hook_CCryPak_ctor>()(a1, a2, a3);
+	}
+
+	static size_t hook_CCryFile_Open(__int64 this_, const char *filename, const char *mode, unsigned int nOpenFlags)
+	{
+		if (strcmp(mode, "rb") != 0)
+		{
+			return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
+		}
+
+		if (!g_lua_manager)
+		{
+			return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
+		}
+
+		//if (strstr(filename, "gameaudio") && strstr(filename, "voices"))
+		//{
+		//LOG(INFO) << filename;
+		//}
+
+		std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+		for (const auto &mod_ : g_lua_manager->m_modules)
+		{
+			auto mod      = (lua_module_ext *)mod_.get();
+			const auto it = mod->m_data_ext.m_cryfile_open_replace_map.find(filename);
+			if (it != mod->m_data_ext.m_cryfile_open_replace_map.end())
+			{
+				return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, it->second.c_str(), mode, nOpenFlags);
+			}
+		}
+
+		return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
+	}
+
 	void kcd2_init()
 	{
 		{
@@ -576,6 +617,26 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_XML_Parse>("hook_XML_Parse", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? B3 ? 84 C0 75");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CCryFile_Open";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CCryFile_Open>("hook_CCryFile_Open", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B F8 8A 83");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CCryPak_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CCryPak_ctor>("hook_CCryPak_ctor", ptr.get_call());
 		}
 
 		// Early main Lua
