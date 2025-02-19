@@ -29,8 +29,6 @@ namespace big
 	// Currently this is not the lua init function, it's the CryScriptSystem::Update function
 	static __int64 __fastcall hook_CScriptSystem_Update(__int64 a1)
 	{
-		//return big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
-
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
 		const auto res = big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
@@ -42,17 +40,18 @@ namespace big
 		return res;
 	}
 
-	static __int64 __fastcall hook_Initializing_Direct3D(__int64 a1, __int64 a2, __int64 a3, unsigned int a4, int a5, int a6, int a7, int a8, __int64 a9)
+	//static __int64 __fastcall hook_Initializing_Direct3D(__int64 a1, __int64 a2, __int64 a3, unsigned int a4, int a5, int a6, int a7, int a8, __int64 a9)
+	static __int64 __fastcall hook_Initializing_Direct3D()
 	{
-		LOG(INFO) << "Initializing_Direct3D called";
+		LOG(INFO) << "Initializing_Direct3D called (currently sys_flash_address_space setter function)";
 
-		const auto res = big::g_hooking->get_original<hook_Initializing_Direct3D>()(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+		const auto res = big::g_hooking->get_original<hook_Initializing_Direct3D>()();
 
 		//std::thread(
 		//[]()
 		//{
-		g_running = true;
 		big::g_renderer->hook();
+		g_running = true;
 		//})
 		//.detach();
 
@@ -131,12 +130,23 @@ namespace big
 	static sol::optional<sol::environment> env_to_add;
 	static kcd2_address game_lua_pcall;
 
+	//static std::unordered_set<size_t> g_lua_different_threads;
+
 	static int hook_game_lua_pcall(lua_State *L, int nargs, int nresults, int errfunc)
 	{
+		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
 		if (env_to_add.has_value() && env_to_add.value().valid())
 		{
 			sol::set_environment(env_to_add.value(), sol::stack_reference(L, -1));
 		}
+
+		//auto current_thread_id = GetCurrentThreadId();
+		//if (!g_lua_different_threads.contains(current_thread_id))
+		//{
+		//g_lua_different_threads.insert(current_thread_id);
+		//LOG(ERROR) << "lua_pcall current thread id: " << current_thread_id;
+		//}
 
 		return big::g_hooking->get_original<hook_game_lua_pcall>()(L, nargs, nresults, errfunc);
 	}
@@ -148,6 +158,8 @@ namespace big
 
 	static void hook_luaV_execute(lua_State *L, int nexeccalls)
 	{
+		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
 		static auto game_func =
 		    kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC").as_func<decltype(luaV_execute)>();
 		return game_func(L, nexeccalls);
@@ -155,6 +167,8 @@ namespace big
 
 	static int hook_lua_load(lua_State *L, lua_Reader reader, void *dt, const char *chunkname)
 	{
+		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+
 		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call().as_func<decltype(lua_load)>();
 		return game_func(L, reader, dt, chunkname);
 	}
@@ -395,8 +409,6 @@ namespace big
 
 	static __int64 hook_fmodstudio_getevent(void *fmodstudio_event_system_this, const char *event_name, void **event_description_result)
 	{
-		//return fmodstudio_getevent_orig(fmodstudio_event_system_this, event_name, event_description_result);
-
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
 		std::string new_event_name = event_name;
@@ -541,14 +553,16 @@ namespace big
 		}
 
 		{
-			const auto init_renderer =
-			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 "
-			                       "41 57 48 8B EC 48 83 EC ? 48 8B F1 45 8B F1");
+			//const auto init_renderer =
+			//kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 "
+			//"41 57 48 8B EC 48 83 EC ? 48 8B F1 45 8B F1");
+			const auto init_renderer = kcd2_address::scan("E8 ? ? ? ? 48 83 3D ? ? ? ? ? 75 ? 48 8D 0D");
 			if (!init_renderer)
 			{
 				LOG(ERROR) << "Failed to find init_renderer";
 				return;
 			}
+			//big::hooking::detour_hook_helper::add<hook_Initializing_Direct3D>("hook_Initializing_Direct3D", init_renderer.get_call());
 			big::hooking::detour_hook_helper::add<hook_Initializing_Direct3D>("hook_Initializing_Direct3D", init_renderer);
 		}
 
