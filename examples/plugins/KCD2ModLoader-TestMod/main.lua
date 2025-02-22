@@ -13,7 +13,7 @@ if rom.core.is_early_main then
 		-- return event_name
 	-- end)
 	
-	-- rom.xml.on_xml_parse(function(filename, file_content)
+	-- rom.game_data.on_xml_parse(function(filename, file_content)
 		-- rom.log.info(filename)
 
 		-- return the new file_content if you ever modify it
