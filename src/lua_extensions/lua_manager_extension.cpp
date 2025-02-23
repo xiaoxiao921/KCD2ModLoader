@@ -43,8 +43,33 @@ namespace big::lua_manager_extension
 		}
 	}
 
+	static void set_folder_for_lua_require(folder& scripts_folder, sol::state_view& state)
+	{
+		std::string scripts_search_path  = state["package"]["path"];
+		std::string scripts_folder_path  = (char*)scripts_folder.get_path().u8string().c_str();
+		scripts_search_path             += ";" + scripts_folder_path + "/?.lua;";
+
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(scripts_folder.get_path(), std::filesystem::directory_options::skip_permission_denied))
+		{
+			if (!entry.is_directory())
+			{
+				continue;
+			}
+
+			std::string tmp      = (char*)entry.path().u8string().c_str();
+			scripts_search_path += tmp + "/?.lua;";
+		}
+		// Remove final ';'
+		scripts_search_path.pop_back();
+
+		state["package"]["path"] = scripts_search_path;
+	}
+
 	void init_lua_api(sol::state_view& state, sol::table& lua_ext, bool is_early_main)
 	{
+		auto plugins_folder = big::g_file_manager.get_project_folder("plugins");
+		set_folder_for_lua_require(plugins_folder, state);
+
 		// Lua API: Field
 		// Table: core
 		// Field: is_early_main: boolean
