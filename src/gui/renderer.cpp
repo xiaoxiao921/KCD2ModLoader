@@ -911,7 +911,7 @@ namespace big
 			init_imgui_context(g_renderer->m_window_handle);
 
 			auto file_path                             = g_file_manager.get_project_file("./imgui.ini").get_path();
-			static std::string path                    = file_path.make_preferred().string();
+			static std::string path                    = (char*)file_path.make_preferred().u8string().c_str();
 			ImGui::GetCurrentContext()->IO.IniFilename = path.c_str();
 
 			g_renderer->init_fonts();
