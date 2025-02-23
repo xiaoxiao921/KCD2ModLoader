@@ -19,8 +19,8 @@ jobs:
           arch: amd64
           
       - name: Generate CMake project
-        #run: cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D FINAL=YES -S. -Bbuild -G Ninja
-        run: cmake -D CMAKE_BUILD_TYPE=Debug -S. -Bbuild -G Ninja
+        run: cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D FINAL=YES -S. -Bbuild -G Ninja
+        #run: cmake -D CMAKE_BUILD_TYPE=Debug -S. -Bbuild -G Ninja
 
       - name: Prepare 64bit release DLL
         shell: bash
@@ -45,8 +45,8 @@ jobs:
 
       - name: Build 64bit release DLL
         run: |
-          #cmake --build ./build --config RelWithDebInfo --target KCD2ModLoader --
-          cmake --build ./build --config Debug --target KCD2ModLoader --
+          cmake --build ./build --config RelWithDebInfo --target KCD2ModLoader --
+          #cmake --build ./build --config Debug --target KCD2ModLoader --
           mv ./build/d3d12_.dll ./build/d3d12.dll
           mv ./build/d3d12_.pdb ./build/d3d12.pdb
 
