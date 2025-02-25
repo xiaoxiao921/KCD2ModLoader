@@ -179,6 +179,22 @@ namespace big
 
 	static std::unordered_set<void *> g_lua_game_metatables;
 
+	class vtable_helper
+	{
+	public:
+		virtual ~vtable_helper()
+		{
+		}
+	};
+
+	struct CScriptableBase_info
+	{
+		void *m_ptr;
+		std::string m_typeid_name;
+	};
+
+	static std::unordered_map<void *, CScriptableBase_info> g_metatable_ptr_to_CScriptable;
+
 	static void hook_CScriptTable_SetMetatable(void *this_, void *pMetatable)
 	{
 		big::g_hooking->get_original<hook_CScriptTable_SetMetatable>()(this_, pMetatable);
@@ -194,12 +210,12 @@ namespace big
 
 		lua_getglobal(L, "__cryengine__metatables");
 
-		// Check if the global table exists, if not create it
+		// Check if the global table exists, if not, create it
 		if (lua_isnil(L, -1))
 		{
 			lua_pop(L, 1);                               // Pop the nil value
 			lua_newtable(L);                             // Create a new table
-			lua_setglobal(L, "__cryengine__metatables"); // Set it as the global
+			lua_setglobal(L, "__cryengine__metatables"); // Set it as global
 			lua_getglobal(L, "__cryengine__metatables"); // Get the newly created table
 		}
 
@@ -208,11 +224,44 @@ namespace big
 		// Push the metatable onto the stack
 		PushRef(this_, pMetatable); // -1
 
-		// Append the metatable to the global table
-		int index = luaL_len(L, -2) + 1; // Get the next available index
-		lua_rawseti(L, -2, index);       // Set the metatable at the new index
+		const auto &cscriptable_info = g_metatable_ptr_to_CScriptable[pMetatable];
 
-		lua_pop(L, 1); // Pop the __rom__metatables table
+		// TODO: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L2618
+		std::string key;
+		if (!cscriptable_info.m_typeid_name.empty())
+		{
+			key = cscriptable_info.m_typeid_name;
+		}
+		else
+		{
+			static uint64_t unk_counter = 0;
+			key                         = std::format("Unknown Metatable {}", unk_counter++);
+		}
+
+		// Push the key onto the stack
+		lua_pushlstring(L, key.c_str(), key.size());
+
+		// Move the metatable below the key
+		lua_pushvalue(L, -2);
+
+		// Set the metatable in the table with the generated key
+		lua_rawset(L, -3);
+
+		// Pop the __cryengine__metatables table
+		lua_pop(L, 1);
+	}
+
+	void hook_CScriptableBase_Init(__int64 a1, __int64 IScriptSystem_pSS, __int64 a3, int nParamIdOffset)
+	{
+		big::g_hooking->get_original<hook_CScriptableBase_Init>()(a1, IScriptSystem_pSS, a3, nParamIdOffset);
+
+		const auto metatable = *(__int64 *)(a1 + 72);
+		if (metatable)
+		{
+			vtable_helper *vth = (vtable_helper *)a1;
+
+			g_metatable_ptr_to_CScriptable[(void *)metatable] = {(void *)a1, typeid(*vth).name()};
+	}
 	}
 
 	static char hook_CryScriptSystem_Init(void *this_, __int64 a2)
@@ -246,6 +295,9 @@ namespace big
 		const auto game_lua_setmetatable =
 		    kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
 		big::hooking::detour_hook_helper::add_queue<hook_CScriptTable_SetMetatable>("hook_CScriptTable_SetMetatable", game_lua_setmetatable);
+		const auto CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D");
+		big::hooking::detour_hook_helper::add_queue<hook_CScriptableBase_Init>("hook_CScriptableBase_Init",
+		                                                                       CScriptableBase_Init_func.get_call());
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
