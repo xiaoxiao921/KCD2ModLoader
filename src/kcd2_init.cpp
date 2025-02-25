@@ -552,6 +552,63 @@ namespace big
 		return big::g_hooking->get_original<hook_CCryPak_ctor>()(a1, a2, a3);
 	}
 
+	static const char *g_table_current_table_name = nullptr;
+	static const char *g_table_current_mod_name   = nullptr;
+
+	static __int64 __fastcall hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
+	{
+		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
+
+		const auto v5                    = *(uint64_t *)(table_metadata + 64);
+		const auto line_size             = *(uint32_t *)(v5 + 16);
+		char *table_vanilla_data_indexed = &table_vanilla_data[table_mod_line_index * line_size];
+
+		char *table_vanilla_data_key = *(char **)table_vanilla_data_indexed;
+		char *table_mod_data_key     = *(char **)table_mod_data;
+
+		std::vector<uint8_t> patched_data(line_size);
+		std::memcpy(patched_data.data(), table_mod_data, line_size);
+
+		if (res == -1)
+		{
+			g_table_name_to_added_line_to_info[g_table_current_table_name][table_mod_data_key].push_back({g_table_current_mod_name, patched_data});
+		}
+		else
+		{
+			if (!g_table_name_to_modified_line_to_original_data[g_table_current_table_name].contains(table_mod_data_key))
+			{
+				std::vector<uint8_t> orig_data(line_size);
+				std::memcpy(orig_data.data(), table_vanilla_data_indexed, line_size);
+				g_table_name_to_modified_line_to_original_data[g_table_current_table_name][table_mod_data_key] = orig_data;
+			}
+			g_table_name_to_modified_line_to_info[g_table_current_table_name][table_mod_data_key].push_back({g_table_current_mod_name, patched_data});
+		}
+
+		return res;
+	}
+
+	// Skip the "__" or return original string if not found
+	static const char *get_string_after_double_underscore(const char *str)
+	{
+		const char *found = strstr(str, "__");
+		return found ? found + 2 : str;
+	}
+
+	static char __fastcall hook_wh_db_table_patched(__int64 table_metadata, __int64 *mod_data, int *line_added_count, int *line_modified_count)
+	{
+		g_table_current_table_name = *(const char **)(table_metadata + 40);
+
+		const auto mod_patch_table_name = (const char *)mod_data[5];
+		g_table_current_mod_name        = get_string_after_double_underscore(mod_patch_table_name);
+
+		const auto is_table_patched = big::g_hooking->get_original<hook_wh_db_table_patched>()(table_metadata, mod_data, line_added_count, line_modified_count);
+		if (is_table_patched)
+		{
+		}
+
+		return is_table_patched;
+	}
+
 	static size_t hook_CCryFile_Open(__int64 this_, const char *filename, const char *mode, unsigned int nOpenFlags)
 	{
 		if (strcmp(mode, "rb") != 0)
@@ -696,6 +753,26 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CCryPak_ctor>("hook_CCryPak_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? E9 ? ? ? ? 8B 52 ? 44 8B 79");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find wh_db_table_patched";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_wh_db_table_patched>("hook_wh_db_table_patched", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 83 F8 ? 75 ? 48 8B CB E8 ? ? ? ? 45 33 C9");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find wh_db_table_patch_find_line";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_wh_db_table_patch_find_line>("hook_wh_db_table_patch_find_line", ptr.get_call());
 		}
 
 		// Early main Lua

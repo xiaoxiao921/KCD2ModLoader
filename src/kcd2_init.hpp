@@ -2,6 +2,16 @@
 
 namespace big
 {
+	struct table_patch_info_t
+	{
+		std::string m_mod_name;
+		std::vector<uint8_t> m_patched_data;
+	};
+
+	inline std::map<std::string, std::map<std::string, std::vector<table_patch_info_t>>> g_table_name_to_added_line_to_info;
+	inline std::map<std::string, std::map<std::string, std::vector<uint8_t>>> g_table_name_to_modified_line_to_original_data;
+	inline std::map<std::string, std::map<std::string, std::vector<table_patch_info_t>>> g_table_name_to_modified_line_to_info;
+
 	inline std::unordered_set<std::string> g_fmod_events;
 
 	using fmodstudio_loadbankfile_t = __int64 (*)(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank);

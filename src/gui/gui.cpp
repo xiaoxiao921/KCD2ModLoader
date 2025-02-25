@@ -9,6 +9,7 @@
 #include <gui/widgets/imgui_hotkey.hpp>
 #include <input/hotkey.hpp>
 #include <input/is_key_pressed.hpp>
+#include <kcd2_init.hpp>
 #include <lua/lua_manager.hpp>
 #include <memory/gm_address.hpp>
 #include <misc/cpp/imgui_stdlib.h>
@@ -205,7 +206,7 @@ namespace big
 
 					{
 						static bool val = g_hook_log_write_enabled->get_value();
-						if (ImGui::Checkbox("Output to the KCD2ModLoader log the vanilla game log (kcd.log)", &val))
+						if (ImGui::Checkbox("Output to the KCD2ModLoader log\nthe vanilla game log (kcd.log)", &val))
 						{
 							g_hook_log_write_enabled->set_value(val);
 						}
@@ -278,13 +279,169 @@ namespace big
 				*(int*)0xDE'AD = 1;
 			}*/
 
-			if (0)
+			if (ImGui::Begin("Patched Tables"))
 			{
-				if (ImGui::Begin("KCD2ModLoader"))
+				if (ImGui::TreeNode("Modified Lines"))
 				{
+					size_t modified_line_id = 0;
+					for (const auto& [table_name, modified_line_map] : g_table_name_to_modified_line_to_info)
+					{
+						ImGui::Text("Table: %s", table_name.c_str());
+						ImGui::Separator();
+
+						auto& original_data_maps = g_table_name_to_modified_line_to_original_data[table_name];
+						for (const auto& [modified_line_name, mod_infos] : modified_line_map)
+						{
+							const auto& original_data = original_data_maps[modified_line_name];
+
+							ImGui::PushID(modified_line_id++);
+							const auto& first_mod   = mod_infos[0];
+							const size_t last_mod_i = mod_infos.size() - 1;
+							const auto& last_mod    = mod_infos[last_mod_i];
+							const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
+							const float orig_float_2 = *reinterpret_cast<const float*>(original_data.data() + (2 * 4));
+							const std::string title  = std::format("{}: {} (Original: {}) (Last Patch: {})",
+                                                                  modified_line_name,
+                                                                  patched_float_2,
+                                                                  orig_float_2,
+                                                                  last_mod.m_mod_name);
+							if (ImGui::TreeNode(title.c_str()))
+							{
+								ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+								ImGui::Text("Original Data");
+								if (ImGui::BeginChild("##HexOriginalData", ImVec2(0, 60), true))
+								{
+									std::string hex_line;
+									for (size_t i = 0; i < first_mod.m_patched_data.size(); i++)
+									{
+										char byte_hex[4];
+										std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", original_data[i]);
+										hex_line += byte_hex;
+									}
+									ImGui::TextWrapped("%s", hex_line.c_str());
+								}
+								ImGui::EndChild();
+								ImGui::PopStyleVar();
+
+								ImGui::NewLine();
+								ImGui::Separator();
+
+								for (const auto& mod_info : mod_infos)
+								{
+									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
+
+									size_t float_count = mod_info.m_patched_data.size() / 4;
+									if (float_count > 2)
+									{
+										ImGui::Text("Floats:");
+										ImGui::SameLine();
+										for (size_t i = 2; i < float_count; ++i)
+										{
+											if (i > 2)
+											{
+												ImGui::SameLine();
+											}
+											float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
+											ImGui::Text("[%zu]: %.3f", i, as_float);
+										}
+									}
+
+									ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+									ImGui::Text("Patched Data");
+									if (ImGui::BeginChild("##HexPatchedData", ImVec2(0, 60), true))
+									{
+										std::string hex_line;
+										for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
+										{
+											char byte_hex[4];
+											std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
+											hex_line += byte_hex;
+										}
+										ImGui::TextWrapped("%s", hex_line.c_str());
+									}
+									ImGui::EndChild();
+									ImGui::PopStyleVar();
+
+									ImGui::NewLine();
+									ImGui::Separator();
+								}
+								ImGui::TreePop();
+							}
+							ImGui::PopID();
+						}
+					}
+
+					ImGui::TreePop();
 				}
-				ImGui::End();
+
+				if (ImGui::TreeNode("Added Lines"))
+				{
+					size_t added_line_id = 0;
+					for (const auto& [table_name, added_line_map] : g_table_name_to_added_line_to_info)
+					{
+						ImGui::Text("Table: %s", table_name.c_str());
+						ImGui::Separator();
+
+						for (const auto& [added_line_name, mod_infos] : added_line_map)
+						{
+							ImGui::PushID(added_line_id++);
+							const auto& first_mod   = mod_infos[0];
+							const size_t last_mod_i = mod_infos.size() - 1;
+							const auto& last_mod    = mod_infos[last_mod_i];
+							const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
+							const std::string title =
+							    std::format("{}: {} (By: {})", added_line_name, patched_float_2, last_mod.m_mod_name);
+							if (ImGui::TreeNode(title.c_str()))
+							{
+								for (const auto& mod_info : mod_infos)
+								{
+									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
+
+									size_t float_count = mod_info.m_patched_data.size() / 4;
+									if (float_count > 2)
+									{
+										ImGui::Text("Floats:");
+										ImGui::SameLine();
+										for (size_t i = 2; i < float_count; ++i)
+										{
+											if (i > 2)
+											{
+												ImGui::SameLine();
+											}
+											float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
+											ImGui::Text("[%zu]: %.3f", i, as_float);
+										}
+									}
+
+									ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+									ImGui::Text("Data");
+									if (ImGui::BeginChild("##HexData", ImVec2(0, 60), true))
+									{
+										std::string hex_line;
+										for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
+										{
+											char byte_hex[4];
+											std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
+											hex_line += byte_hex;
+										}
+										ImGui::TextWrapped("%s", hex_line.c_str());
+									}
+									ImGui::EndChild();
+									ImGui::PopStyleVar();
+
+									ImGui::NewLine();
+									ImGui::Separator();
+								}
+								ImGui::TreePop();
+							}
+							ImGui::PopID();
+						}
+					}
+
+					ImGui::TreePop();
+				}
 			}
+			ImGui::End();
 		}
 
 		pop_theme_colors();
@@ -367,61 +524,6 @@ namespace big
 		}
 
 		return 1;
-	}
-
-	// TODO: Cleanup all this
-	template<class F>
-	bool EachImportFunction(HMODULE module, const char* dllname, const F& f)
-	{
-		if (module == 0)
-		{
-			return false;
-		}
-
-		size_t ImageBase             = (size_t)module;
-		PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)ImageBase;
-		if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-		{
-			return false;
-		}
-		PIMAGE_NT_HEADERS pNTHeader = (PIMAGE_NT_HEADERS)(ImageBase + pDosHeader->e_lfanew);
-
-		size_t RVAImports = pNTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
-		if (RVAImports == 0)
-		{
-			return false;
-		}
-
-		IMAGE_IMPORT_DESCRIPTOR* pImportDesc = (IMAGE_IMPORT_DESCRIPTOR*)(ImageBase + RVAImports);
-		while (pImportDesc->Name != 0)
-		{
-			if (!dllname || stricmp((const char*)(ImageBase + pImportDesc->Name), dllname) == 0)
-			{
-				IMAGE_IMPORT_BY_NAME** func_names = (IMAGE_IMPORT_BY_NAME**)(ImageBase + pImportDesc->Characteristics);
-				void** import_table               = (void**)(ImageBase + pImportDesc->FirstThunk);
-				for (size_t i = 0;; ++i)
-				{
-					if ((size_t)func_names[i] == 0)
-					{
-						break;
-					}
-					const char* funcname = (const char*)(ImageBase + (size_t)func_names[i]->Name);
-					f(funcname, import_table[i]);
-				}
-			}
-			++pImportDesc;
-		}
-		return true;
-	}
-
-	// TODO: Cleanup all this
-	template<class T>
-	static void ForceWrite(T& dst, const T& src)
-	{
-		DWORD old_flag;
-		::VirtualProtect(&dst, sizeof(T), PAGE_EXECUTE_READWRITE, &old_flag);
-		dst = src;
-		::VirtualProtect(&dst, sizeof(T), old_flag, &old_flag);
 	}
 
 	void gui::toggle_mouse()
