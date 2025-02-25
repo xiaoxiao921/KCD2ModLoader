@@ -261,7 +261,7 @@ namespace big
 			vtable_helper *vth = (vtable_helper *)a1;
 
 			g_metatable_ptr_to_CScriptable[(void *)metatable] = {(void *)a1, typeid(*vth).name()};
-	}
+		}
 	}
 
 	static char hook_CryScriptSystem_Init(void *this_, __int64 a2)
@@ -616,7 +616,21 @@ namespace big
 		char *table_vanilla_data_indexed = &table_vanilla_data[table_mod_line_index * line_size];
 
 		char *table_vanilla_data_key = *(char **)table_vanilla_data_indexed;
-		char *table_mod_data_key     = *(char **)table_mod_data;
+		char *table_mod_data_key_ptr = *(char **)table_mod_data;
+
+		std::string table_mod_data_key;
+		try
+		{
+			table_mod_data_key = table_mod_data_key_ptr;
+		}
+		catch (const std::exception &)
+		{
+			table_mod_data_key = std::to_string((uintptr_t)table_mod_data_key_ptr);
+		}
+		catch (...)
+		{
+			table_mod_data_key = std::to_string((uintptr_t)table_mod_data_key_ptr);
+		}
 
 		std::vector<uint8_t> patched_data(line_size);
 		std::memcpy(patched_data.data(), table_mod_data, line_size);
