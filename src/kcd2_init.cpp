@@ -173,6 +173,48 @@ namespace big
 		return game_func(L, reader, dt, chunkname);
 	}
 
+	static void CScriptTable_PushRef_def(void *a1, void *a2)
+	{
+	}
+
+	static std::unordered_set<void *> g_lua_game_metatables;
+
+	static void hook_CScriptTable_SetMetatable(void *this_, void *pMetatable)
+	{
+		big::g_hooking->get_original<hook_CScriptTable_SetMetatable>()(this_, pMetatable);
+
+		if (g_lua_game_metatables.contains(pMetatable))
+		{
+			return;
+		}
+
+		g_lua_game_metatables.insert(pMetatable);
+
+		auto L = g_lua_manager->lua_state();
+
+		lua_getglobal(L, "__cryengine__metatables");
+
+		// Check if the global table exists, if not create it
+		if (lua_isnil(L, -1))
+		{
+			lua_pop(L, 1);                               // Pop the nil value
+			lua_newtable(L);                             // Create a new table
+			lua_setglobal(L, "__cryengine__metatables"); // Set it as the global
+			lua_getglobal(L, "__cryengine__metatables"); // Get the newly created table
+		}
+
+		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
+
+		// Push the metatable onto the stack
+		PushRef(this_, pMetatable); // -1
+
+		// Append the metatable to the global table
+		int index = luaL_len(L, -2) + 1; // Get the next available index
+		lua_rawseti(L, -2, index);       // Set the metatable at the new index
+
+		lua_pop(L, 1); // Pop the __rom__metatables table
+	}
+
 	static char hook_CryScriptSystem_Init(void *this_, __int64 a2)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -201,6 +243,9 @@ namespace big
 		big::hooking::detour_hook_helper::add_queue<hook_game_lua_pcall>("", game_lua_pcall);
 		big::hooking::detour_hook_helper::add_queue<hook_lua_pcall>("", &lua_pcall);
 		big::hooking::detour_hook_helper::add_queue<hook_lua_load>("lua_load hook", &lua_load);
+		const auto game_lua_setmetatable =
+		    kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
+		big::hooking::detour_hook_helper::add_queue<hook_CScriptTable_SetMetatable>("hook_CScriptTable_SetMetatable", game_lua_setmetatable);
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
