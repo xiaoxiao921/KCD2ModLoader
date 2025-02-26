@@ -618,19 +618,7 @@ namespace big
 		char *table_vanilla_data_key = *(char **)table_vanilla_data_indexed;
 		char *table_mod_data_key_ptr = *(char **)table_mod_data;
 
-		std::string table_mod_data_key;
-		try
-		{
-			table_mod_data_key = table_mod_data_key_ptr;
-		}
-		catch (const std::exception &)
-		{
-			table_mod_data_key = std::to_string((uintptr_t)table_mod_data_key_ptr);
-		}
-		catch (...)
-		{
-			table_mod_data_key = std::to_string((uintptr_t)table_mod_data_key_ptr);
-		}
+		std::string table_mod_data_key = (table_mod_data_key_ptr != nullptr) ? std::to_string((uintptr_t)table_mod_data_key_ptr) : "0";
 
 		std::vector<uint8_t> patched_data(line_size);
 		std::memcpy(patched_data.data(), table_mod_data, line_size);
