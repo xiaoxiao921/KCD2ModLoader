@@ -24,13 +24,15 @@ It's using [ReturnOfModdingBase](https://github.com/xiaoxiao921/ReturnOfModdingB
 
 - Easy hot reloading of .lua files through a file watcher system, just save your .lua file and your main.lua file will get executed again by the mod loader.
 
-- Dear ImGui library integrated into lua directly, [documented here](https://github.com/xiaoxiao921/KCD2ModLoader/blob/master/docs/lua/tables/ImGui.md> and here: <https://github.com/xiaoxiao921/KCD2ModLoader/blob/master/docs/lua/tables/rom.gui.md).
+- Dear ImGui library integrated into lua directly, [documented here](https://github.com/xiaoxiao921/KCD2ModLoader/blob/master/docs/lua/tables/ImGui.md) [and here](https://github.com/xiaoxiao921/KCD2ModLoader/blob/master/docs/lua/tables/rom.gui.md).
 
 - FMOD modding.
 
 - Generic game file modifications.
 
 - ASI mod loading, it has the same feature set as [this one](https://github.com/ThirteenAG/Ultimate-ASI-Loader), minus the configuration part.
+
+- XML Merging System. For files like InventoryPreset which are not supported fully by the game PTF System.
 
 ## Test Mod
 
