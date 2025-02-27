@@ -576,7 +576,29 @@ namespace big
 			if (should_copy_xml)
 			{
 				new_file_content.assign(pFileContents, fileSize);
-				for (const auto &mod_ : g_lua_manager->m_modules)
+
+		// TODO: try to re-enable this, there is lua vm crashes because of this, due to it not being called from the lua script thread.
+		//if (g_lua_manager)
+		//{
+		//std::scoped_lock guard(g_lua_manager->m_module_lock);
+
+		//for (const auto &mod_ : g_lua_manager->m_modules)
+		//{
+		//auto mod = (lua_module_ext *)mod_.get();
+		//for (const auto &cb : mod->m_data_ext.m_on_xml_parse)
+		//{
+
+
+		//auto res = cb(g_xml_current_parsed_filename ? g_xml_current_parsed_filename : "", new_file_content);
+		//if (res.get_type() == sol::type::string)
+		//{
+		//new_file_content = res.get<std::string>();
+		//}
+		//}
+		//}
+		//}
+
+		if (g_xml_current_parsed_filename)
 				{
 					auto mod = (lua_module_ext *)mod_.get();
 					for (const auto &cb : mod->m_data_ext.m_on_xml_parse)
