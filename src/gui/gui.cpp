@@ -218,6 +218,43 @@ namespace big
 
 				if (ImGui::BeginMenu("Mods"))
 				{
+					ImGui::Text("Vanilla Mods");
+					for (const auto& module : g_vanilla_mods)
+					{
+						if (ImGui::BeginMenu(module.m_name.c_str()))
+						{
+							if (ImGui::BeginMenu("Mod Info"))
+							{
+								ImGui::Text("Mod ID: %s", module.m_mod_id.c_str());
+								ImGui::Text("Description: %s", module.m_description.c_str());
+								ImGui::Text("Author: %s", module.m_author.c_str());
+								ImGui::Text("Version: %s", module.m_version.c_str());
+								ImGui::Text("Folder Name: %s", module.m_folder_name.c_str());
+								ImGui::Text("Created On: %s", module.m_created_on.c_str());
+
+								if (module.m_loaded_paks.size())
+								{
+									if (ImGui::BeginMenu("Loaded Paks"))
+									{
+										for (const auto& loaded_pak : module.m_loaded_paks)
+										{
+											ImGui::Text("%s", loaded_pak.c_str());
+										}
+
+										ImGui::EndMenu();
+									}
+								}
+
+								ImGui::EndMenu();
+							}
+
+							ImGui::EndMenu();
+						}
+					}
+
+					ImGui::Separator();
+
+					ImGui::Text("ROM Mods");
 					g_lua_manager->draw_menu_bar_callbacks();
 
 					ImGui::EndMenu();

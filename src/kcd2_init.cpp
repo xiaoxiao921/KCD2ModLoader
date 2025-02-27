@@ -1080,12 +1080,133 @@ namespace big
 		const auto game_root_folder             = root_folder.parent_path().parent_path().parent_path();
 		const auto game_mods_folder             = game_root_folder / "Mods";
 
+		std::vector<std::string> mod_order;
+		std::ifstream mod_order_file(game_mods_folder / "mod_order.txt");
+		bool use_mod_order = mod_order_file.is_open();
+		if (use_mod_order)
+		{
+			std::string line;
+			while (std::getline(mod_order_file, line))
+			{
+				mod_order.push_back(line);
+			}
+		}
+
+		// First, find all valid mod folders and their manifest
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(game_mods_folder, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink))
+		{
+			if (entry.path().filename() == "mod.manifest")
+			{
+				pugi::xml_document manifest_doc;
+				std::string file_path = (char *)entry.path().u8string().c_str();
+				if (manifest_doc.load_file(file_path.c_str()))
+				{
+					pugi::xml_node name_node;
+					pugi::xml_node modid_node;
+					pugi::xml_node description_node;
+					pugi::xml_node author_node;
+					pugi::xml_node version_node;
+					pugi::xml_node created_on_node;
+					try
+					{
+						name_node        = manifest_doc.select_node("//name").node();
+						modid_node       = manifest_doc.select_node("//modid").node();
+						description_node = manifest_doc.select_node("//description").node();
+						author_node      = manifest_doc.select_node("//author").node();
+						version_node     = manifest_doc.select_node("//version").node();
+						created_on_node  = manifest_doc.select_node("//created_on").node();
+					}
+					catch (const std::exception &e)
+					{
+						LOG(WARNING) << e.what();
+					}
+					if (name_node || modid_node)
+					{
+						// Find the mod root folder (direct child of "Mods")
+						std::filesystem::path mod_root = entry.path().parent_path();
+						while (mod_root.parent_path() != game_mods_folder)
+						{
+							mod_root = mod_root.parent_path();
+						}
+
+						std::string mod_folder_name = big::string::to_lower((char *)mod_root.filename().u8string().c_str());
+						std::string mod_id = modid_node ? big::string::to_lower(modid_node.text().as_string()) :
+						                                  big::string::to_lower(name_node.text().as_string());
+
+						LOG(INFO) << "Mapping mod folder '" << mod_folder_name << "' to modid '" << mod_id << "'";
+
+						g_vanilla_mods.push_back({
+						    .m_name        = name_node ? big::string::to_lower(name_node.text().as_string()) : mod_id,
+						    .m_mod_id      = mod_id,
+						    .m_description = description_node ? description_node.text().as_string() : "",
+						    .m_author      = author_node ? author_node.text().as_string() : "",
+						    .m_version     = version_node ? version_node.text().as_string() : "",
+						    .m_folder_name = mod_folder_name,
+						    .m_created_on  = created_on_node ? created_on_node.text().as_string() : "",
+						});
+					}
+					else
+					{
+						LOG(ERROR) << "No modid inside " << file_path;
+					}
+				}
+				else
+				{
+					LOG(ERROR) << "Invalid XML file " << (char *)entry.path().u8string().c_str();
+				}
+			}
+		}
+
+		// Now collect all .pak files, ensuring they are assigned to the correct mod folder
 		for (const auto &entry : std::filesystem::recursive_directory_iterator(game_mods_folder, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink))
 		{
 			if (entry.path().extension() == ".pak")
 			{
-				const std::string mod_path = (char *)entry.path().u8string().c_str();
-				read_xmls_from_zip_file_path(mod_path);
+				// Find the mod root folder
+				std::filesystem::path mod_root = entry.path().parent_path();
+				while (mod_root.parent_path() != game_mods_folder)
+				{
+					mod_root = mod_root.parent_path();
+				}
+
+				std::string mod_folder_name = big::string::to_lower((char *)mod_root.filename().u8string().c_str());
+				//LOG(INFO) << "mod_folder_name " << mod_folder_name;
+
+				for (auto &vanilla_mod : g_vanilla_mods)
+				{
+					if (vanilla_mod.m_folder_name == mod_folder_name)
+					{
+						vanilla_mod.m_loaded_paks.push_back((char *)entry.path().u8string().c_str());
+					}
+				}
+			}
+		}
+
+		if (!use_mod_order)
+		{
+			for (const auto &vanilla_mod : g_vanilla_mods)
+			{
+				for (const auto &pak_path : vanilla_mod.m_loaded_paks)
+				{
+					read_xmls_from_zip_file_path(pak_path.c_str());
+				}
+			}
+			return;
+		}
+
+		// Process mods in the correct order
+		for (const std::string &mod_name : mod_order)
+		{
+			for (const auto &mod_info : g_vanilla_mods)
+			{
+				if (mod_name == mod_info.m_folder_name || mod_name == mod_info.m_mod_id)
+				{
+					for (const auto &pak_path : mod_info.m_loaded_paks)
+					{
+						//LOG(INFO) << "Reading from " << (char *)pak_path.u8string().c_str();
+						read_xmls_from_zip_file_path(pak_path);
+					}
+				}
 			}
 		}
 	}
