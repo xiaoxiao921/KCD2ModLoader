@@ -281,20 +281,37 @@ namespace big
 
 			if (ImGui::Begin("Patched Tables"))
 			{
+				//if (ImGui::Button("Merge InventoryPreset Test"))
+				//{
+				//std::ifstream file("C:/Users/Quentin/Desktop/InventoryPreset__shops.xml", std::ios::in | std::ios::binary);
+				//if (!file)
+				//{
+				//}
+				//std::ostringstream ss;
+				//ss << file.rdbuf(); // Read the file into the stream
+
+				//LOG(INFO) << "patching to disk, " << g_xml_filename_to_modifications["inventorypreset__shops"].size();
+				//apply_xml_patches(ss.str(), g_xml_filename_to_modifications["inventorypreset__shops"], "C:/Users/Quentin/Desktop/InventoryPreset__shops__patched.xml");
+				//}
+
 				if (ImGui::TreeNode("Modified Lines"))
 				{
-					size_t modified_line_id = 0;
+					size_t forloop_id_1 = 0;
 					for (const auto& [table_name, modified_line_map] : g_table_name_to_modified_line_to_info)
 					{
+						ImGui::PushID(forloop_id_1++);
+
 						ImGui::Text("Table: %s", table_name.c_str());
 						ImGui::Separator();
 
 						auto& original_data_maps = g_table_name_to_modified_line_to_original_data[table_name];
+						size_t forloop_id_2      = 0;
 						for (const auto& [modified_line_name, mod_infos] : modified_line_map)
 						{
+							ImGui::PushID(forloop_id_2++);
+
 							const auto& original_data = original_data_maps[modified_line_name];
 
-							ImGui::PushID(modified_line_id++);
 							const auto& first_mod   = mod_infos[0];
 							const size_t last_mod_i = mod_infos.size() - 1;
 							const auto& last_mod    = mod_infos[last_mod_i];
@@ -326,8 +343,11 @@ namespace big
 								ImGui::NewLine();
 								ImGui::Separator();
 
+								size_t forloop_id_3 = 0;
 								for (const auto& mod_info : mod_infos)
 								{
+									ImGui::PushID(forloop_id_3++);
+
 									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
 
 									size_t float_count = mod_info.m_patched_data.size() / 4;
@@ -364,11 +384,16 @@ namespace big
 
 									ImGui::NewLine();
 									ImGui::Separator();
+
+									ImGui::PopID();
 								}
 								ImGui::TreePop();
 							}
+
 							ImGui::PopID();
 						}
+
+						ImGui::PopID();
 					}
 
 					ImGui::TreePop();
@@ -376,15 +401,19 @@ namespace big
 
 				if (ImGui::TreeNode("Added Lines"))
 				{
-					size_t added_line_id = 0;
+					size_t forloop_id_1 = 0;
 					for (const auto& [table_name, added_line_map] : g_table_name_to_added_line_to_info)
 					{
+						ImGui::PushID(forloop_id_1++);
+
 						ImGui::Text("Table: %s", table_name.c_str());
 						ImGui::Separator();
 
+						size_t forloop_id_2 = 0;
 						for (const auto& [added_line_name, mod_infos] : added_line_map)
 						{
-							ImGui::PushID(added_line_id++);
+							ImGui::PushID(forloop_id_2++);
+
 							const auto& first_mod   = mod_infos[0];
 							const size_t last_mod_i = mod_infos.size() - 1;
 							const auto& last_mod    = mod_infos[last_mod_i];
@@ -393,8 +422,10 @@ namespace big
 							    std::format("{}: {} (By: {})", added_line_name, patched_float_2, last_mod.m_mod_name);
 							if (ImGui::TreeNode(title.c_str()))
 							{
+								size_t forloop_id_3 = 0;
 								for (const auto& mod_info : mod_infos)
 								{
+									ImGui::PushID(forloop_id_3++);
 									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
 
 									size_t float_count = mod_info.m_patched_data.size() / 4;
@@ -431,11 +462,16 @@ namespace big
 
 									ImGui::NewLine();
 									ImGui::Separator();
+
+									ImGui::PopID();
 								}
 								ImGui::TreePop();
 							}
+
 							ImGui::PopID();
 						}
+
+						ImGui::PopID();
 					}
 
 					ImGui::TreePop();
