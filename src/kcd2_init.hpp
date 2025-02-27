@@ -12,6 +12,11 @@ namespace big
 	inline std::map<std::string, std::map<std::string, std::vector<uint8_t>>> g_table_name_to_modified_line_to_original_data;
 	inline std::map<std::string, std::map<std::string, std::vector<table_patch_info_t>>> g_table_name_to_modified_line_to_info;
 
+	inline std::unordered_set<std::string> g_modded_xml_filenames;
+	inline std::unordered_map<std::string, std::vector<std::string>> g_xml_filename_to_modifications;
+
+	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents);
+
 	inline std::unordered_set<std::string> g_fmod_events;
 
 	using fmodstudio_loadbankfile_t = __int64 (*)(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank);

@@ -8,12 +8,14 @@
 #include <gui/gui.hpp>
 #include <gui/renderer.hpp>
 #include <lua_extensions/lua_manager_extension.hpp>
+#include <pugixml.hpp>
 
 extern "C"
 {
 #include <ldo.h>
 #include <ltable.h>
 #include <lua.h>
+#include <zip.h>
 #undef lua_load
 	extern void luaV_execute(lua_State *L, int nexeccalls);
 }
@@ -30,6 +32,7 @@ namespace big
 	static __int64 __fastcall hook_CScriptSystem_Update(__int64 a1)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+		std::scoped_lock l2(g_lua_manager->m_module_lock);
 
 		const auto res = big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
 
@@ -62,6 +65,9 @@ namespace big
 
 	static void hook_lua_call(lua_State *L, int nargs, int nresults)
 	{
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+		std::scoped_lock l2(g_lua_manager->m_module_lock);
+
 		static auto game_func = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call().as_func<decltype(lua_call)>();
 		return game_func(L, nargs, nresults);
 	}
@@ -134,7 +140,8 @@ namespace big
 
 	static int hook_game_lua_pcall(lua_State *L, int nargs, int nresults, int errfunc)
 	{
-		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
+		std::scoped_lock l2(g_lua_manager->m_module_lock);
 
 		if (env_to_add.has_value() && env_to_add.value().valid())
 		{
@@ -221,9 +228,6 @@ namespace big
 
 		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
 
-		// Push the metatable onto the stack
-		PushRef(this_, pMetatable); // -1
-
 		const auto &cscriptable_info = g_metatable_ptr_to_CScriptable[pMetatable];
 
 		// TODO: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L2618
@@ -241,12 +245,6 @@ namespace big
 		lua_pushstring(L, key.c_str()); // Push key
 		PushRef(this_, pMetatable);     // Push value
 		lua_settable(L, -3);            // __cryengine__metatables[key] = value
-
-		// Move the metatable below the key
-		lua_pushvalue(L, -2);
-
-		// Set the metatable in the table with the generated key
-		lua_rawset(L, -3);
 
 		// Pop the __cryengine__metatables table
 		lua_pop(L, 1);
@@ -553,29 +551,37 @@ namespace big
 		return res;
 	}
 
+	static std::string strip_last_double_underscore(const std::string &input)
+	{
+		size_t pos = input.rfind("__");
+		if (pos != std::string::npos)
+		{
+			return input.substr(0, pos);
+		}
+		return input;
+	}
+
+	static std::string strip_last_file_separator(const std::string &path)
+	{
+		size_t pos = path.find_last_of("/\\"); // Find last occurrence of '/' or '\'
+		if (pos != std::string::npos)
+		{
+			return path.substr(pos + 1); // Return substring after the last separator
+		}
+		return path; // Return original string if no separator is found
+	}
+
+	static std::string get_original_filename_from_mod_filename(const std::string &input)
+	{
+		return big::string::to_lower(strip_last_file_separator(strip_last_double_underscore(input)));
+	}
+
 	static __int64 __fastcall hook_XML_Parse(__int64 parser, const char *pFileContents, int fileSize)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		if (g_lua_manager)
-		{
-			std::scoped_lock guard(g_lua_manager->m_module_lock);
-
-			bool should_copy_xml = false;
-			for (const auto &mod_ : g_lua_manager->m_modules)
-			{
-				auto mod = (lua_module_ext *)mod_.get();
-				if (mod->m_data_ext.m_on_xml_parse.size())
-				{
-					should_copy_xml = true;
-					break;
-				}
-			}
-
-			std::string new_file_content;
-			if (should_copy_xml)
-			{
-				new_file_content.assign(pFileContents, fileSize);
+		std::string new_file_content;
+		new_file_content.assign(pFileContents, fileSize);
 
 		// TODO: try to re-enable this, there is lua vm crashes because of this, due to it not being called from the lua script thread.
 		//if (g_lua_manager)
@@ -599,23 +605,24 @@ namespace big
 		//}
 
 		if (g_xml_current_parsed_filename)
-				{
-					auto mod = (lua_module_ext *)mod_.get();
-					for (const auto &cb : mod->m_data_ext.m_on_xml_parse)
-					{
-						auto res = cb(g_xml_current_parsed_filename ? g_xml_current_parsed_filename : "", new_file_content);
-						if (res.get_type() == sol::type::string)
-						{
-							new_file_content = res.get<std::string>();
-						}
-					}
-				}
+		{
+			const auto original_filename = get_original_filename_from_mod_filename(g_xml_current_parsed_filename);
 
-				return big::g_hooking->get_original<hook_XML_Parse>()(parser, new_file_content.c_str(), new_file_content.size());
+			const auto it = g_xml_filename_to_modifications.find(original_filename);
+			if (it != g_xml_filename_to_modifications.end())
+			{
+				std::filesystem::path filename = g_xml_current_parsed_filename;
+				const auto modded_xml_filename_lowered = big::string::to_lower((char *)filename.filename().u8string().c_str());
+				if (!g_modded_xml_filenames.contains(modded_xml_filename_lowered))
+				{
+					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << g_xml_current_parsed_filename << " - " << modded_xml_filename_lowered << ")";
+
+					apply_xml_patches(new_file_content, it->second);
+				}
 			}
 		}
 
-		return big::g_hooking->get_original<hook_XML_Parse>()(parser, pFileContents, fileSize);
+		return big::g_hooking->get_original<hook_XML_Parse>()(parser, new_file_content.c_str(), new_file_content.size());
 	}
 
 	uintptr_t g_CCryPak = 0;
@@ -630,6 +637,29 @@ namespace big
 	static const char *g_table_current_table_name = nullptr;
 	static const char *g_table_current_mod_name   = nullptr;
 
+	static bool is_safe_ptr(const char *ptr)
+	{
+		__try
+		{
+			// Attempt to read memory at ptr
+			if (ptr && *ptr)
+			{
+				return ptr;
+			}
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+		return false;
+	}
+
+	// Wrapper function that safely converts the string
+	static std::string safe_string_convert(const char *ptr)
+	{
+		return is_safe_ptr(ptr) ? std::string(ptr) : std::to_string((uintptr_t)ptr);
+	}
+
 	static __int64 __fastcall hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
 	{
 		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
@@ -641,7 +671,7 @@ namespace big
 		char *table_vanilla_data_key = *(char **)table_vanilla_data_indexed;
 		char *table_mod_data_key_ptr = *(char **)table_mod_data;
 
-		std::string table_mod_data_key = (table_mod_data_key_ptr != nullptr) ? std::to_string((uintptr_t)table_mod_data_key_ptr) : "0";
+		std::string table_mod_data_key = safe_string_convert(table_mod_data_key_ptr);
 
 		std::vector<uint8_t> patched_data(line_size);
 		std::memcpy(patched_data.data(), table_mod_data, line_size);
@@ -671,14 +701,16 @@ namespace big
 		return found ? found + 2 : str;
 	}
 
-	static char __fastcall hook_wh_db_table_patched(__int64 table_metadata, __int64 *mod_data, int *line_added_count, int *line_modified_count)
+	static char __fastcall hook_wh_db_table_patched(__int64 table_metadata, __int64 mod_metadata, int *line_added_count, int *line_modified_count)
 	{
 		g_table_current_table_name = *(const char **)(table_metadata + 40);
 
-		const auto mod_patch_table_name = (const char *)mod_data[5];
+		const auto mod_patch_table_name = *(const char **)(mod_metadata + 40);
 		g_table_current_mod_name        = get_string_after_double_underscore(mod_patch_table_name);
 
-		const auto is_table_patched = big::g_hooking->get_original<hook_wh_db_table_patched>()(table_metadata, mod_data, line_added_count, line_modified_count);
+		LOG(INFO) << "Table PTF Name: " << g_table_current_table_name << " - " << g_table_current_mod_name;
+
+		const auto is_table_patched = big::g_hooking->get_original<hook_wh_db_table_patched>()(table_metadata, mod_metadata, line_added_count, line_modified_count);
 		if (is_table_patched)
 		{
 		}
@@ -698,11 +730,6 @@ namespace big
 			return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
 		}
 
-		//if (strstr(filename, "gameaudio") && strstr(filename, "voices"))
-		//{
-		//LOG(INFO) << filename;
-		//}
-
 		std::scoped_lock guard(g_lua_manager->m_module_lock);
 
 		for (const auto &mod_ : g_lua_manager->m_modules)
@@ -716,6 +743,142 @@ namespace big
 		}
 
 		return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
+	}
+
+	// Function to find a node based on the full path and "Name" attribute
+	pugi::xml_node find_node_by_path(pugi::xml_node root, pugi::xml_node patch_node)
+	{
+		std::string path;
+		for (pugi::xml_node n = patch_node; n; n = n.parent())
+		{
+			if (n.attribute("Name"))
+			{
+				path = std::string("/") + n.name() + "[@Name='" + n.attribute("Name").value() + "']" + path;
+			}
+			else
+			{
+				path = std::string("/") + n.name() + path;
+			}
+		}
+
+		pugi::xml_node res;
+		try
+		{
+			return root.select_node(path.c_str()).node();
+		}
+		catch (const std::exception &e)
+		{
+			//LOG(WARNING) << e.what() << " " << path;
+		}
+
+		return res;
+	}
+
+	// Function to merge a patch node into the original document
+	void merge_nodes(pugi::xml_node orig_root, pugi::xml_node patch_node)
+	{
+		// Find the corresponding node in orig
+		pugi::xml_node orig_node = find_node_by_path(orig_root, patch_node);
+
+		if (orig_node)
+		{
+			// Update attributes without removing children
+			for (pugi::xml_attribute attr : patch_node.attributes())
+			{
+				orig_node.attribute(attr.name()) = attr.value();
+			}
+		}
+		else
+		{
+			// If node doesn't exist, add it under the correct parent
+			pugi::xml_node parent_orig = find_node_by_path(orig_root, patch_node.parent());
+			if (parent_orig)
+			{
+				pugi::xml_node new_node = parent_orig.append_child(patch_node.name());
+				// Copy attributes
+				for (pugi::xml_attribute attr : patch_node.attributes())
+				{
+					new_node.append_attribute(attr.name()) = attr.value();
+				}
+			}
+		}
+
+		// Recurse for children
+		for (pugi::xml_node patch_child : patch_node.children())
+		{
+			merge_nodes(orig_root, patch_child);
+		}
+	}
+
+	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents)
+	{
+		// Load original file content into a pugixml document
+		pugi::xml_document originalDoc;
+		pugi::xml_parse_result result = originalDoc.load_buffer(originalFileContent.c_str(), originalFileContent.size());
+		if (!result)
+		{
+			LOG(ERROR) << "Failed to parse original file: " << result.description() << std::endl;
+			return;
+		}
+
+		// Iterate over each patch file content
+		for (const std::string &patchContent : patchFileContents)
+		{
+			// Load patch content into a pugixml document
+			pugi::xml_document patchDoc;
+			pugi::xml_parse_result patchResult = patchDoc.load_buffer(patchContent.c_str(), patchContent.size());
+			if (!patchResult)
+			{
+				LOG(ERROR) << "Failed to parse patch file: " << patchResult.description() << std::endl;
+				return;
+			}
+
+			merge_nodes(originalDoc.root(), patchDoc.root());
+		}
+
+		std::ostringstream outputStream;
+		originalDoc.save(outputStream);
+		originalFileContent = outputStream.str();
+	}
+
+	void read_xmls_from_zip_file_path(const std::string &zipFilePath)
+	{
+		struct zip_t *zip = zip_open(zipFilePath.c_str(), 0, 'r');
+		int i, n = zip_entries_total(zip);
+		for (i = 0; i < n; ++i)
+		{
+			zip_entry_openbyindex(zip, i);
+			{
+				const char *name        = zip_entry_name(zip);
+				int isdir               = zip_entry_isdir(zip);
+				unsigned long long size = zip_entry_size(zip);
+				unsigned int crc32      = zip_entry_crc32(zip);
+
+				if (!strstr(name, ".xml"))
+				{
+					continue;
+				}
+
+				unsigned char *file_content = (unsigned char *)calloc(sizeof(unsigned char), size);
+
+				zip_entry_noallocread(zip, (void *)file_content, size);
+
+				std::filesystem::path modded_xml_filename = name;
+				const auto modded_xml_filename_lowered =
+				    big::string::to_lower((char *)modded_xml_filename.filename().u8string().c_str());
+				g_modded_xml_filenames.insert(modded_xml_filename_lowered);
+				LOG(DEBUG) << "inserted " << modded_xml_filename_lowered;
+				const auto original_filename = get_original_filename_from_mod_filename(name);
+				const std::string modification((char *)file_content, size);
+				g_xml_filename_to_modifications[original_filename].emplace_back(modification);
+				LOG(INFO) << "Adding modded xml file " << modded_xml_filename_lowered << " to " << original_filename
+				          << " patch list (count: " << g_xml_filename_to_modifications[original_filename].size() << ")";
+
+				free(file_content);
+			}
+			zip_entry_close(zip);
+		}
+		zip_close(zip);
 	}
 
 	void kcd2_init()
@@ -909,6 +1072,21 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CScriptSystem_ExecuteBuffer>("hook_lua_execute_buffer", lua_execute_buffer);
+		}
+
+		char module_file_path[MAX_PATH];
+		const auto path_size                    = GetModuleFileNameA(nullptr, module_file_path, MAX_PATH);
+		const std::filesystem::path root_folder = std::string(module_file_path, path_size);
+		const auto game_root_folder             = root_folder.parent_path().parent_path().parent_path();
+		const auto game_mods_folder             = game_root_folder / "Mods";
+
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(game_mods_folder, std::filesystem::directory_options::skip_permission_denied | std::filesystem::directory_options::follow_directory_symlink))
+		{
+			if (entry.path().extension() == ".pak")
+			{
+				const std::string mod_path = (char *)entry.path().u8string().c_str();
+				read_xmls_from_zip_file_path(mod_path);
+			}
 		}
 	}
 } // namespace big
