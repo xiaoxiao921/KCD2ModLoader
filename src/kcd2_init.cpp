@@ -215,8 +215,8 @@ namespace big
 		{
 			lua_pop(L, 1);                               // Pop the nil value
 			lua_newtable(L);                             // Create a new table
-			lua_setglobal(L, "__cryengine__metatables"); // Set it as global
-			lua_getglobal(L, "__cryengine__metatables"); // Get the newly created table
+			lua_pushvalue(L, -1);                        // Duplicate the table reference
+			lua_setglobal(L, "__cryengine__metatables"); // Store in _G
 		}
 
 		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
@@ -238,8 +238,9 @@ namespace big
 			key                         = std::format("Unknown Metatable {}", unk_counter++);
 		}
 
-		// Push the key onto the stack
-		lua_pushlstring(L, key.c_str(), key.size());
+		lua_pushstring(L, key.c_str()); // Push key
+		PushRef(this_, pMetatable);     // Push value
+		lua_settable(L, -3);            // __cryengine__metatables[key] = value
 
 		// Move the metatable below the key
 		lua_pushvalue(L, -2);
