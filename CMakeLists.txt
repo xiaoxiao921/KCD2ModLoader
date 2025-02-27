@@ -9,6 +9,7 @@ set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 # Fetch modules
 message("\nFetching modules")
 include(cmake_scripts/git.cmake)
+include(cmake_scripts/zip.cmake)
 include(cmake_scripts/rom.cmake)
 
 message(STATUS "KCD2ModLoader")
@@ -40,11 +41,12 @@ source_group(TREE ${SRC_DIR} PREFIX "src" FILES ${SRC_MAIN})
 
 target_include_directories(KCD2ModLoader PRIVATE
     "${SRC_DIR}"
+    "${zip_SOURCE_DIR}"
 )
 
 target_precompile_headers(KCD2ModLoader PRIVATE "${SRC_DIR}/common.hpp")
 
-target_link_libraries(KCD2ModLoader PRIVATE ReturnOfModdingBase)
+target_link_libraries(KCD2ModLoader PRIVATE ReturnOfModdingBase zip)
 
 # Warnings as errors
 set_property(TARGET KCD2ModLoader PROPERTY COMPILE_WARNING_AS_ERROR ON)
