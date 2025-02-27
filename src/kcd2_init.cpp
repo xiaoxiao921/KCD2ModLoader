@@ -263,6 +263,21 @@ namespace big
 		}
 	}
 
+	static void *hook_lua_custom_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
+	{
+		(void)ud;
+		(void)osize;
+		if (nsize == 0)
+		{
+			free(ptr);
+			return NULL;
+		}
+		else
+		{
+			return realloc(ptr, nsize);
+		}
+	}
+
 	static char hook_CryScriptSystem_Init(void *this_, __int64 a2)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -297,6 +312,8 @@ namespace big
 		const auto CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D");
 		big::hooking::detour_hook_helper::add_queue<hook_CScriptableBase_Init>("hook_CScriptableBase_Init",
 		                                                                       CScriptableBase_Init_func.get_call());
+		const auto lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88");
+		big::hooking::detour_hook_helper::add_queue<hook_lua_custom_alloc>("hook_lua_custom_alloc", lua_custom_alloc.get_call());
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
