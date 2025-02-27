@@ -568,14 +568,15 @@ namespace big
 		return res;
 	}
 
-	static std::string strip_last_double_underscore(const std::string &input)
+	static std::string strip_last_double_underscore(const std::string &path)
 	{
-		size_t pos = input.rfind("__");
+		size_t pos = path.rfind("__");
 		if (pos != std::string::npos)
 		{
-			return input.substr(0, pos);
+			return path.substr(0, pos) + ".xml";
 		}
-		return input;
+
+		return path;
 	}
 
 	static std::string strip_last_file_separator(const std::string &path)
@@ -588,9 +589,14 @@ namespace big
 		return path; // Return original string if no separator is found
 	}
 
+	static std::string get_normalized_original_filename(const std::string &input)
+	{
+		return strip_last_file_separator(big::string::to_lower(input));
+	}
+
 	static std::string get_original_filename_from_mod_filename(const std::string &input)
 	{
-		return big::string::to_lower(strip_last_file_separator(strip_last_double_underscore(input)));
+		return strip_last_file_separator(strip_last_double_underscore(big::string::to_lower(input)));
 	}
 
 	static __int64 __fastcall hook_XML_Parse(__int64 parser, const char *pFileContents, int fileSize)
@@ -621,23 +627,38 @@ namespace big
 		//}
 		//}
 
-		if (g_xml_current_parsed_filename)
+		const char *current_parsed_filename = g_xml_current_parsed_filename;
+		if (current_parsed_filename)
 		{
-			const auto original_filename = get_original_filename_from_mod_filename(g_xml_current_parsed_filename);
+			const auto original_filename = get_normalized_original_filename(current_parsed_filename);
 
 			const auto it = g_xml_filename_to_modifications.find(original_filename);
 			if (it != g_xml_filename_to_modifications.end())
 			{
-				std::filesystem::path filename = g_xml_current_parsed_filename;
+				std::filesystem::path filename = current_parsed_filename;
 				const auto modded_xml_filename_lowered = big::string::to_lower((char *)filename.filename().u8string().c_str());
 				if (!g_modded_xml_filenames.contains(modded_xml_filename_lowered))
 				{
-					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << g_xml_current_parsed_filename << " - " << modded_xml_filename_lowered << ")";
+					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << current_parsed_filename << " - " << modded_xml_filename_lowered << ")";
 
 					apply_xml_patches(new_file_content, it->second);
+
+					//if (!modded_xml_filename_lowered.contains("component"))
+					//{
+					//std::ofstream file("C:/Users/Quentin/Desktop/inventorypreset__shop.xml", std::ios::binary);
+					//if (file)
+					//{
+					//file.write(new_file_content.data(), new_file_content.size());
+					//}
+					//}
 				}
 			}
+			else
+			{
+				//LOG(INFO) << original_filename;
+			}
 		}
+
 
 		return big::g_hooking->get_original<hook_XML_Parse>()(parser, new_file_content.c_str(), new_file_content.size());
 	}
@@ -762,79 +783,14 @@ namespace big
 		return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
 	}
 
-	// Function to find a node based on the full path and "Name" attribute
-	pugi::xml_node find_node_by_path(pugi::xml_node root, pugi::xml_node patch_node)
-	{
-		std::string path;
-		for (pugi::xml_node n = patch_node; n; n = n.parent())
-		{
-			if (n.attribute("Name"))
-			{
-				path = std::string("/") + n.name() + "[@Name='" + n.attribute("Name").value() + "']" + path;
-			}
-			else
-			{
-				path = std::string("/") + n.name() + path;
-			}
-		}
-
-		pugi::xml_node res;
-		try
-		{
-			return root.select_node(path.c_str()).node();
-		}
-		catch (const std::exception &e)
-		{
-			//LOG(WARNING) << e.what() << " " << path;
-		}
-
-		return res;
-	}
-
-	// Function to merge a patch node into the original document
-	void merge_nodes(pugi::xml_node orig_root, pugi::xml_node patch_node)
-	{
-		// Find the corresponding node in orig
-		pugi::xml_node orig_node = find_node_by_path(orig_root, patch_node);
-
-		if (orig_node)
-		{
-			// Update attributes without removing children
-			for (pugi::xml_attribute attr : patch_node.attributes())
-			{
-				orig_node.attribute(attr.name()) = attr.value();
-			}
-		}
-		else
-		{
-			// If node doesn't exist, add it under the correct parent
-			pugi::xml_node parent_orig = find_node_by_path(orig_root, patch_node.parent());
-			if (parent_orig)
-			{
-				pugi::xml_node new_node = parent_orig.append_child(patch_node.name());
-				// Copy attributes
-				for (pugi::xml_attribute attr : patch_node.attributes())
-				{
-					new_node.append_attribute(attr.name()) = attr.value();
-				}
-			}
-		}
-
-		// Recurse for children
-		for (pugi::xml_node patch_child : patch_node.children())
-		{
-			merge_nodes(orig_root, patch_child);
-		}
-	}
-
 	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents)
 	{
 		// Load original file content into a pugixml document
 		pugi::xml_document originalDoc;
-		pugi::xml_parse_result result = originalDoc.load_buffer(originalFileContent.c_str(), originalFileContent.size());
+		pugi::xml_parse_result result = originalDoc.load_buffer(originalFileContent.c_str(), originalFileContent.size(), (pugi::parse_default | pugi::parse_comments));
 		if (!result)
 		{
-			LOG(ERROR) << "Failed to parse original file: " << result.description() << std::endl;
+			LOG(ERROR) << "Failed to parse original file: " << result.description();
 			return;
 		}
 
@@ -843,14 +799,56 @@ namespace big
 		{
 			// Load patch content into a pugixml document
 			pugi::xml_document patchDoc;
-			pugi::xml_parse_result patchResult = patchDoc.load_buffer(patchContent.c_str(), patchContent.size());
+			pugi::xml_parse_result patchResult = patchDoc.load_buffer(patchContent.c_str(), patchContent.size(), (pugi::parse_default | pugi::parse_comments));
 			if (!patchResult)
 			{
-				LOG(ERROR) << "Failed to parse patch file: " << patchResult.description() << std::endl;
+				LOG(ERROR) << "Failed to parse patch file: " << patchResult.description();
 				return;
 			}
 
-			merge_nodes(originalDoc.root(), patchDoc.root());
+			std::function<void(pugi::xml_node, pugi::xml_node)> merge_nodes;
+			merge_nodes = [&](pugi::xml_node base_node, pugi::xml_node patch_node)
+			{
+				for (pugi::xml_node patch_child : patch_node.children())
+				{
+					const char *name = patch_child.name();
+
+					std::string identifier  = patch_child.attribute("Name").value();
+					identifier             += patch_child.attribute("Quality").value();
+					identifier             += patch_child.attribute("Condition").value();
+					identifier             += patch_child.attribute("Ref").value();
+
+					pugi::xml_node matching_node;
+					for (pugi::xml_node base_child : base_node.children(name))
+					{
+						std::string other_identifier  = base_child.attribute("Name").value();
+						other_identifier             += base_child.attribute("Quality").value();
+						other_identifier             += base_child.attribute("Condition").value();
+						other_identifier             += base_child.attribute("Ref").value();
+
+						if (identifier == other_identifier)
+						{
+							matching_node = base_child;
+							break;
+						}
+					}
+
+					if (matching_node)
+					{
+						for (pugi::xml_attribute attr : patch_child.attributes())
+						{
+							matching_node.attribute(attr.name()).set_value(attr.value());
+						}
+						merge_nodes(matching_node, patch_child);
+					}
+					else
+					{
+						base_node.append_copy(patch_child);
+					}
+				}
+			};
+
+			merge_nodes(originalDoc, patchDoc);
 		}
 
 		std::ostringstream outputStream;
@@ -883,13 +881,16 @@ namespace big
 				std::filesystem::path modded_xml_filename = name;
 				const auto modded_xml_filename_lowered =
 				    big::string::to_lower((char *)modded_xml_filename.filename().u8string().c_str());
-				g_modded_xml_filenames.insert(modded_xml_filename_lowered);
-				LOG(DEBUG) << "inserted " << modded_xml_filename_lowered;
-				const auto original_filename = get_original_filename_from_mod_filename(name);
-				const std::string modification((char *)file_content, size);
-				g_xml_filename_to_modifications[original_filename].emplace_back(modification);
-				LOG(INFO) << "Adding modded xml file " << modded_xml_filename_lowered << " to " << original_filename
-				          << " patch list (count: " << g_xml_filename_to_modifications[original_filename].size() << ")";
+
+				if (modded_xml_filename_lowered.contains("inventorypreset"))
+				{
+					g_modded_xml_filenames.insert(modded_xml_filename_lowered);
+					const auto original_filename = get_original_filename_from_mod_filename(name);
+					const std::string modification((char *)file_content, size);
+					g_xml_filename_to_modifications[original_filename].emplace_back(modification);
+					LOG(INFO) << "[XML Merger] Adding modded xml file " << modded_xml_filename_lowered << " to " << original_filename
+					          << " patch list (count: " << g_xml_filename_to_modifications[original_filename].size() << ")";
+				}
 
 				free(file_content);
 			}
