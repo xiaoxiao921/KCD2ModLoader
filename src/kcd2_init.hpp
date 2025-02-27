@@ -12,6 +12,19 @@ namespace big
 	inline std::map<std::string, std::map<std::string, std::vector<uint8_t>>> g_table_name_to_modified_line_to_original_data;
 	inline std::map<std::string, std::map<std::string, std::vector<table_patch_info_t>>> g_table_name_to_modified_line_to_info;
 
+	struct vanilla_mod_system_info
+	{
+		std::string m_name;
+		std::string m_mod_id;
+		std::string m_description;
+		std::string m_author;
+		std::string m_version;
+		std::string m_folder_name;
+		std::string m_created_on;
+		std::vector<std::string> m_loaded_paks;
+	};
+
+	inline std::vector<vanilla_mod_system_info> g_vanilla_mods;
 	inline std::unordered_set<std::string> g_modded_xml_filenames;
 	inline std::unordered_map<std::string, std::vector<std::string>> g_xml_filename_to_modifications;
 
