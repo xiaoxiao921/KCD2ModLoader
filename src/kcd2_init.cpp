@@ -718,6 +718,56 @@ namespace big
 		return res;
 	}
 
+	static __int64 g_CXConsole = 0;
+
+	static __int64 hook_CXConsole_RegisterVar(__int64 a1, __int64 pCvar, __int64 pChangeFunc)
+	{
+		// https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryCommon/CrySystem/IConsole.h#L612
+		const char *cvar_name      = (*(const char *(__fastcall **)(__int64))(*(__int64 *)pCvar + 120LL))(pCvar);
+		const char *cvar_help_text = (*(const char *(__fastcall **)(__int64))(*(__int64 *)pCvar + 128LL))(pCvar);
+		g_cvar_name_to_help_text[cvar_name] = cvar_help_text;
+
+		const auto res = big::g_hooking->get_original<hook_CXConsole_RegisterVar>()(a1, pCvar, pChangeFunc);
+
+		return res;
+	}
+
+	static __int64 hook_CXConsole_AddCommandScript(__int64 a1, const char *sName, __int64 pFunc, int nFlags, const char *sHelp)
+	{
+		if (sName)
+		{
+			g_console_command_name_to_help_text[sName] = sHelp ? sHelp : "";
+		}
+
+		const auto res = big::g_hooking->get_original<hook_CXConsole_AddCommandScript>()(a1, sName, pFunc, nFlags, sHelp);
+		return res;
+	}
+
+	static __int64 hook_CXConsole_AddCommandCommand(__int64 a1, const char *sName, __int64 pFunc, int nFlags, const char *sHelp)
+	{
+		if (sName)
+		{
+			g_console_command_name_to_help_text[sName] = sHelp ? sHelp : "";
+		}
+
+		const auto res = big::g_hooking->get_original<hook_CXConsole_AddCommandCommand>()(a1, sName, pFunc, nFlags, sHelp);
+		return res;
+	}
+
+	static __int64 hook_CXConsole_Ctor(__int64 a1)
+	{
+		const auto res = big::g_hooking->get_original<hook_CXConsole_Ctor>()(a1);
+
+		g_CXConsole = a1;
+
+		static auto hook1 =
+		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandScript>("hook_CXConsole_AddCommandScript", (*(const char *(__fastcall **)(__int64))(*(__int64 *)a1 + 256)));
+		static auto hook2 =
+		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandCommand>("hook_CXConsole_AddCommandCommand", (*(const char *(__fastcall **)(__int64))(*(__int64 *)a1 + 256 + 8)));
+
+		return res;
+	}
+
 	static __int64 __fastcall hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
 	{
 		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
@@ -1064,6 +1114,26 @@ namespace big
 			big::hooking::detour_hook_helper::add<hook_XmlParserReadOnly_Read_caller>(
 			    "hook_XmlParserReadOnly_Read_caller",
 			    ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B C3 48 8B 5C 24 ? 48 8B 6C 24 ? 0F 28 74 24");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CXConsole_RegisterVar";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CXConsole_RegisterVar>("hook_CXConsole_RegisterVar", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B C8 EB ? 49 8B CF 48 8B 46 ? 48 89 88");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CXConsole_Ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CXConsole_Ctor>("hook_CXConsole_Ctor", ptr.get_call());
 		}
 
 		// Early main Lua

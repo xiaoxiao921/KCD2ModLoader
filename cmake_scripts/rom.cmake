@@ -2,7 +2,10 @@ include(FetchContent)
 
 set(LUA_CUSTOM_REPO https://github.com/xiaoxiao921/lua-fork.git)
 
-set(LUA_GIT_HASH 6ac82c44610b616f0195db485e882d467cdb64bf)
+# Updating this is annoying, need to navigate to lua-static folder and run
+# git fetch --all
+# git checkout <the new git hash you are updating to>
+set(LUA_GIT_HASH a9c2d8ec4ff7da2ad9b73b60a7233b09656155f1)
 
 set(LUA_USE_LUAJIT false)
 

@@ -192,24 +192,53 @@ namespace big
 				ImGui::SetNextWindowSize({400.0f, 0});
 				if (ImGui::BeginMenu("GUI"))
 				{
-					if (ImGui::Checkbox("Open GUI At Startup", &m_is_open_at_startup->ref<bool>()))
-					{
-						save_pref();
-					}
-
 					if (ImGui::Hotkey("Open GUI Keybind", g_gui_toggle))
 					{
 						editing_gui_keybind = true;
 					}
 
-					ImGui::Checkbox("Let Game Input Go Through Gui Layer", &let_game_input_go_through_gui_layer);
+					if (ImGui::Checkbox("Open GUI At Startup", &m_is_open_at_startup->ref<bool>()))
+					{
+						save_pref();
+					}
 
+					ImGui::Checkbox("Let Game Input Go Through GUI Layer", &let_game_input_go_through_gui_layer);
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Log"))
+				{
 					{
 						static bool val = g_hook_log_write_enabled->get_value();
 						if (ImGui::Checkbox("Output to the KCD2ModLoader log\nthe vanilla game log (kcd.log)", &val))
 						{
 							g_hook_log_write_enabled->set_value(val);
 						}
+					}
+
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Console"))
+				{
+					if (ImGui::Button("Dump to log all CVars + Console Commands"))
+					{
+						std::stringstream ss;
+						ss << "# CVars\n\n";
+						for (const auto& [name, help_text] : g_cvar_name_to_help_text)
+						{
+							ss << "- **" << name << "**: " << help_text << "\n";
+						}
+
+						ss << "\n# Commands\n\n";
+						for (const auto& [name, help_text] : g_console_command_name_to_help_text)
+						{
+							ss << "- **" << name << "**: " << help_text << "\n";
+						}
+
+						LOG(INFO) << ss.str();
 					}
 
 

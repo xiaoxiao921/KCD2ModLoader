@@ -24,6 +24,9 @@ namespace big
 		std::vector<std::string> m_loaded_paks;
 	};
 
+	inline std::map<std::string, std::string> g_cvar_name_to_help_text;
+	inline std::map<std::string, std::string> g_console_command_name_to_help_text;
+
 	inline std::vector<vanilla_mod_system_info> g_vanilla_mods;
 	inline std::unordered_set<std::string> g_modded_xml_filenames;
 	inline std::unordered_map<std::string, std::vector<std::string>> g_xml_filename_to_modifications;
