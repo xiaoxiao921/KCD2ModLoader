@@ -226,7 +226,8 @@ namespace big
 					if (ImGui::Button("Dump CVars and Console Commands to Files"))
 					{
 						{
-							std::ofstream cvars_file(g_file_manager.get_project_file("cvars.md").get_path());
+							const auto path = g_file_manager.get_project_file("cvars.md").get_path();
+							std::ofstream cvars_file(path);
 							if (cvars_file)
 							{
 								cvars_file << "# CVars\n\n";
@@ -234,11 +235,14 @@ namespace big
 								{
 									cvars_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
 								}
+
+								LOG(INFO) << "Dumped CVars to " << (char*)path.u8string().c_str();
 							}
 						}
 
 						{
-							std::ofstream commands_file(g_file_manager.get_project_file("console_commands.md").get_path());
+							const auto path = g_file_manager.get_project_file("console_commands.md").get_path();
+							std::ofstream commands_file(path);
 							if (commands_file)
 							{
 								commands_file << "# Console Commands\n\n";
@@ -246,6 +250,8 @@ namespace big
 								{
 									commands_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
 								}
+
+								LOG(INFO) << "Dumped Console Commands to " << (char*)path.u8string().c_str();
 							}
 						}
 					}
