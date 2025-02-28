@@ -2,7 +2,7 @@ include(FetchContent)
 
 set(LUA_CUSTOM_REPO https://github.com/xiaoxiao921/lua-fork.git)
 
-set(LUA_GIT_HASH 1d99acdb3a1bd69aadaa0d8c1b00de80e283dafa)
+set(LUA_GIT_HASH 6ac82c44610b616f0195db485e882d467cdb64bf)
 
 set(LUA_USE_LUAJIT false)
 
