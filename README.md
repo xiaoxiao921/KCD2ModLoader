@@ -56,7 +56,9 @@ It showcase multiple things:
 
 #### XML
 
-- XML parsing function from the game is hooked and modified on the fly, you can then hook up a xml <-> lua table library ([like this one](https://github.com/manoelcampos/xml2lua)) for very easy modifications for merging and so on.
+- ~XML parsing function from the game is hooked and modified on the fly, you can then hook up a xml <-> lua table library ([like this one](https://github.com/manoelcampos/xml2lua)) for very easy modifications for merging and so on.~
+
+- Currently disabled due to crashes related to the Lua VM being used across multiple threads, will try to re-enable it in the future.
 
 #### CryEngine Pak Files
 
