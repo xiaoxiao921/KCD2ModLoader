@@ -645,7 +645,7 @@ namespace big
 
 					//if (!modded_xml_filename_lowered.contains("component"))
 					//{
-					//std::ofstream file("C:/Users/Quentin/Desktop/inventorypreset__shop.xml", std::ios::binary);
+					//std::ofstream file("C:/Users/Quentin/Desktop/inventorypreset__shop_PATCHED.xml", std::ios::binary);
 					//if (file)
 					//{
 					//file.write(new_file_content.data(), new_file_content.size());
@@ -696,6 +696,26 @@ namespace big
 	static std::string safe_string_convert(const char *ptr)
 	{
 		return is_safe_ptr(ptr) ? std::string(ptr) : std::to_string((uintptr_t)ptr);
+	}
+
+	// Returns true if parsed successfully
+	// Returns true and skip orig call for skipping xml parsing of a given file
+	static bool hook_XmlParserReadOnly_Read_caller(__int64 a1, const char **ptr_to_filename, char a3)
+	{
+		if (ptr_to_filename && *ptr_to_filename)
+		{
+			std::filesystem::path filename = *ptr_to_filename;
+			const auto modded_xml_filename_lowered = big::string::to_lower((char *)filename.filename().u8string().c_str());
+			if (g_modded_xml_filenames.contains(modded_xml_filename_lowered))
+			{
+				LOG(INFO) << "[XML Merger] Skipping vanilla parsing of " << *ptr_to_filename << " since we already merged it";
+				return true;
+			}
+		}
+
+		const auto res = big::g_hooking->get_original<hook_XmlParserReadOnly_Read_caller>()(a1, ptr_to_filename, a3);
+
+		return res;
 	}
 
 	static __int64 __fastcall hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
@@ -756,7 +776,7 @@ namespace big
 		return is_table_patched;
 	}
 
-	static size_t hook_CCryFile_Open(__int64 this_, const char *filename, const char *mode, unsigned int nOpenFlags)
+	static bool hook_CCryFile_Open(__int64 this_, const char *filename, const char *mode, unsigned int nOpenFlags)
 	{
 		if (strcmp(mode, "rb") != 0)
 		{
@@ -803,7 +823,7 @@ namespace big
 			if (!patchResult)
 			{
 				LOG(ERROR) << "Failed to parse patch file: " << patchResult.description();
-				return;
+				continue;
 			}
 
 			std::function<void(pugi::xml_node, pugi::xml_node)> merge_nodes;
@@ -1031,6 +1051,19 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_wh_db_table_patch_find_line>("hook_wh_db_table_patch_find_line", ptr.get_call());
+		}
+
+		{
+			const auto ptr =
+			    kcd2_address::scan("E8 ? ? ? ? 48 8B 4D ? 8A D8 48 83 C1 ? E8 ? ? ? ? 84 DB 0F 84 ? ? ? ? 48 8D 4D");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find XmlParserReadOnly_Read_caller";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_XmlParserReadOnly_Read_caller>(
+			    "hook_XmlParserReadOnly_Read_caller",
+			    ptr.get_call());
 		}
 
 		// Early main Lua

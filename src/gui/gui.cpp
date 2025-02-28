@@ -218,7 +218,7 @@ namespace big
 
 				if (ImGui::BeginMenu("Mods"))
 				{
-					ImGui::Text("Vanilla Mods");
+					ImGui::Text("Vanilla System Mods");
 					for (const auto& module : g_vanilla_mods)
 					{
 						if (ImGui::BeginMenu(module.m_name.c_str()))
@@ -316,7 +316,7 @@ namespace big
 				*(int*)0xDE'AD = 1;
 			}*/
 
-			if (ImGui::Begin("Patched Tables"))
+			if (ImGui::Begin("Patched Table Files (PTF) Observer"))
 			{
 				//if (ImGui::Button("Merge InventoryPreset Test"))
 				//{
