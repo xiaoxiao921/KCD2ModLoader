@@ -223,22 +223,31 @@ namespace big
 
 				if (ImGui::BeginMenu("Console"))
 				{
-					if (ImGui::Button("Dump to log all CVars + Console Commands"))
+					if (ImGui::Button("Dump CVars and Console Commands to Files"))
 					{
-						std::stringstream ss;
-						ss << "# CVars\n\n";
-						for (const auto& [name, help_text] : g_cvar_name_to_help_text)
 						{
-							ss << "- **" << name << "**: " << help_text << "\n";
+							std::ofstream cvars_file(g_file_manager.get_project_file("cvars.md").get_path());
+							if (cvars_file)
+							{
+								cvars_file << "# CVars\n\n";
+								for (const auto& [name, help_text] : g_cvar_name_to_help_text)
+								{
+									cvars_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
+								}
+							}
 						}
 
-						ss << "\n# Commands\n\n";
-						for (const auto& [name, help_text] : g_console_command_name_to_help_text)
 						{
-							ss << "- **" << name << "**: " << help_text << "\n";
+							std::ofstream commands_file(g_file_manager.get_project_file("console_commands.md").get_path());
+							if (commands_file)
+							{
+								commands_file << "# Console Commands\n\n";
+								for (const auto& [name, help_text] : g_console_command_name_to_help_text)
+								{
+									commands_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
+								}
+							}
 						}
-
-						LOG(INFO) << ss.str();
 					}
 
 

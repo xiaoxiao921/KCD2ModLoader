@@ -1200,6 +1200,7 @@ namespace big
 		const std::filesystem::path root_folder = std::string(module_file_path, path_size);
 		const auto game_root_folder             = root_folder.parent_path().parent_path().parent_path();
 		const auto game_mods_folder             = game_root_folder / "Mods";
+		std::filesystem::create_directories(game_mods_folder);
 
 		std::vector<std::string> mod_order;
 		std::ifstream mod_order_file(game_mods_folder / "mod_order.txt");
