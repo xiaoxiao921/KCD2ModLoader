@@ -33,6 +33,30 @@ namespace big
 
 	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents);
 
+	inline __int64 g_CEntitySystem = 0;
+
+	struct EntityInfo
+	{
+		std::string name;
+		std::string class_name;
+		uint32_t id;
+		uint32_t id_mask;
+		uint32_t id_salt;
+		float position[3];
+		bool is_active;
+		bool is_hidden;
+		std::string layer_name;
+		uint16_t layer_id = 0;
+		std::string guid;
+	};
+
+	inline std::vector<EntityInfo> g_entities;
+
+	inline std::vector<std::string> g_lua_execute_buffer_queue;
+
+	void CEntitySystem_DumpEntity(__int64 CEntitySystem_ptr, __int64 entity);
+	void CEntitySystem_DumpEntities(__int64 CEntitySystem_ptr);
+
 	inline std::unordered_set<std::string> g_fmod_events;
 
 	using fmodstudio_loadbankfile_t = __int64 (*)(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank);

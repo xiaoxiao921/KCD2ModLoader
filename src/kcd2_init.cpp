@@ -36,6 +36,23 @@ namespace big
 
 		const auto res = big::g_hooking->get_original<hook_CScriptSystem_Update>()(a1);
 
+		if (g_lua_execute_buffer_queue.size())
+		{
+			auto state_view = sol::state_view(g_lua_manager->lua_state());
+			for (const auto &buffer : g_lua_execute_buffer_queue)
+			{
+				try
+				{
+					state_view.script(buffer);
+				}
+				catch (const std::exception &e)
+				{
+					LOG(ERROR) << e.what();
+				}
+			}
+			g_lua_execute_buffer_queue.clear();
+		}
+
 		render_imgui_frame();
 
 		lua_manager_extension::g_lua_manager_instance->process_file_watcher_queue();
@@ -768,7 +785,16 @@ namespace big
 		return res;
 	}
 
-	static __int64 __fastcall hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
+	static __int64 hook_CEntitySystem_CEntitySystem(__int64 this_, __int64 ISystem_pSystem)
+	{
+		const auto res = big::g_hooking->get_original<hook_CEntitySystem_CEntitySystem>()(this_, ISystem_pSystem);
+
+		g_CEntitySystem = this_;
+
+		return res;
+	}
+
+	static __int64 hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
 	{
 		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
 
@@ -969,6 +995,80 @@ namespace big
 		zip_close(zip);
 	}
 
+	void CEntitySystem_DumpEntity(__int64 CEntitySystem_ptr, __int64 entity)
+	{
+		EntityInfo info;
+
+		const auto CEntity_GetName_func = (*(const char *(**)(__int64))(*(__int64 *)entity + 144LL));
+		info.name                       = CEntity_GetName_func(entity);
+
+		const auto Entity_GetClass_func = (*(__int64 (**)(__int64))(*(__int64 *)entity + 24LL));
+		const auto entity_class         = Entity_GetClass_func(entity);
+
+		const auto EntityClass_GetName_func = (*(const char *(**)(__int64))(*(__int64 *)entity_class + 16LL));
+		info.class_name                     = EntityClass_GetName_func(entity_class);
+
+		const auto entity_GetPos_func = (*(void (**)(__int64, float *))(*(__int64 *)entity + 368LL));
+		entity_GetPos_func(entity, info.position);
+
+		const auto CEntity_IsActive_func = (*(unsigned __int8 (**)(__int64))(*(__int64 *)entity + 424LL));
+		info.is_active                   = CEntity_IsActive_func(entity);
+
+		const auto CEntity_IsHidden_func = (*(unsigned __int8 (**)(__int64))(*(__int64 *)entity + 504LL));
+		info.is_hidden                   = CEntity_IsHidden_func(entity);
+
+		const auto entity_GetId_func = (*(uint32_t (**)(__int64))(*(__int64 *)entity + 8LL));
+		info.id                      = entity_GetId_func(entity);
+		info.id_mask                 = info.id & 0x3'FF'FF;
+		info.id_salt                 = info.id >> 18;
+
+		const auto CEntitySystem_GetEntityLayerData_func = (*(__int64 (**)(__int64, __int64))(*(__int64 *)CEntitySystem_ptr + 568LL));
+		const auto entity_layer_data = CEntitySystem_GetEntityLayerData_func(CEntitySystem_ptr, entity);
+		if (entity_layer_data)
+		{
+			info.layer_id   = *(unsigned __int16 *)(entity_layer_data + 40);
+			info.layer_name = *(const char **)(entity_layer_data + 16);
+		}
+
+		auto entity_GetGuid_func = (*(__int64 (**)(__int64))(*(__int64 *)entity + 16LL));
+		auto guid_data           = entity_GetGuid_func(entity);
+		auto format_guid         = [](__int64 guid_data) -> std::string
+		{
+			char DstBuf[64];
+
+			snprintf(DstBuf, sizeof(DstBuf), "%.8x-%.4x-%.4x", *(uint32_t *)guid_data, *(uint16_t *)(guid_data + 4), *(uint16_t *)(guid_data + 6));
+
+			return std::string(DstBuf);
+		};
+		if (guid_data)
+		{
+			info.guid = format_guid((__int64)&guid_data);
+		}
+
+		g_entities.push_back(info);
+	}
+
+	void CEntitySystem_DumpEntities(__int64 CEntitySystem_ptr)
+	{
+		g_entities.clear();
+
+		const auto CEntitySystem_GetEntityIterator_func = (*(__int64 (**)(__int64))(*(__int64 *)CEntitySystem_ptr + 168LL));
+		auto it = CEntitySystem_GetEntityIterator_func(CEntitySystem_ptr);
+		if (it)
+		{
+			(*(void (**)(__int64))(*(__int64 *)it + 8LL))(it);
+		}
+
+		const auto EntityIterator_MoveFirst_func = (*(void (**)(__int64))(*(__int64 *)it + 48LL));
+		EntityIterator_MoveFirst_func(it);
+
+		const auto EntityIterator_Next_func = (*(__int64 (**)(__int64))(*(__int64 *)it + 32LL));
+		while (auto entity = EntityIterator_Next_func(it))
+		{
+			CEntitySystem_DumpEntity(CEntitySystem_ptr, entity);
+		}
+	}
+
 	void kcd2_init()
 	{
 		{
@@ -1134,6 +1234,16 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CXConsole_Ctor>("hook_CXConsole_Ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B D8 48 8B D7 48 89 1D");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CEntitySystem_CEntitySystem";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CEntitySystem_CEntitySystem>("hook_CEntitySystem_CEntitySystem", ptr.get_call());
 		}
 
 		// Early main Lua

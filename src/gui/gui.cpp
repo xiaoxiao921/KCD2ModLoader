@@ -125,6 +125,282 @@ namespace big
 
 	static bool editing_gui_keybind = false;
 
+	static bool g_auto_refresh_enabled = false;
+	static auto g_last_dump_time       = std::chrono::steady_clock::now();
+
+	void RenderEntityDetails(int selected_index)
+	{
+		ImGui::Begin("Entity Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		const EntityInfo& e = g_entities[selected_index];
+
+		ImGui::Text("Name: %s", e.name.c_str());
+		ImGui::Text("Class: %s", e.class_name.c_str());
+		ImGui::Text("ID: %u", e.id);
+		ImGui::Text("ID Mask: %u", e.id_mask);
+		ImGui::Text("ID Salt: %u", e.id_salt);
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", e.position[0], e.position[1], e.position[2]);
+
+		if (ImGui::Button("Teleport To Position"))
+		{
+			const auto formatted_str =
+			    std::vformat("if rom and rom.game then "
+			                 "rom.game.player:SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) else player:"
+			                 "SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) end",
+			                 std::make_format_args(e.position[0], e.position[1], e.position[2], e.position[0], e.position[1], e.position[2]));
+
+
+			g_lua_execute_buffer_queue.push_back(formatted_str);
+		}
+
+		ImGui::Text("Active: %s", e.is_active ? "Yes" : "No");
+		ImGui::Text("Hidden: %s", e.is_hidden ? "Yes" : "No");
+		if (e.layer_name.size())
+		{
+			ImGui::Text("Layer: %s (ID: %u)", e.layer_name.c_str(), e.layer_id);
+		}
+		else
+		{
+			ImGui::Text("Layer: None");
+		}
+		ImGui::Text("GUID: %s", e.guid.c_str());
+
+		ImGui::End();
+	}
+
+	void RenderEntityInspectorTable()
+	{
+		static int selected_index = -1; // Start with no selection
+
+		if (ImGui::BeginTable("EntityTable", 7, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable))
+		{
+			// Table Setup
+			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("GUID", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Active", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Hidden", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Class", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Layer", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableHeadersRow();
+
+			// Sorting and Table Display Logic (same as before)
+			ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+			if (sortSpecs->SpecsDirty)
+			{
+				if (sortSpecs->SpecsCount > 0)
+				{
+					const ImGuiTableColumnSortSpecs& specs = sortSpecs->Specs[0];
+					if (specs.ColumnIndex == 0)
+					{
+						if (specs.SortDirection == ImGuiSortDirection_Ascending)
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.id < b.id;
+							          });
+						}
+						else
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.id > b.id;
+							          });
+						}
+					}
+					else if (specs.ColumnIndex == 1)
+					{
+						if (specs.SortDirection == ImGuiSortDirection_Ascending)
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.name < b.name;
+							          });
+						}
+						else
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.name > b.name;
+							          });
+						}
+					}
+					else if (specs.ColumnIndex == 2)
+					{
+						if (specs.SortDirection == ImGuiSortDirection_Ascending)
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.guid < b.guid;
+							          });
+						}
+						else
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.guid > b.guid;
+							          });
+						}
+					}
+					else if (specs.ColumnIndex == 3)
+					{
+						if (specs.SortDirection == ImGuiSortDirection_Ascending)
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.is_active < b.is_active;
+							          });
+						}
+						else
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.is_active > b.is_active;
+							          });
+						}
+					}
+					else if (specs.ColumnIndex == 4)
+					{
+						if (specs.SortDirection == ImGuiSortDirection_Ascending)
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.is_hidden < b.is_hidden;
+							          });
+						}
+						else
+						{
+							std::sort(g_entities.begin(),
+							          g_entities.end(),
+							          [](const EntityInfo& a, const EntityInfo& b)
+							          {
+								          return a.is_hidden > b.is_hidden;
+							          });
+						}
+					}
+				}
+				sortSpecs->SpecsDirty = false;
+			}
+
+			ImGuiListClipper clipper;
+			clipper.Begin(g_entities.size());
+
+			while (clipper.Step())
+			{
+				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+				{
+					ImGui::TableNextRow();
+
+					const auto& current_entity = g_entities[i];
+
+					// ID column
+					ImGui::TableSetColumnIndex(0);
+					char idBuffer[16];
+					snprintf(idBuffer, sizeof(idBuffer), "%u", current_entity.id);
+					if (ImGui::Selectable(idBuffer, selected_index == i, ImGuiSelectableFlags_SpanAllColumns))
+					{
+						selected_index = i;
+					}
+
+					// Name column
+					ImGui::TableSetColumnIndex(1);
+					ImGui::TextUnformatted(current_entity.name.c_str());
+
+					// GUID column
+					ImGui::TableSetColumnIndex(2);
+					ImGui::TextUnformatted(current_entity.guid.c_str());
+
+					// Active column
+					ImGui::TableSetColumnIndex(3);
+					ImGui::TextUnformatted(current_entity.is_active ? "Yes" : "No");
+
+					// Hidden column
+					ImGui::TableSetColumnIndex(4);
+					ImGui::TextUnformatted(current_entity.is_hidden ? "Yes" : "No");
+
+					// Class column
+					ImGui::TableSetColumnIndex(5);
+					ImGui::TextUnformatted(current_entity.class_name.c_str());
+
+					// Layer column
+					ImGui::TableSetColumnIndex(6);
+					ImGui::TextUnformatted(current_entity.layer_name.c_str());
+				}
+			}
+
+			ImGui::EndTable();
+		}
+
+		// Render the separate entity details window if an entity is selected
+		if (selected_index >= 0 && selected_index < (int)g_entities.size())
+		{
+			RenderEntityDetails(selected_index);
+		}
+	}
+
+	void RefreshEntities()
+	{
+		if (g_CEntitySystem)
+		{
+			CEntitySystem_DumpEntities(g_CEntitySystem);
+		}
+	}
+
+	void RenderEntityInspector()
+	{
+		ImGui::Begin("Entity List Inspector");
+
+		ImGui::Text("Entity Count: %llu", g_entities.size());
+
+		if (ImGui::Checkbox("Auto-refresh every 5 seconds", &g_auto_refresh_enabled))
+		{
+			// Reset the last dump time to start fresh when toggling auto-refresh
+			if (g_auto_refresh_enabled)
+			{
+				g_last_dump_time = std::chrono::steady_clock::now();
+			}
+		}
+
+		// Add button to manually refresh
+		if (ImGui::Button("Refresh Now"))
+		{
+			RefreshEntities();
+		}
+
+		// If auto-refresh is enabled, perform automatic refresh every 5 seconds
+		if (g_auto_refresh_enabled)
+		{
+			const auto now = std::chrono::steady_clock::now();
+			if (now - g_last_dump_time >= 5s)
+			{
+				RefreshEntities();
+				g_last_dump_time = now;
+			}
+		}
+
+		RenderEntityInspectorTable();
+
+		ImGui::End();
+	}
+
 	void gui::dx_on_tick()
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -359,6 +635,12 @@ namespace big
 			{
 				*(int*)0xDE'AD = 1;
 			}*/
+
+
+			if (g_CEntitySystem)
+			{
+				RenderEntityInspector();
+			}
 
 			if (ImGui::Begin("Patched Table Files (PTF) Observer"))
 			{
