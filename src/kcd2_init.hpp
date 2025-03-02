@@ -33,29 +33,203 @@ namespace big
 
 	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents);
 
-	inline __int64 g_CEntitySystem = 0;
+	struct Archetype
+	{
+		virtual ~Archetype()          = default; // offset 0
+		virtual void Pad1()           = 0;       // offset 8
+		virtual const char *GetName() = 0;       // offset 16
+	};
+
+	struct EntityClass
+	{
+		virtual ~EntityClass()        = default; // offset 0
+		virtual void Pad1()           = 0;       // offset 8
+		virtual const char *GetName() = 0;       // offset 16
+	};
+
+	struct CEntity
+	{
+		virtual ~CEntity()              = default; // offset 0
+		virtual uint32_t GetId()        = 0;       // offset 8
+		virtual __int64 GetGuid()       = 0;       // offset 16
+		virtual EntityClass *GetClass() = 0;       // offset 24
+		virtual void Pad4()             = 0;
+		virtual void Pad5()             = 0;
+		virtual void Pad6()             = 0;
+		virtual void Pad7()             = 0;
+		virtual void Pad8()             = 0;
+		virtual void Pad9()             = 0;
+		virtual void Pad10()            = 0;
+		virtual void Pad11()            = 0;
+		virtual void Pad12()            = 0;
+		virtual void Pad13()            = 0;
+		virtual void Pad14()            = 0;
+		virtual void Pad15()            = 0;
+		virtual void Pad16()            = 0;
+		virtual void Pad17()            = 0;
+		virtual const char *GetName()   = 0; // offset 144
+		virtual void Pad19()            = 0;
+		virtual void Pad20()            = 0;
+		virtual void Pad21()            = 0;
+		virtual void Pad22()            = 0;
+		virtual void Pad23()            = 0;
+		virtual void Pad24()            = 0;
+		virtual void Pad25()            = 0;
+		virtual void Pad26()            = 0;
+		virtual void Pad27()            = 0;
+		virtual void Pad28()            = 0;
+		virtual void Pad29()            = 0;
+		virtual void Pad30()            = 0;
+		virtual void Pad31()            = 0;
+		virtual void Pad32()            = 0;
+		virtual void Pad33()            = 0;
+		virtual void Pad34()            = 0;
+		virtual void Pad35()            = 0;
+		virtual void Pad36()            = 0;
+		virtual void Pad37()            = 0;
+		virtual void Pad38()            = 0;
+		virtual void Pad39()            = 0;
+		virtual void Pad40()            = 0;
+		virtual void Pad41()            = 0;
+		virtual void Pad42()            = 0;
+		virtual void Pad43()            = 0;
+		virtual void Pad44()            = 0;
+		virtual void Pad45()            = 0;
+		virtual void GetPos(float *pos) = 0; // offset 368
+		virtual void Pad47()            = 0;
+		virtual void Pad48()            = 0;
+		virtual void Pad49()            = 0;
+		virtual void Pad50()            = 0;
+		virtual void Pad51()            = 0;
+		virtual void Pad52()            = 0;
+		virtual bool IsActive()         = 0; // offset 424
+		virtual void Pad53()            = 0;
+		virtual void Pad54()            = 0;
+		virtual void Pad55()            = 0;
+		virtual void Pad56()            = 0;
+		virtual void Pad57()            = 0;
+		virtual void Pad58()            = 0;
+		virtual void Pad59()            = 0;
+		virtual void Pad60()            = 0;
+		virtual void Pad61()            = 0;
+		virtual void Pad62()            = 0;
+		virtual bool IsHidden()         = 0; // offset 504
+
+		uint64_t unk_0;
+		uint64_t unk_8;
+		uint64_t unk_16;
+		uint64_t unk_24;
+		Archetype *m_archetype;
+	};
+
+	static_assert(offsetof(CEntity, m_archetype) == 40);
+
+	struct CEntitySystem
+	{
+		virtual ~CEntitySystem()                            = default; // offset 0
+		virtual void Pad1()                                 = 0;
+		virtual void Pad2()                                 = 0;
+		virtual void Pad3()                                 = 0;
+		virtual void Pad4()                                 = 0;
+		virtual void Pad5()                                 = 0;
+		virtual void Pad6()                                 = 0;
+		virtual void Pad7()                                 = 0;
+		virtual void Pad8()                                 = 0;
+		virtual void Pad9()                                 = 0;
+		virtual void Pad10()                                = 0;
+		virtual void Pad11()                                = 0;
+		virtual void Pad12()                                = 0;
+		virtual void Pad13()                                = 0;
+		virtual void Pad14()                                = 0;
+		virtual void Pad15()                                = 0;
+		virtual void Pad16()                                = 0;
+		virtual void Pad17()                                = 0;
+		virtual void Pad18()                                = 0;
+		virtual void Pad19()                                = 0;
+		virtual void Pad20()                                = 0;
+		virtual __int64 GetEntityIterator()                 = 0; // offset 168
+		virtual void Pad22()                                = 0;
+		virtual void Pad23()                                = 0;
+		virtual void Pad24()                                = 0;
+		virtual void Pad25()                                = 0;
+		virtual void Pad26()                                = 0;
+		virtual void Pad27()                                = 0;
+		virtual void Pad28()                                = 0;
+		virtual void Pad29()                                = 0;
+		virtual void Pad30()                                = 0;
+		virtual void Pad31()                                = 0;
+		virtual void Pad32()                                = 0;
+		virtual void Pad33()                                = 0;
+		virtual void Pad34()                                = 0;
+		virtual void Pad35()                                = 0;
+		virtual void Pad36()                                = 0;
+		virtual void Pad37()                                = 0;
+		virtual void Pad38()                                = 0;
+		virtual void Pad39()                                = 0;
+		virtual void Pad40()                                = 0;
+		virtual void Pad41()                                = 0;
+		virtual void Pad42()                                = 0;
+		virtual void Pad43()                                = 0;
+		virtual void Pad44()                                = 0;
+		virtual void Pad45()                                = 0;
+		virtual void Pad46()                                = 0;
+		virtual void Pad47()                                = 0;
+		virtual void Pad48()                                = 0;
+		virtual void Pad49()                                = 0;
+		virtual void Pad50()                                = 0;
+		virtual void Pad51()                                = 0;
+		virtual void Pad52()                                = 0;
+		virtual void Pad53()                                = 0;
+		virtual void Pad54()                                = 0;
+		virtual void Pad55()                                = 0;
+		virtual void Pad56()                                = 0;
+		virtual void Pad57()                                = 0;
+		virtual void Pad58()                                = 0;
+		virtual void Pad59()                                = 0;
+		virtual void Pad60()                                = 0;
+		virtual void Pad61()                                = 0;
+		virtual void Pad62()                                = 0;
+		virtual void Pad63()                                = 0;
+		virtual void Pad64()                                = 0;
+		virtual void Pad65()                                = 0;
+		virtual void Pad66()                                = 0;
+		virtual void Pad67()                                = 0;
+		virtual void Pad68()                                = 0;
+		virtual void Pad69()                                = 0;
+		virtual void Pad70()                                = 0;
+		virtual __int64 GetEntityLayerData(CEntity *entity) = 0; // offset 568
+	};
+
+	inline CEntitySystem *g_CEntitySystem = nullptr;
 
 	struct EntityInfo
 	{
 		std::string name;
+		std::string name_lower;
 		std::string class_name;
+		std::string class_name_lower;
+		std::string archetype_name;
+		std::string archetype_name_lower;
 		uint32_t id;
+		std::string id_string;
 		uint32_t id_mask;
 		uint32_t id_salt;
 		float position[3];
 		bool is_active;
 		bool is_hidden;
 		std::string layer_name;
+		std::string layer_name_lower;
 		uint16_t layer_id = 0;
 		std::string guid;
 	};
 
 	inline std::vector<EntityInfo> g_entities;
+	inline std::vector<int> g_entities_filtered;
 
 	inline std::vector<std::string> g_lua_execute_buffer_queue;
 
-	void CEntitySystem_DumpEntity(__int64 CEntitySystem_ptr, __int64 entity);
-	void CEntitySystem_DumpEntities(__int64 CEntitySystem_ptr);
+	void CEntitySystem_DumpEntity(CEntitySystem *entity_system, CEntity *entity);
+	void CEntitySystem_DumpEntities(CEntitySystem *CEntitySystem_ptr);
 
 	inline std::unordered_set<std::string> g_fmod_events;
 

@@ -785,7 +785,7 @@ namespace big
 		return res;
 	}
 
-	static __int64 hook_CEntitySystem_CEntitySystem(__int64 this_, __int64 ISystem_pSystem)
+	static __int64 hook_CEntitySystem_CEntitySystem(CEntitySystem *this_, __int64 ISystem_pSystem)
 	{
 		const auto res = big::g_hooking->get_original<hook_CEntitySystem_CEntitySystem>()(this_, ISystem_pSystem);
 
@@ -995,50 +995,52 @@ namespace big
 		zip_close(zip);
 	}
 
-	void CEntitySystem_DumpEntity(__int64 CEntitySystem_ptr, __int64 entity)
+	void CEntitySystem_DumpEntity(CEntitySystem *entity_system, CEntity *entity)
 	{
 		EntityInfo info;
 
-		const auto CEntity_GetName_func = (*(const char *(**)(__int64))(*(__int64 *)entity + 144LL));
-		info.name                       = CEntity_GetName_func(entity);
+		info.name       = entity->GetName();
+		info.name_lower = big::string::to_lower(info.name);
 
-		const auto Entity_GetClass_func = (*(__int64 (**)(__int64))(*(__int64 *)entity + 24LL));
-		const auto entity_class         = Entity_GetClass_func(entity);
+		auto entity_class     = entity->GetClass();
+		info.class_name       = entity_class->GetName();
+		info.class_name_lower = big::string::to_lower(info.class_name);
 
-		const auto EntityClass_GetName_func = (*(const char *(**)(__int64))(*(__int64 *)entity_class + 16LL));
-		info.class_name                     = EntityClass_GetName_func(entity_class);
-
-		const auto entity_GetPos_func = (*(void (**)(__int64, float *))(*(__int64 *)entity + 368LL));
-		entity_GetPos_func(entity, info.position);
-
-		const auto CEntity_IsActive_func = (*(unsigned __int8 (**)(__int64))(*(__int64 *)entity + 424LL));
-		info.is_active                   = CEntity_IsActive_func(entity);
-
-		const auto CEntity_IsHidden_func = (*(unsigned __int8 (**)(__int64))(*(__int64 *)entity + 504LL));
-		info.is_hidden                   = CEntity_IsHidden_func(entity);
-
-		const auto entity_GetId_func = (*(uint32_t (**)(__int64))(*(__int64 *)entity + 8LL));
-		info.id                      = entity_GetId_func(entity);
-		info.id_mask                 = info.id & 0x3'FF'FF;
-		info.id_salt                 = info.id >> 18;
-
-		const auto CEntitySystem_GetEntityLayerData_func = (*(__int64 (**)(__int64, __int64))(*(__int64 *)CEntitySystem_ptr + 568LL));
-		const auto entity_layer_data = CEntitySystem_GetEntityLayerData_func(CEntitySystem_ptr, entity);
-		if (entity_layer_data)
+		Archetype *archetype = entity->m_archetype;
+		if (archetype)
 		{
-			info.layer_id   = *(unsigned __int16 *)(entity_layer_data + 40);
-			info.layer_name = *(const char **)(entity_layer_data + 16);
+			info.archetype_name       = archetype->GetName();
+			info.archetype_name_lower = big::string::to_lower(info.archetype_name);
+		}
+		else
+		{
+			info.archetype_name       = "None";
+			info.archetype_name_lower = big::string::to_lower(info.archetype_name);
 		}
 
-		auto entity_GetGuid_func = (*(__int64 (**)(__int64))(*(__int64 *)entity + 16LL));
-		auto guid_data           = entity_GetGuid_func(entity);
-		auto format_guid         = [](__int64 guid_data) -> std::string
+		entity->GetPos(info.position);
+		info.is_active = entity->IsActive();
+		info.is_hidden = entity->IsHidden();
+
+		info.id        = entity->GetId();
+		info.id_string = std::to_string(info.id);
+		info.id_mask   = info.id & 0x3'FF'FF;
+		info.id_salt   = info.id >> 18;
+
+		__int64 entity_layer_data = entity_system->GetEntityLayerData(entity);
+		if (entity_layer_data)
 		{
-			char DstBuf[64];
+			info.layer_id         = *(unsigned __int16 *)(entity_layer_data + 40);
+			info.layer_name       = *(const char **)(entity_layer_data + 16);
+			info.layer_name_lower = big::string::to_lower(info.layer_name);
+		}
 
-			snprintf(DstBuf, sizeof(DstBuf), "%.8x-%.4x-%.4x", *(uint32_t *)guid_data, *(uint16_t *)(guid_data + 4), *(uint16_t *)(guid_data + 6));
-
-			return std::string(DstBuf);
+		auto guid_data   = entity->GetGuid();
+		auto format_guid = [](__int64 guid_data) -> std::string
+		{
+			char result[64];
+			snprintf(result, sizeof(result), "%.8x-%.4x-%.4x", *(uint32_t *)guid_data, *(uint16_t *)(guid_data + 4), *(uint16_t *)(guid_data + 6));
+			return std::string(result);
 		};
 		if (guid_data)
 		{
@@ -1048,12 +1050,12 @@ namespace big
 		g_entities.push_back(info);
 	}
 
-	void CEntitySystem_DumpEntities(__int64 CEntitySystem_ptr)
+	void CEntitySystem_DumpEntities(CEntitySystem *entity_system)
 	{
 		g_entities.clear();
+		g_entities_filtered.clear();
 
-		const auto CEntitySystem_GetEntityIterator_func = (*(__int64 (**)(__int64))(*(__int64 *)CEntitySystem_ptr + 168LL));
-		auto it = CEntitySystem_GetEntityIterator_func(CEntitySystem_ptr);
+		auto it = entity_system->GetEntityIterator();
 		if (it)
 		{
 			(*(void (**)(__int64))(*(__int64 *)it + 8LL))(it);
@@ -1062,10 +1064,10 @@ namespace big
 		const auto EntityIterator_MoveFirst_func = (*(void (**)(__int64))(*(__int64 *)it + 48LL));
 		EntityIterator_MoveFirst_func(it);
 
-		const auto EntityIterator_Next_func = (*(__int64 (**)(__int64))(*(__int64 *)it + 32LL));
+		const auto EntityIterator_Next_func = (*(CEntity * (**)(__int64))(*(__int64 *)it + 32LL));
 		while (auto entity = EntityIterator_Next_func(it))
 		{
-			CEntitySystem_DumpEntity(CEntitySystem_ptr, entity);
+			CEntitySystem_DumpEntity(entity_system, entity);
 		}
 	}
 
