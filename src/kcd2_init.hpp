@@ -125,6 +125,8 @@ namespace big
 
 	static_assert(offsetof(CEntity, m_archetype) == 40);
 
+	inline std::vector<CEntity *> g_entities;
+
 	struct CEntitySystem
 	{
 		virtual ~CEntitySystem()                            = default; // offset 0
@@ -215,16 +217,13 @@ namespace big
 		std::string id_string;
 		uint32_t id_mask;
 		uint32_t id_salt;
-		float position[3];
-		bool is_active;
-		bool is_hidden;
 		std::string layer_name;
 		std::string layer_name_lower;
 		uint16_t layer_id = 0;
 		std::string guid;
 	};
 
-	inline std::vector<EntityInfo> g_entities;
+	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
 	inline std::vector<int> g_entities_filtered;
 
 	inline std::vector<std::string> g_lua_execute_buffer_queue;

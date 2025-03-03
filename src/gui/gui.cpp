@@ -132,28 +132,31 @@ namespace big
 	{
 		ImGui::Begin("Entity Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-		const EntityInfo& e = g_entities[selected_index];
+		const auto& entity = g_entities[selected_index];
+		const auto& e      = g_entity_infos[entity];
 
 		ImGui::Text("Name: %s", e.name.c_str());
 		ImGui::Text("Class: %s", e.class_name.c_str());
 		ImGui::Text("Archetype: %s", e.archetype_name.c_str());
 		ImGui::Text("ID: %u (Mask: %u) (Salt: %u)", e.id, e.id_mask, e.id_salt);
 
-		ImGui::Text("Position: (%.2f, %.2f, %.2f)", e.position[0], e.position[1], e.position[2]);
+		float position[3];
+		entity->GetPos(position);
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", position[0], position[1], position[2]);
 		if (ImGui::Button("Teleport To Position"))
 		{
 			const auto formatted_str =
 			    std::vformat("if rom and rom.game then "
 			                 "rom.game.player:SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) else player:"
 			                 "SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) end",
-			                 std::make_format_args(e.position[0], e.position[1], e.position[2], e.position[0], e.position[1], e.position[2]));
+			                 std::make_format_args(position[0], position[1], position[2], position[0], position[1], position[2]));
 
 
 			g_lua_execute_buffer_queue.push_back(formatted_str);
 		}
 
-		ImGui::Text("Active: %s", e.is_active ? "Yes" : "No");
-		ImGui::Text("Hidden: %s", e.is_hidden ? "Yes" : "No");
+		ImGui::Text("Active: %s", entity->IsActive() ? "Yes" : "No");
+		ImGui::Text("Hidden: %s", entity->IsHidden() ? "Yes" : "No");
 		if (e.layer_name.size())
 		{
 			ImGui::Text("Layer: %s (ID: %u)", e.layer_name.c_str(), e.layer_id);
@@ -187,10 +190,12 @@ namespace big
 			size_t i = 0;
 			for (auto& current_entity : g_entities)
 			{
-				if (current_entity.name_lower.find(search_buffer) != std::string::npos
-				    || current_entity.class_name_lower.find(search_buffer) != std::string::npos
-				    || current_entity.id_string.find(search_buffer) != std::string::npos
-				    || current_entity.layer_name_lower.find(search_buffer) != std::string::npos || current_entity.guid.find(search_buffer) != std::string::npos)
+				const auto& current_entity_info = g_entity_infos[current_entity];
+				if (current_entity_info.name_lower.find(search_buffer) != std::string::npos
+				    || current_entity_info.class_name_lower.find(search_buffer) != std::string::npos
+				    || current_entity_info.id_string.find(search_buffer) != std::string::npos
+				    || current_entity_info.layer_name_lower.find(search_buffer) != std::string::npos
+				    || current_entity_info.guid.find(search_buffer) != std::string::npos)
 				{
 					g_entities_filtered.push_back(i);
 				}
@@ -200,10 +205,6 @@ namespace big
 		};
 		//if (ImGui::InputText("##SearchInput", search_buffer2, IM_ARRAYSIZE(search_buffer2), ImGuiInputTextFlags_EnterReturnsTrue))
 		if (ImGui::InputText("##SearchInput", search_buffer2, IM_ARRAYSIZE(search_buffer2)))
-		{
-			callback_search();
-		}
-		if (ImGui::Button("Search"))
 		{
 			callback_search();
 		}
@@ -241,8 +242,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.id < b.id;
 							          });
 						}
@@ -250,8 +254,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.id > b.id;
 							          });
 						}
@@ -262,8 +269,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.name < b.name;
 							          });
 						}
@@ -271,8 +281,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.name > b.name;
 							          });
 						}
@@ -283,8 +296,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.guid < b.guid;
 							          });
 						}
@@ -292,8 +308,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.guid > b.guid;
 							          });
 						}
@@ -304,18 +323,18 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
-								          return a.is_active < b.is_active;
+								          return a_->IsActive() < b_->IsActive();
 							          });
 						}
 						else
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
-								          return a.is_active > b.is_active;
+								          return a_->IsActive() > b_->IsActive();
 							          });
 						}
 					}
@@ -325,18 +344,18 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
-								          return a.is_hidden < b.is_hidden;
+								          return a_->IsHidden() < b_->IsHidden();
 							          });
 						}
 						else
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
-								          return a.is_hidden > b.is_hidden;
+								          return a_->IsHidden() > b_->IsHidden();
 							          });
 						}
 					}
@@ -346,8 +365,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.class_name < b.class_name;
 							          });
 						}
@@ -355,8 +377,11 @@ namespace big
 						{
 							std::sort(g_entities.begin(),
 							          g_entities.end(),
-							          [](const EntityInfo& a, const EntityInfo& b)
+							          [](CEntity* a_, CEntity* b_)
 							          {
+								          const auto& a = g_entity_infos[a_];
+								          const auto& b = g_entity_infos[b_];
+
 								          return a.class_name > b.class_name;
 							          });
 						}
@@ -372,15 +397,16 @@ namespace big
 			{
 				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 				{
-					const auto entity_index    = g_entities_filtered.size() ? g_entities_filtered[i] : i;
-					const auto& current_entity = g_entities[entity_index];
+					const auto entity_index         = g_entities_filtered.size() ? g_entities_filtered[i] : i;
+					const auto& current_entity      = g_entities[entity_index];
+					const auto& current_entity_info = g_entity_infos[current_entity];
 
 					ImGui::TableNextRow();
 
 					// ID column
 					ImGui::TableSetColumnIndex(0);
 					char idBuffer[16];
-					snprintf(idBuffer, sizeof(idBuffer), "%u", current_entity.id);
+					snprintf(idBuffer, sizeof(idBuffer), "%u", current_entity_info.id);
 					if (ImGui::Selectable(idBuffer, selected_index == i, ImGuiSelectableFlags_SpanAllColumns))
 					{
 						selected_index = entity_index;
@@ -388,27 +414,27 @@ namespace big
 
 					// Name column
 					ImGui::TableSetColumnIndex(1);
-					ImGui::TextUnformatted(current_entity.name.c_str());
+					ImGui::TextUnformatted(current_entity_info.name.c_str());
 
 					// GUID column
 					ImGui::TableSetColumnIndex(2);
-					ImGui::TextUnformatted(current_entity.guid.c_str());
+					ImGui::TextUnformatted(current_entity_info.guid.c_str());
 
 					// Active column
 					ImGui::TableSetColumnIndex(3);
-					ImGui::TextUnformatted(current_entity.is_active ? "Yes" : "No");
+					ImGui::TextUnformatted(current_entity->IsActive() ? "Yes" : "No");
 
 					// Hidden column
 					ImGui::TableSetColumnIndex(4);
-					ImGui::TextUnformatted(current_entity.is_hidden ? "Yes" : "No");
+					ImGui::TextUnformatted(current_entity->IsHidden() ? "Yes" : "No");
 
 					// Class column
 					ImGui::TableSetColumnIndex(5);
-					ImGui::TextUnformatted(current_entity.class_name.c_str());
+					ImGui::TextUnformatted(current_entity_info.class_name.c_str());
 
 					// Layer column
 					ImGui::TableSetColumnIndex(6);
-					ImGui::TextUnformatted(current_entity.layer_name.c_str());
+					ImGui::TextUnformatted(current_entity_info.layer_name.c_str());
 				}
 			}
 
@@ -438,32 +464,6 @@ namespace big
 		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
 
 		ImGui::Text("Entity Count: %llu", g_entities.size());
-
-		if (ImGui::Checkbox("Auto-refresh every 5 seconds", &g_auto_refresh_enabled))
-		{
-			// Reset the last dump time to start fresh when toggling auto-refresh
-			if (g_auto_refresh_enabled)
-			{
-				g_last_dump_time = std::chrono::steady_clock::now();
-			}
-		}
-
-		// Add button to manually refresh
-		if (ImGui::Button("Refresh Now"))
-		{
-			RefreshEntities();
-		}
-
-		// If auto-refresh is enabled, perform automatic refresh every 5 seconds
-		if (g_auto_refresh_enabled)
-		{
-			const auto now = std::chrono::steady_clock::now();
-			if (now - g_last_dump_time >= 5s)
-			{
-				RefreshEntities();
-				g_last_dump_time = now;
-			}
-		}
 
 		RenderEntityInspectorTable();
 

@@ -737,11 +737,35 @@ namespace big
 
 	static __int64 g_CXConsole = 0;
 
-	static __int64 hook_CXConsole_RegisterVar(__int64 a1, __int64 pCvar, __int64 pChangeFunc)
+	struct cvar_vtable_helper
+	{
+		virtual ~cvar_vtable_helper()
+		{
+		}
+
+		virtual void *func_1()            = 0;
+		virtual void *func_2()            = 0;
+		virtual void *func_3()            = 0;
+		virtual void *func_4()            = 0;
+		virtual void *func_5()            = 0;
+		virtual void *func_6()            = 0;
+		virtual void *func_7()            = 0;
+		virtual void *func_8()            = 0;
+		virtual void *func_9()            = 0;
+		virtual void *func_10()           = 0;
+		virtual void *func_11()           = 0;
+		virtual void *func_12()           = 0;
+		virtual void *func_13()           = 0;
+		virtual void *func_14()           = 0;
+		virtual const char *GetName()     = 0;
+		virtual const char *GetHelpText() = 0;
+	};
+
+	static __int64 hook_CXConsole_RegisterVar(__int64 a1, cvar_vtable_helper *pCvar, __int64 pChangeFunc)
 	{
 		// https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryCommon/CrySystem/IConsole.h#L612
-		const char *cvar_name      = (*(const char *(__fastcall **)(__int64))(*(__int64 *)pCvar + 120LL))(pCvar);
-		const char *cvar_help_text = (*(const char *(__fastcall **)(__int64))(*(__int64 *)pCvar + 128LL))(pCvar);
+		const char *cvar_name               = pCvar->GetName();
+		const char *cvar_help_text          = pCvar->GetHelpText();
 		g_cvar_name_to_help_text[cvar_name] = cvar_help_text;
 
 		const auto res = big::g_hooking->get_original<hook_CXConsole_RegisterVar>()(a1, pCvar, pChangeFunc);
@@ -778,9 +802,9 @@ namespace big
 		g_CXConsole = a1;
 
 		static auto hook1 =
-		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandScript>("hook_CXConsole_AddCommandScript", (*(const char *(__fastcall **)(__int64))(*(__int64 *)a1 + 256)));
+		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandScript>("hook_CXConsole_AddCommandScript", (*reinterpret_cast<void ***>(a1))[32]);
 		static auto hook2 =
-		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandCommand>("hook_CXConsole_AddCommandCommand", (*(const char *(__fastcall **)(__int64))(*(__int64 *)a1 + 256 + 8)));
+		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandCommand>("hook_CXConsole_AddCommandCommand", (*reinterpret_cast<void ***>(a1))[33]);
 
 		return res;
 	}
@@ -790,6 +814,33 @@ namespace big
 		const auto res = big::g_hooking->get_original<hook_CEntitySystem_CEntitySystem>()(this_, ISystem_pSystem);
 
 		g_CEntitySystem = this_;
+
+		return res;
+	}
+
+	static __int64 hook_CEntity_dctor(CEntity *centity_inst, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CEntity_dctor>()(centity_inst, a2);
+
+		const auto it = std::find(g_entities.begin(), g_entities.end(), centity_inst);
+		if (it != g_entities.end())
+		{
+			*it = g_entities.back();
+			g_entities.pop_back();
+		}
+		g_entity_infos.erase(centity_inst);
+
+		return res;
+	}
+
+	static __int64 hook_CEntity_ctor(CEntity *a1, __int64 a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CEntity_ctor>()(a1, a2);
+
+		g_entities.push_back(a1);
+		CEntitySystem_DumpEntity(g_CEntitySystem, a1);
+
+		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CEntity_dctor>("hook_CEntity_dctor", (*reinterpret_cast<void ***>(a1))[0]);
 
 		return res;
 	}
@@ -1021,9 +1072,9 @@ namespace big
 			info.archetype_name_lower = big::string::to_lower(info.archetype_name);
 		}
 
-		entity->GetPos(info.position);
-		info.is_active = entity->IsActive();
-		info.is_hidden = entity->IsHidden();
+		//entity->GetPos(info.position);
+		//info.is_active = entity->IsActive();
+		//info.is_hidden = entity->IsHidden();
 
 		info.id        = entity->GetId();
 		info.id_string = std::to_string(info.id);
@@ -1050,12 +1101,12 @@ namespace big
 			info.guid = format_guid((__int64)&guid_data);
 		}
 
-		g_entities.push_back(info);
+		g_entity_infos.insert({entity, info});
 	}
 
 	void CEntitySystem_DumpEntities(CEntitySystem *entity_system)
 	{
-		g_entities.clear();
+		g_entity_infos.clear();
 		g_entities_filtered.clear();
 
 		auto it = entity_system->GetEntityIterator();
@@ -1249,6 +1300,16 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CEntitySystem_CEntitySystem>("hook_CEntitySystem_CEntitySystem", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B D8 EB ? 48 8B DF 41 8B C7");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CEntity_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CEntity_ctor>("hook_CEntity_ctor", ptr.get_call());
 		}
 
 		// Early main Lua
