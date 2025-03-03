@@ -1009,7 +1009,10 @@ namespace big
 		Archetype *archetype = entity->m_archetype;
 		if (archetype)
 		{
-			info.archetype_name       = archetype->GetName();
+			//LOG(INFO) << HEX_TO_UPPER(archetype);
+			//Logger::FlushQueue();
+			//MessageBoxA(0, "", "", 0);
+			info.archetype_name       = archetype->m_name;
 			info.archetype_name_lower = big::string::to_lower(info.archetype_name);
 		}
 		else

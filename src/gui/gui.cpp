@@ -137,11 +137,9 @@ namespace big
 		ImGui::Text("Name: %s", e.name.c_str());
 		ImGui::Text("Class: %s", e.class_name.c_str());
 		ImGui::Text("Archetype: %s", e.archetype_name.c_str());
-		ImGui::Text("ID: %u", e.id);
-		ImGui::Text("ID Mask: %u", e.id_mask);
-		ImGui::Text("ID Salt: %u", e.id_salt);
-		ImGui::Text("Position: (%.2f, %.2f, %.2f)", e.position[0], e.position[1], e.position[2]);
+		ImGui::Text("ID: %u (Mask: %u) (Salt: %u)", e.id, e.id_mask, e.id_salt);
 
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", e.position[0], e.position[1], e.position[2]);
 		if (ImGui::Button("Teleport To Position"))
 		{
 			const auto formatted_str =

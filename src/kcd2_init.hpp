@@ -35,9 +35,11 @@ namespace big
 
 	struct Archetype
 	{
-		virtual ~Archetype()          = default; // offset 0
-		virtual void Pad1()           = 0;       // offset 8
-		virtual const char *GetName() = 0;       // offset 16
+		virtual ~Archetype() = default; // offset 0
+
+		uint64_t unk_8;
+		uint64_t unk_16;
+		const char *m_name;
 	};
 
 	struct EntityClass
@@ -103,7 +105,6 @@ namespace big
 		virtual void Pad51()            = 0;
 		virtual void Pad52()            = 0;
 		virtual bool IsActive()         = 0; // offset 424
-		virtual void Pad53()            = 0;
 		virtual void Pad54()            = 0;
 		virtual void Pad55()            = 0;
 		virtual void Pad56()            = 0;
@@ -115,10 +116,10 @@ namespace big
 		virtual void Pad62()            = 0;
 		virtual bool IsHidden()         = 0; // offset 504
 
-		uint64_t unk_0;
 		uint64_t unk_8;
 		uint64_t unk_16;
 		uint64_t unk_24;
+		uint64_t unk_32;
 		Archetype *m_archetype;
 	};
 
