@@ -451,14 +451,6 @@ namespace big
 	static bool g_show_entity_inspector = true;
 	static bool g_show_ptf_inspector    = true;
 
-	void RefreshEntities()
-	{
-		if (g_CEntitySystem)
-		{
-			CEntitySystem_DumpEntities(g_CEntitySystem);
-		}
-	}
-
 	void RenderEntityInspector()
 	{
 		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
@@ -528,6 +520,12 @@ namespace big
 
 				ImGui::EndPopup();
 			}
+		}
+
+		if (GetAsyncKeyState('K') & 0x80'00)
+		{
+			LOG(INFO) << "About to call ";
+			RayWorldIntersection();
 		}
 
 		if (m_is_open)

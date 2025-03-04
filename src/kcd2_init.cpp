@@ -267,9 +267,11 @@ namespace big
 		lua_pop(L, 1);
 	}
 
-	void hook_CScriptableBase_Init(__int64 a1, __int64 IScriptSystem_pSS, __int64 a3, int nParamIdOffset)
+	void hook_CScriptableBase_Init(__int64 a1, __int64 IScriptSystem_pSS, __int64 ISystem_pSystem, int nParamIdOffset)
 	{
-		big::g_hooking->get_original<hook_CScriptableBase_Init>()(a1, IScriptSystem_pSS, a3, nParamIdOffset);
+		big::g_hooking->get_original<hook_CScriptableBase_Init>()(a1, IScriptSystem_pSS, ISystem_pSystem, nParamIdOffset);
+
+		g_ISystem = ISystem_pSystem;
 
 		const auto metatable = *(__int64 *)(a1 + 72);
 		if (metatable)
@@ -1125,6 +1127,60 @@ namespace big
 		}
 	}
 
+	static std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection()
+	{
+		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[130];
+		uintptr_t camera_matrix = ((__int64 (*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
+		Vec3 camera_position;
+		camera_position.x = *(float *)(camera_matrix + 12);
+		camera_position.y = *(float *)(camera_matrix + 12 + 16);
+		camera_position.z = *(float *)(camera_matrix + 12 + 16 + 16);
+
+		Vec3 camera_direction;
+		camera_direction.x = *(float *)(camera_matrix + 4);
+		camera_direction.y = *(float *)(camera_matrix + 4 + 16);
+		camera_direction.z = *(float *)(camera_matrix + 4 + 16 + 16);
+
+		return {camera_position, camera_direction};
+	}
+
+	static int RayWorldIntersection_definition(__int64 IPhysicalWorld_instance, Vec3 *source, Vec3 *direction, unsigned int iEntTypes, unsigned int flags, ray_hit_t *hits, int nmaxhits, void **pSkipEnts = 0, int nSkipEnts = 0, __int64 pForeignData = 0, int iForeignData = 0, const char *pNameTag = "RayWorldIntersection(Physics)")
+	{
+	}
+
+	void RayWorldIntersection()
+	{
+		ray_hit_t ray_hit[10];
+
+		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[71];
+		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
+
+		static auto RayWorldIntersection_func = kcd2_address::scan("E8 ? ? ? ? 48 FF 03 48 81 C4").get_call().as_func<decltype(RayWorldIntersection_definition)>();
+		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+
+		const auto nHits =
+		    RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &camera_pos_and_dir.second, 287, 0x1'00'0Fu, ray_hit, 10, 0, 0, 0, 0, "RayWorldIntersection(Physics)");
+
+		LOG(INFO) << "nHits: " << nHits;
+		for (int i = 0; i < nHits; i++)
+
+		{
+			const auto &hit                   = ray_hit[i];
+			const auto PHYS_FOREIGN_ID_STATIC = 2;
+			const auto hit_entity             = hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+			if (hit_entity)
+			{
+				LOG(INFO) << "Hit entity: " << hit_entity->GetName();
+			}
+			else
+			{
+				LOG(INFO) << "no ent hit: ";
+			}
+			LOG(INFO) << "distance: " << hit.dist;
+			LOG(INFO) << "hit pos: " << hit.pt.x << " y: " << hit.pt.y << " z: " << hit.pt.z;
+		}
+	}
+
 	void kcd2_init()
 	{
 		{
@@ -1311,6 +1367,8 @@ namespace big
 			}
 			big::hooking::detour_hook_helper::add<hook_CEntity_ctor>("hook_CEntity_ctor", ptr.get_call());
 		}
+
+		//
 
 		// Early main Lua
 		{

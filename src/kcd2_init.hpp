@@ -226,6 +226,50 @@ namespace big
 	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
 	inline std::vector<int> g_entities_filtered;
 
+	struct Vec3
+	{
+		float x, y, z;
+	};
+
+	struct IPhysicalEntity
+	{
+		virtual ~IPhysicalEntity()                              = default;
+		virtual void Pad1()                                     = 0;
+		virtual void Pad2()                                     = 0;
+		virtual void Pad3()                                     = 0;
+		virtual void Pad4()                                     = 0;
+		virtual void Pad5()                                     = 0;
+		virtual void Pad6()                                     = 0;
+		virtual void Pad7()                                     = 0;
+		virtual void Pad8()                                     = 0;
+		virtual void Pad9()                                     = 0;
+		virtual CEntity *GetForeignData(long long foreign_id)   = 0;
+		virtual long long GetiForeignData(long long foreign_id) = 0;
+	};
+
+	struct ray_hit_t
+	{
+		float dist;
+
+		IPhysicalEntity *pCollider;
+
+		int ipart;
+		int partid;
+		short surface_idx;
+		short idmatOrg;
+		int foreignIdx;
+		int iNode;
+		Vec3 pt;
+		Vec3 n;
+		int bTerrain;
+		int iPrim;
+		ray_hit_t *next;
+	};
+
+	void RayWorldIntersection();
+
+	inline uintptr_t g_ISystem = 0;
+
 	inline std::vector<std::string> g_lua_execute_buffer_queue;
 
 	void CEntitySystem_DumpEntity(CEntitySystem *entity_system, CEntity *entity);
