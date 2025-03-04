@@ -748,8 +748,8 @@ namespace big
 		virtual void *func_1()            = 0;
 		virtual void *func_2()            = 0;
 		virtual void *func_3()            = 0;
-		virtual void *func_4()            = 0;
-		virtual void *func_5()            = 0;
+		virtual float GetFVal()           = 0;
+		virtual const char *GetString()   = 0;
 		virtual void *func_6()            = 0;
 		virtual void *func_7()            = 0;
 		virtual void *func_8()            = 0;
@@ -758,17 +758,39 @@ namespace big
 		virtual void *func_11()           = 0;
 		virtual void *func_12()           = 0;
 		virtual void *func_13()           = 0;
-		virtual void *func_14()           = 0;
+		virtual int GetType()             = 0;
 		virtual const char *GetName()     = 0;
 		virtual const char *GetHelpText() = 0;
 	};
 
+	std::string to_string_us(float value)
+	{
+		std::ostringstream oss;
+		oss.imbue(std::locale("C")); // Ensures decimal point is '.'
+		oss << value;
+		return oss.str();
+	}
+
 	static __int64 hook_CXConsole_RegisterVar(__int64 a1, cvar_vtable_helper *pCvar, __int64 pChangeFunc)
 	{
 		// https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryCommon/CrySystem/IConsole.h#L612
-		const char *cvar_name               = pCvar->GetName();
-		const char *cvar_help_text          = pCvar->GetHelpText();
-		g_cvar_name_to_help_text[cvar_name] = cvar_help_text;
+		const char *cvar_name      = pCvar->GetName();
+		const char *cvar_help_text = pCvar->GetHelpText();
+		const auto cvar_type       = pCvar->GetType();
+		std::string default_value  = "";
+		constexpr int CVAR_FLOAT   = 2;
+		constexpr int CVAR_INT     = 1;
+		constexpr int CVAR_STRING  = 3;
+		if (cvar_type == CVAR_FLOAT || cvar_type == CVAR_INT)
+		{
+			default_value = to_string_us(pCvar->GetFVal());
+		}
+		else if (cvar_type == CVAR_STRING)
+		{
+			default_value = pCvar->GetString();
+		}
+
+		g_cvar_name_to_cvar_data[cvar_name] = {cvar_help_text, default_value};
 
 		const auto res = big::g_hooking->get_original<hook_CXConsole_RegisterVar>()(a1, pCvar, pChangeFunc);
 

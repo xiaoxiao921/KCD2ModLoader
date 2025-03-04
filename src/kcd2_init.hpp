@@ -24,7 +24,13 @@ namespace big
 		std::vector<std::string> m_loaded_paks;
 	};
 
-	inline std::map<std::string, std::string> g_cvar_name_to_help_text;
+	struct cvar_data
+	{
+		std::string m_help_text;
+		std::string m_default_value;
+	};
+
+	inline std::map<std::string, cvar_data> g_cvar_name_to_cvar_data;
 	inline std::map<std::string, std::string> g_console_command_name_to_help_text;
 
 	inline std::vector<vanilla_mod_system_info> g_vanilla_mods;

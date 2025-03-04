@@ -581,11 +581,17 @@ namespace big
 							std::ofstream cvars_file(path);
 							if (cvars_file)
 							{
-								cvars_file << "# CVars\n\n";
-								for (const auto& [name, help_text] : g_cvar_name_to_help_text)
+								cvars_file << "# CVars (" << g_cvar_name_to_cvar_data.size() << ")\n\n";
+								for (const auto& [name, cvar_data] : g_cvar_name_to_cvar_data)
 								{
-									cvars_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
+									cvars_file << "- **" << name << "**:\n\n"
+									           << "  - **Default Value:** `" << cvar_data.m_default_value << "`\n\n"
+									           << "  - **Description:**\n\n"
+									           << "    ```text\n"
+									           << cvar_data.m_help_text << "\n"
+									           << "    ```\n\n";
 								}
+
 
 								LOG(INFO) << "Dumped CVars to " << (char*)path.u8string().c_str();
 							}
@@ -596,10 +602,14 @@ namespace big
 							std::ofstream commands_file(path);
 							if (commands_file)
 							{
-								commands_file << "# Console Commands\n\n";
+								commands_file << "# Console Commands (" << g_console_command_name_to_help_text.size() << ")\n\n";
 								for (const auto& [name, help_text] : g_console_command_name_to_help_text)
 								{
-									commands_file << "- **" << name << "**:\n\n```text\n" << help_text << "\n```\n\n";
+									commands_file << "- **" << name << "**:\n\n"
+									              << "  - **Description:**\n\n"
+									              << "    ```text\n"
+									              << help_text << "\n"
+									              << "    ```\n\n";
 								}
 
 								LOG(INFO) << "Dumped Console Commands to " << (char*)path.u8string().c_str();
