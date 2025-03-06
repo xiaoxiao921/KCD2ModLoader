@@ -864,6 +864,12 @@ namespace big
 		g_entities.push_back(a1);
 		CEntitySystem_DumpEntity(g_CEntitySystem, a1);
 
+		if (strcmp(a1->GetName(), "Dude") == 0)
+		{
+			g_player_entity = a1;
+			LOG(INFO) << "Player entity found";
+		}
+
 		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CEntity_dctor>("hook_CEntity_dctor", (*reinterpret_cast<void ***>(a1))[0]);
 
 		return res;
@@ -1172,7 +1178,7 @@ namespace big
 
 	void RayWorldIntersection()
 	{
-		ray_hit_t ray_hit[10];
+		ray_hit_t ray_hit[1];
 
 		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[71];
 		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
@@ -1180,10 +1186,14 @@ namespace big
 		static auto RayWorldIntersection_func = kcd2_address::scan("E8 ? ? ? ? 48 FF 03 48 81 C4").get_call().as_func<decltype(RayWorldIntersection_definition)>();
 		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
 
-		const auto nHits =
-		    RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &camera_pos_and_dir.second, 287, 0x1'00'0Fu, ray_hit, 10, 0, 0, 0, 0, "RayWorldIntersection(Physics)");
+		// Extend the max range distance to 1000
+		Vec3 ray_dir_range = camera_pos_and_dir.second * 1000.0f;
 
-		LOG(INFO) << "nHits: " << nHits;
+		void *pSkipEnts[1];
+		pSkipEnts[0] = g_player_entity->GetPhysics();
+
+		const auto nHits = RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &ray_dir_range, 287, 0x1'00'0Fu, ray_hit, 1, pSkipEnts, 1, 0, 0, "RayWorldIntersection(Physics)");
+
 		for (int i = 0; i < nHits; i++)
 
 		{
@@ -1192,14 +1202,14 @@ namespace big
 			const auto hit_entity             = hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
 			if (hit_entity)
 			{
-				LOG(INFO) << "Hit entity: " << hit_entity->GetName();
+				LOG(INFO) << "[Raycast] Entity hit: " << hit_entity->GetName();
 			}
 			else
 			{
-				LOG(INFO) << "no ent hit: ";
+				LOG(INFO) << "[Raycast] No entity hit";
 			}
-			LOG(INFO) << "distance: " << hit.dist;
-			LOG(INFO) << "hit pos: " << hit.pt.x << " y: " << hit.pt.y << " z: " << hit.pt.z;
+			LOG(INFO) << "[Raycast] Hit distance: " << hit.dist;
+			LOG(INFO) << "[Raycast] Hit pos: " << hit.pt.x << " y: " << hit.pt.y << " z: " << hit.pt.z;
 		}
 	}
 

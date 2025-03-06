@@ -2,6 +2,7 @@
 
 #include "gui/renderer.hpp"
 #include "hooks/hooking.hpp"
+#include "kcd2_address.hpp"
 #include "lua/bindings/imgui_window.hpp"
 #include "lua_extensions/lua_manager_extension.hpp"
 #include "lua_extensions/lua_module_ext.hpp"
@@ -172,8 +173,6 @@ namespace big
 
 	void RenderEntityInspectorTable()
 	{
-		static int selected_index = -1; // Start with no selection
-
 		static char search_buffer[256]  = "";
 		static char search_buffer2[256] = "";
 		auto callback_search            = []()
@@ -407,9 +406,9 @@ namespace big
 					ImGui::TableSetColumnIndex(0);
 					char idBuffer[16];
 					snprintf(idBuffer, sizeof(idBuffer), "%u", current_entity_info.id);
-					if (ImGui::Selectable(idBuffer, selected_index == i, ImGuiSelectableFlags_SpanAllColumns))
+					if (ImGui::Selectable(idBuffer, g_selected_index_entity_detail_inspector == i, ImGuiSelectableFlags_SpanAllColumns))
 					{
-						selected_index = entity_index;
+						g_selected_index_entity_detail_inspector = entity_index;
 					}
 
 					// Name column
@@ -442,9 +441,9 @@ namespace big
 		}
 
 		// Render the separate entity details window if an entity is selected
-		if (selected_index >= 0 && selected_index < (int)g_entities.size())
+		if (g_selected_index_entity_detail_inspector >= 0 && g_selected_index_entity_detail_inspector < (int)g_entities.size())
 		{
-			RenderEntityDetails(selected_index);
+			RenderEntityDetails(g_selected_index_entity_detail_inspector);
 		}
 	}
 
@@ -456,6 +455,11 @@ namespace big
 		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
 
 		ImGui::Text("Entity Count: %llu", g_entities.size());
+
+		if (ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair))
+		{
+			RayWorldIntersection();
+		}
 
 		RenderEntityInspectorTable();
 
@@ -522,9 +526,8 @@ namespace big
 			}
 		}
 
-		if (GetAsyncKeyState('K') & 0x80'00)
+		if (g_target_entity_on_crosshair.get_vk_value() && GetAsyncKeyState(g_target_entity_on_crosshair.get_vk_value()) & 0x80'00)
 		{
-			LOG(INFO) << "About to call ";
 			RayWorldIntersection();
 		}
 
@@ -566,7 +569,19 @@ namespace big
 
 				if (ImGui::BeginMenu("Inspectors"))
 				{
-					ImGui::Checkbox("Entity Inspector", &g_show_entity_inspector);
+					if (ImGui::BeginMenu("Entity Inspector"))
+					{
+						if (ImGui::Checkbox("Entity Inspector", &g_show_entity_inspector))
+						{
+							g_show_entity_inspector = !g_show_entity_inspector;
+						}
+						if (ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair))
+						{
+							RayWorldIntersection();
+						}
+						ImGui::EndMenu();
+					}
+
 					ImGui::Checkbox("PTF Inspector", &g_show_ptf_inspector);
 
 					ImGui::EndMenu();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <input/hotkey.hpp>
+
 namespace big
 {
 	struct table_patch_info_t
@@ -121,6 +123,21 @@ namespace big
 		virtual void Pad61()            = 0;
 		virtual void Pad62()            = 0;
 		virtual bool IsHidden()         = 0; // offset 504
+		virtual void Pad64()            = 0;
+		virtual void Pad65()            = 0;
+		virtual void Pad66()            = 0;
+		virtual void Pad67()            = 0;
+		virtual void Pad68()            = 0;
+		virtual void Pad69()            = 0;
+		virtual void Pad70()            = 0;
+		virtual void Pad71()            = 0;
+		virtual void Pad72()            = 0;
+		virtual void Pad73()            = 0;
+		virtual void Pad74()            = 0;
+		virtual void Pad75()            = 0;
+		virtual void Pad76()            = 0;
+		virtual void Pad77()            = 0;
+		virtual void *GetPhysics()      = 0;
 
 		uint64_t unk_8;
 		uint64_t unk_16;
@@ -131,7 +148,10 @@ namespace big
 
 	static_assert(offsetof(CEntity, m_archetype) == 40);
 
+	inline CEntity *g_player_entity = nullptr;
 	inline std::vector<CEntity *> g_entities;
+
+	inline big::hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
 
 	struct CEntitySystem
 	{
@@ -235,6 +255,16 @@ namespace big
 	struct Vec3
 	{
 		float x, y, z;
+
+		Vec3 operator*(float scalar) const
+		{
+			return {x * scalar, y * scalar, z * scalar};
+		}
+
+		Vec3 operator+(const Vec3 &other) const
+		{
+			return {x + other.x, y + other.y, z + other.z};
+		}
 	};
 
 	struct IPhysicalEntity
@@ -273,6 +303,7 @@ namespace big
 	};
 
 	void RayWorldIntersection();
+	inline int g_selected_index_entity_detail_inspector = -1;
 
 	inline uintptr_t g_ISystem = 0;
 
