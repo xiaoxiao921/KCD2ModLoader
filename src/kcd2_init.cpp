@@ -1400,7 +1400,27 @@ namespace big
 			big::hooking::detour_hook_helper::add<hook_CEntity_ctor>("hook_CEntity_ctor", ptr.get_call());
 		}
 
-		//
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 84 C0 0F 84 ? ? ? ? 4C 8B 45 ? 4C 3B C7");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find a function that uses gEnv->pGame";
+				return;
+			}
+
+			g_gEnv_pGame_ptr = ptr.get_call().offset(0x65).rip().as<uintptr_t *>();
+
+			// Reproduction of CryEngine SetFlyMode inside CDevMode::OnGameplayCommand
+			// Doesn't work well cause of custom movement system of KCD
+			//const auto gEnv_pGame = *g_gEnv_pGame_ptr;
+			//const auto IGameFramework = (*(__int64(__fastcall **)(__int64))(*(uintptr_t *)gEnv_pGame + 128LL))(gEnv_pGame);
+			//const auto IActor_pPlayer = (*(__int64(__fastcall **)(__int64))(*(uintptr_t *)IGameFramework + 512LL))(IGameFramework);
+			//if (IActor_pPlayer)
+			//{
+			// IActor->SetFlyMode
+			//(*(void(__fastcall **)(__int64, uint8_t))(*(uintptr_t *)IActor_pPlayer + 608LL))(IActor_pPlayer, (uint8_t)2);
+			//}
+		}
 
 		// Early main Lua
 		{

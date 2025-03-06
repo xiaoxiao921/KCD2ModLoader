@@ -305,7 +305,8 @@ namespace big
 	void RayWorldIntersection();
 	inline int g_selected_index_entity_detail_inspector = -1;
 
-	inline uintptr_t g_ISystem = 0;
+	inline uintptr_t g_ISystem         = 0;
+	inline uintptr_t *g_gEnv_pGame_ptr = 0;
 
 	inline std::vector<std::string> g_lua_execute_buffer_queue;
 
