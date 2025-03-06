@@ -1203,6 +1203,19 @@ namespace big
 			if (hit_entity)
 			{
 				LOG(INFO) << "[Raycast] Entity hit: " << hit_entity->GetName();
+
+				size_t k = 0;
+				for (const auto &ent : g_entities)
+				{
+					if (ent == hit_entity)
+					{
+						g_selected_index_entity_detail_inspector = k;
+
+						break;
+					}
+
+					k++;
+				}
 			}
 			else
 			{
