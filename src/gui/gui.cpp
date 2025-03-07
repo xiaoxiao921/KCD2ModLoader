@@ -7,6 +7,7 @@
 #include "lua_extensions/lua_manager_extension.hpp"
 #include "lua_extensions/lua_module_ext.hpp"
 
+#include <gui/widgets/imgui_extensions.hpp>
 #include <gui/widgets/imgui_hotkey.hpp>
 #include <input/hotkey.hpp>
 #include <input/is_key_pressed.hpp>
@@ -126,15 +127,14 @@ namespace big
 
 	static bool editing_gui_keybind = false;
 
-	static bool g_auto_refresh_enabled = false;
-	static auto g_last_dump_time       = std::chrono::steady_clock::now();
-
 	static __int64 C_PlayerStateMovement_Fly_callback(__int64 C_PlayerStateMovement, __int64 out_struct_40bytesize, __int64 C_Player, __int64 state_value)
 	{
 	}
 
 	void RenderEntityDetails(int selected_index)
 	{
+		// TODO: Component List
+
 		ImGui::Begin("Entity Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
 		const auto& entity = g_entities[selected_index];
@@ -454,8 +454,6 @@ namespace big
 	static bool g_show_entity_inspector = true;
 	static bool g_show_ptf_inspector    = true;
 
-	static bool g_noclip_enabled = false;
-
 	void RenderEntityInspector()
 	{
 		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
@@ -537,53 +535,51 @@ namespace big
 			RayWorldIntersection();
 		}
 
-		// TODO: Component Inspector inside the Entity Inspector.
-
-		if (g_noclip_enabled)
+		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity)
 		{
 			const auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
 			auto player_pos               = g_player_entity->GetWorldPos();
 
 			static float previous_z = player_pos.z;
 
+			// Note: This can be better implemented by a Entity.IsGrounded check but only god knows where that is located in the game binary.
 			if (player_pos.z < previous_z) // If the Z position has naturally decreased
 			{
-				player_pos.z += 0.01f; // Add some Z to counteract gravity
+				player_pos.z += 0.001f; // Add some Z to counteract gravity
 			}
 
 			const auto forward = camera_pos_and_dir.second;
-			const auto right   = forward.Cross(Vec3(0, 0, 1)).Normalized();
 			const auto up      = Vec3(0, 0, 1);
+			const auto right   = forward.Cross(up).Normalized();
 
-			float speed = 0.1f; // Adjust speed as needed
+			float speed = g_noclip_speed_default->get_value();
 
-			// Increase speed when Shift is held
-			if (GetAsyncKeyState(VK_SHIFT) & 0x80'00)
+			if (GetAsyncKeyState(g_noclip_speed_multiplier_keybind.get_vk_value()) & 0x80'00)
 			{
-				speed *= 10.0f;
+				speed *= g_noclip_speed_multiplier->get_value();
 			}
 
-			if (GetAsyncKeyState('Z') & 0x80'00) // Forward
+			if (GetAsyncKeyState(g_noclip_forward.get_vk_value()) & 0x80'00)
 			{
 				player_pos += forward * speed;
 			}
-			if (GetAsyncKeyState('S') & 0x80'00) // Backward
+			if (GetAsyncKeyState(g_noclip_backward.get_vk_value()) & 0x80'00)
 			{
 				player_pos -= forward * speed;
 			}
-			if (GetAsyncKeyState('Q') & 0x80'00) // Left
+			if (GetAsyncKeyState(g_noclip_left.get_vk_value()) & 0x80'00)
 			{
 				player_pos -= right * speed;
 			}
-			if (GetAsyncKeyState('D') & 0x80'00) // Right
+			if (GetAsyncKeyState(g_noclip_right.get_vk_value()) & 0x80'00)
 			{
 				player_pos += right * speed;
 			}
-			if (GetAsyncKeyState(VK_SPACE) & 0x80'00) // Up
+			if (GetAsyncKeyState(g_noclip_up.get_vk_value()) & 0x80'00)
 			{
 				player_pos += up * speed;
 			}
-			if (GetAsyncKeyState(VK_CONTROL) & 0x80'00) // Down
+			if (GetAsyncKeyState(g_noclip_down.get_vk_value()) & 0x80'00)
 			{
 				player_pos -= up * speed;
 			}
@@ -617,21 +613,38 @@ namespace big
 
 				if (ImGui::BeginMenu("Log"))
 				{
-					{
-						static bool val = g_hook_log_write_enabled->get_value();
-						if (ImGui::Checkbox("Output to the KCD2ModLoader log\nthe vanilla game log (kcd.log)", &val))
-						{
-							g_hook_log_write_enabled->set_value(val);
-						}
-					}
-
+					ImGui::ConfigBind(ImGui::Checkbox, "Output to the KCD2ModLoader log\nthe vanilla game log (kcd.log)", g_hook_log_write_enabled);
 
 					ImGui::EndMenu();
 				}
 
 				if (ImGui::BeginMenu("Trainer"))
 				{
-					ImGui::Checkbox("Noclip", &g_noclip_enabled);
+					if (ImGui::BeginMenu("Noclip"))
+					{
+						ImGui::ConfigBind(ImGui::Checkbox, "Enabled", g_noclip_enabled);
+
+						ImGui::Hotkey("Enabled Keybind", g_noclip_enabled_keybind);
+
+						ImGui::Separator();
+
+						ImGui::Hotkey("Forward", g_noclip_forward);
+						ImGui::Hotkey("Backward", g_noclip_backward);
+						ImGui::Hotkey("Left", g_noclip_left);
+						ImGui::Hotkey("Right", g_noclip_right);
+						ImGui::Hotkey("Up", g_noclip_up);
+						ImGui::Hotkey("Down", g_noclip_down);
+
+						ImGui::Separator();
+
+						ImGui::ConfigBind(ImGui::DragDouble, "Default Speed", g_noclip_speed_default, 1.0f, 0.1f, 100.0f);
+
+						ImGui::Hotkey("Speed Multiplier Keybind", g_noclip_speed_multiplier_keybind);
+
+						ImGui::ConfigBind(ImGui::DragDouble, "Speed Multiplier", g_noclip_speed_multiplier, 1.0f, 1.0f, 100.0f);
+
+						ImGui::EndMenu();
+					}
 
 					ImGui::EndMenu();
 				}
@@ -644,10 +657,9 @@ namespace big
 						{
 							g_show_entity_inspector = !g_show_entity_inspector;
 						}
-						if (ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair))
-						{
-							RayWorldIntersection();
-						}
+
+						ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair);
+
 						ImGui::EndMenu();
 					}
 
@@ -1046,6 +1058,11 @@ namespace big
 
 	void gui::wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	{
+		if (msg == WM_KEYUP && wparam == g_noclip_enabled_keybind.get_vk_value())
+		{
+			g_noclip_enabled->set_value(!g_noclip_enabled->get_value());
+		}
+
 		if (msg == WM_KEYUP && wparam == g_gui_toggle.get_vk_value())
 		{
 			// Persist and restore the cursor position between menu instances.

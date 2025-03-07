@@ -1,5 +1,6 @@
 #pragma once
 
+#include <config/config.hpp>
 #include <input/hotkey.hpp>
 
 namespace big
@@ -259,11 +260,23 @@ namespace big
 
 	inline std::vector<CEntity *> g_entities;
 
-	inline big::hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
+	inline hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
+
+	inline toml_v2::config_file::config_entry<bool> *g_noclip_enabled = nullptr;
+	inline hotkey g_noclip_enabled_keybind("noclip_enabled", 0);
+	inline hotkey g_noclip_forward("noclip_forward", 'W');
+	inline hotkey g_noclip_backward("noclip_backward", 'S');
+	inline hotkey g_noclip_left("noclip_left", 'A');
+	inline hotkey g_noclip_right("noclip_right", 'D');
+	inline hotkey g_noclip_up("noclip_up", VK_SPACE);
+	inline hotkey g_noclip_down("noclip_down", VK_CONTROL);
+	inline toml_v2::config_file::config_entry<double> *g_noclip_speed_default    = nullptr;
+	inline toml_v2::config_file::config_entry<double> *g_noclip_speed_multiplier = nullptr;
+	inline hotkey g_noclip_speed_multiplier_keybind("noclip_speed_multiplier_keybind", VK_SHIFT);
 
 	struct CEntitySystem
 	{
-		virtual ~CEntitySystem()                            = default; // offset 0
+		virtual ~CEntitySystem()                            = default;
 		virtual void Pad1()                                 = 0;
 		virtual void Pad2()                                 = 0;
 		virtual void Pad3()                                 = 0;
@@ -284,7 +297,7 @@ namespace big
 		virtual void Pad18()                                = 0;
 		virtual void Pad19()                                = 0;
 		virtual void Pad20()                                = 0;
-		virtual __int64 GetEntityIterator()                 = 0; // offset 168
+		virtual __int64 GetEntityIterator()                 = 0;
 		virtual void Pad22()                                = 0;
 		virtual void Pad23()                                = 0;
 		virtual void Pad24()                                = 0;
@@ -334,7 +347,7 @@ namespace big
 		virtual void Pad68()                                = 0;
 		virtual void Pad69()                                = 0;
 		virtual void Pad70()                                = 0;
-		virtual __int64 GetEntityLayerData(CEntity *entity) = 0; // offset 568
+		virtual __int64 GetEntityLayerData(CEntity *entity) = 0;
 	};
 
 	inline CEntitySystem *g_CEntitySystem = nullptr;

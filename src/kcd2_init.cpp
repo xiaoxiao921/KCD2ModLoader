@@ -1312,6 +1312,12 @@ namespace big
 		}
 
 		{
+			g_noclip_enabled = big::config::general().bind("Noclip", "Enabled", false, "Toggle noclip mode on or off.");
+			g_noclip_speed_default = big::config::general().bind("Noclip", "Default Speed", 0.1, "Sets the default movement speed for noclip mode.");
+			g_noclip_speed_multiplier = big::config::general().bind("Noclip", "Speed Multiplier", 10.0, "Multiplier applied to speed when boosting in noclip mode.");
+		}
+
+		{
 			EachImportFunction(::GetModuleHandleA("WHGame.dll"),
 			                   "fmodstudio.dll",
 			                   [](const char *funcname, void *&func)
