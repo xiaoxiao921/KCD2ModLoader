@@ -41,6 +41,60 @@ namespace big
 
 	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents);
 
+	struct Vec3
+	{
+		float x, y, z;
+
+		Vec3 operator*(float scalar) const
+		{
+			return {x * scalar, y * scalar, z * scalar};
+		}
+
+		Vec3 operator+(const Vec3 &other) const
+		{
+			return {x + other.x, y + other.y, z + other.z};
+		}
+
+		Vec3 operator-(const Vec3 &other) const
+		{
+			return {x - other.x, y - other.y, z - other.z};
+		}
+
+		Vec3 &operator+=(const Vec3 &other)
+		{
+			x += other.x;
+			y += other.y;
+			z += other.z;
+			return *this;
+		}
+
+		Vec3 &operator-=(const Vec3 &other)
+		{
+			x -= other.x;
+			y -= other.y;
+			z -= other.z;
+			return *this;
+		}
+
+		Vec3 Cross(const Vec3 &other) const
+		{
+			return {y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x};
+		}
+
+		float Length() const
+		{
+			return std::sqrt(x * x + y * y + z * z);
+		}
+
+		Vec3 Normalized() const
+		{
+			float len = Length();
+			return (len > 0) ? (*this * (1.0f / len)) : Vec3{0, 0, 0};
+		}
+	};
+
+	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection();
+
 	struct Archetype
 	{
 		virtual ~Archetype() = default; // offset 0
@@ -56,6 +110,12 @@ namespace big
 		virtual void Pad1()           = 0;       // offset 8
 		virtual const char *GetName() = 0;       // offset 16
 	};
+
+	struct CEntity;
+	inline CEntity *g_player_entity                                           = nullptr;
+	inline void *(*g_CEntity_SetWorldTM)(CEntity *this_, void *tm, int flags) = nullptr;
+
+#pragma pack(push, 1)
 
 	struct CEntity
 	{
@@ -139,16 +199,64 @@ namespace big
 		virtual void Pad77()            = 0;
 		virtual void *GetPhysics()      = 0;
 
-		uint64_t unk_8;
-		uint64_t unk_16;
-		uint64_t unk_24;
-		uint64_t unk_32;
+		uint64_t unk_1;
+		uint64_t unk_2;
+		uint64_t unk_3;
+		uint64_t unk_4;
 		Archetype *m_archetype;
+		uint64_t unk_5;
+		uint64_t unk_6;
+		uint64_t unk_7;
+		uint64_t unk_8;
+		uint64_t unk_9;
+		uint64_t unk_10;
+		uint32_t unk_11;
+		float m_world_pos_x;
+		uint64_t unk_12;
+		uint32_t unk_13;
+		float m_world_pos_y;
+		uint64_t unk_14;
+		uint32_t unk_15;
+		float m_world_pos_z;
+
+		inline Vec3 GetWorldPos()
+		{
+			Vec3 res;
+
+			res.x = m_world_pos_x;
+			res.y = m_world_pos_y;
+			res.z = m_world_pos_z;
+
+			//LOG(INFO) << res.x << " " << res.y << " " << res.z;
+			//Logger::FlushQueue();
+
+			return res;
+		}
+
+		inline void SetWorldPos(const Vec3 &newPos)
+		{
+			const auto Entity = (uintptr_t)g_player_entity;
+
+			float matrix[3 * 4];
+
+			memcpy(matrix, (void *)(Entity + 88), sizeof(matrix));
+
+			matrix[3]  = newPos.x;
+			matrix[7]  = newPos.y;
+			matrix[11] = newPos.z;
+
+			// Apply the new transformation matrix
+			g_CEntity_SetWorldTM(g_player_entity, matrix, 0x40'00'00);
+		}
 	};
 
+#pragma pack(pop)
+
+	static_assert(offsetof(CEntity, m_world_pos_x) == 100);
+	static_assert(offsetof(CEntity, m_world_pos_y) == 116);
+	static_assert(offsetof(CEntity, m_world_pos_z) == 132);
 	static_assert(offsetof(CEntity, m_archetype) == 40);
 
-	inline CEntity *g_player_entity = nullptr;
 	inline std::vector<CEntity *> g_entities;
 
 	inline big::hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
@@ -252,21 +360,6 @@ namespace big
 	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
 	inline std::vector<int> g_entities_filtered;
 
-	struct Vec3
-	{
-		float x, y, z;
-
-		Vec3 operator*(float scalar) const
-		{
-			return {x * scalar, y * scalar, z * scalar};
-		}
-
-		Vec3 operator+(const Vec3 &other) const
-		{
-			return {x + other.x, y + other.y, z + other.z};
-		}
-	};
-
 	struct IPhysicalEntity
 	{
 		virtual ~IPhysicalEntity()                              = default;
@@ -307,6 +400,10 @@ namespace big
 
 	inline uintptr_t g_ISystem         = 0;
 	inline uintptr_t *g_gEnv_pGame_ptr = 0;
+
+	inline uintptr_t g_C_PlayerStateMovement = 0;
+	inline uintptr_t g_C_Player              = 0;
+
 
 	inline std::vector<std::string> g_lua_execute_buffer_queue;
 

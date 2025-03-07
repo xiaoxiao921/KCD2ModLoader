@@ -875,6 +875,40 @@ namespace big
 		return res;
 	}
 
+	//__int64 hook_CPlayerStateMovement_Ledge_callback(__int64 a1, __int64 a2, __int64 a3, int32_t *a4)
+	//{
+	//const auto res = big::g_hooking->get_original<hook_CPlayerStateMovement_Ledge_callback>()(a1, a2, a3, a4);
+
+	//LOG(INFO) << "CPlayerStateMovement_Ledge_callback callback: " << a1 << " - " << a2 << " - " << a3 << " - " << a4;
+
+	//LOG(INFO) << "a1: " << typeid(*reinterpret_cast<vtable_helper *>(a1)).name(); // C_PlayerStateMovement
+
+	// a2 is a 40 bytes struct, can be anything, doesn't matter, just allocate it on stack.
+	// a4 is the int enum new value of the state.
+
+	//LOG(INFO) << "a3: " << typeid(*reinterpret_cast<vtable_helper *>(a3)).name(); // C_Player
+
+	//return res;
+	//}
+
+	__int64 hook_C_PlayerStateMovement_ctor(__int64 a1)
+	{
+		g_C_PlayerStateMovement = a1;
+
+		const auto res = big::g_hooking->get_original<hook_C_PlayerStateMovement_ctor>()(a1);
+
+		return res;
+	}
+
+	__int64 hook_C_Player_ctor(__int64 a1)
+	{
+		g_C_Player = a1;
+
+		const auto res = big::g_hooking->get_original<hook_C_Player_ctor>()(a1);
+
+		return res;
+	}
+
 	static __int64 hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
 	{
 		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
@@ -1155,7 +1189,7 @@ namespace big
 		}
 	}
 
-	static std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection()
+	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection()
 	{
 		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[130];
 		uintptr_t camera_matrix = ((__int64 (*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
@@ -1433,6 +1467,52 @@ namespace big
 			// IActor->SetFlyMode
 			//(*(void(__fastcall **)(__int64, uint8_t))(*(uintptr_t *)IActor_pPlayer + 608LL))(IActor_pPlayer, (uint8_t)2);
 			//}
+		}
+
+		//{
+		//const auto ptr = kcd2_address::scan(
+		//"4C 8D 05 ? ? ? ? 48 8D 15 ? ? ? ? 8D 41 ? 48 8D 4D ? 89 83 ? ? ? ? E8 ? ? ? ? 48 89 75");
+		//if (!ptr)
+		//{
+		//LOG(ERROR) << "Failed to find CPlayerStateMovement_Ledge_callback";
+		//return;
+		//}
+		//big::hooking::detour_hook_helper::add<hook_CPlayerStateMovement_Ledge_callback>(
+		//"hook_CPlayerStateMovement_Ledge_callback",
+		//ptr.offset(3).rip());
+		//}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? EB ? 45 33 C0 F7 43");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CEntity_SetWorldTM";
+				return;
+			}
+
+			g_CEntity_SetWorldTM = ptr.get_call().as<decltype(g_CEntity_SetWorldTM)>();
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 41 57 "
+			                                    "48 8B EC 48 83 EC ? 48 8B D9 E8 ? ? ? ? B9");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find C_PlayerStateMovement_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_C_PlayerStateMovement_ctor>("hook_C_PlayerStateMovement_ctor", ptr);
+		}
+
+		{
+			const auto ptr =
+			    kcd2_address::scan("40 55 53 56 57 41 56 48 8B EC 48 81 EC ? ? ? ? 48 8B D9 E8 ? ? ? ? 33 F6");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find C_Player_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_C_Player_ctor>("hook_C_Player_ctor", ptr);
 		}
 
 		// Early main Lua

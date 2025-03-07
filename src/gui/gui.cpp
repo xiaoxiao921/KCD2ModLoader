@@ -129,6 +129,10 @@ namespace big
 	static bool g_auto_refresh_enabled = false;
 	static auto g_last_dump_time       = std::chrono::steady_clock::now();
 
+	static __int64 C_PlayerStateMovement_Fly_callback(__int64 C_PlayerStateMovement, __int64 out_struct_40bytesize, __int64 C_Player, __int64 state_value)
+	{
+	}
+
 	void RenderEntityDetails(int selected_index)
 	{
 		ImGui::Begin("Entity Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
@@ -450,6 +454,8 @@ namespace big
 	static bool g_show_entity_inspector = true;
 	static bool g_show_ptf_inspector    = true;
 
+	static bool g_noclip_enabled = false;
+
 	void RenderEntityInspector()
 	{
 		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
@@ -531,6 +537,62 @@ namespace big
 			RayWorldIntersection();
 		}
 
+		// TODO: Component Inspector inside the Entity Inspector.
+
+		if (g_noclip_enabled)
+		{
+			const auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+			auto player_pos               = g_player_entity->GetWorldPos();
+
+			static float previous_z = player_pos.z;
+
+			if (player_pos.z < previous_z) // If the Z position has naturally decreased
+			{
+				player_pos.z += 0.01f; // Add some Z to counteract gravity
+			}
+
+			const auto forward = camera_pos_and_dir.second;
+			const auto right   = forward.Cross(Vec3(0, 0, 1)).Normalized();
+			const auto up      = Vec3(0, 0, 1);
+
+			float speed = 0.1f; // Adjust speed as needed
+
+			// Increase speed when Shift is held
+			if (GetAsyncKeyState(VK_SHIFT) & 0x80'00)
+			{
+				speed *= 10.0f;
+			}
+
+			if (GetAsyncKeyState('Z') & 0x80'00) // Forward
+			{
+				player_pos += forward * speed;
+			}
+			if (GetAsyncKeyState('S') & 0x80'00) // Backward
+			{
+				player_pos -= forward * speed;
+			}
+			if (GetAsyncKeyState('Q') & 0x80'00) // Left
+			{
+				player_pos -= right * speed;
+			}
+			if (GetAsyncKeyState('D') & 0x80'00) // Right
+			{
+				player_pos += right * speed;
+			}
+			if (GetAsyncKeyState(VK_SPACE) & 0x80'00) // Up
+			{
+				player_pos += up * speed;
+			}
+			if (GetAsyncKeyState(VK_CONTROL) & 0x80'00) // Down
+			{
+				player_pos -= up * speed;
+			}
+
+			previous_z = player_pos.z;
+
+			g_player_entity->SetWorldPos(player_pos);
+		}
+
 		if (m_is_open)
 		{
 			if (ImGui::BeginMainMenuBar())
@@ -563,6 +625,13 @@ namespace big
 						}
 					}
 
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Trainer"))
+				{
+					ImGui::Checkbox("Noclip", &g_noclip_enabled);
 
 					ImGui::EndMenu();
 				}
