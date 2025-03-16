@@ -1191,7 +1191,8 @@ namespace big
 
 	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection()
 	{
-		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[130];
+		// vtable offset retrieved by looking at the lua exposed function "GetViewCameraPos"
+		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[133];
 		uintptr_t camera_matrix = ((__int64 (*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
 		Vec3 camera_position;
 		camera_position.x = *(float *)(camera_matrix + 12);
@@ -1214,7 +1215,8 @@ namespace big
 	{
 		ray_hit_t ray_hit[1];
 
-		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[71];
+		// ISystem IphyiscalWorld vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
+		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[74];
 		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
 
 		static auto RayWorldIntersection_func = kcd2_address::scan("E8 ? ? ? ? 48 FF 03 48 81 C4").get_call().as_func<decltype(RayWorldIntersection_definition)>();
@@ -1229,7 +1231,6 @@ namespace big
 		const auto nHits = RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &ray_dir_range, 287, 0x1'00'0Fu, ray_hit, 1, pSkipEnts, 1, 0, 0, "RayWorldIntersection(Physics)");
 
 		for (int i = 0; i < nHits; i++)
-
 		{
 			const auto &hit                   = ray_hit[i];
 			const auto PHYS_FOREIGN_ID_STATIC = 2;
@@ -1401,8 +1402,8 @@ namespace big
 		}
 
 		{
-			const auto ptr =
-			    kcd2_address::scan("E8 ? ? ? ? 48 8B 4D ? 8A D8 48 83 C1 ? E8 ? ? ? ? 84 DB 0F 84 ? ? ? ? 48 8D 4D");
+			const auto ptr = kcd2_address::scan("48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8A E8 48 "
+			                                    "8B FA 48 8B F1 E8 ? ? ? ? 48 8B 88");
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find XmlParserReadOnly_Read_caller";
@@ -1410,7 +1411,7 @@ namespace big
 			}
 			big::hooking::detour_hook_helper::add<hook_XmlParserReadOnly_Read_caller>(
 			    "hook_XmlParserReadOnly_Read_caller",
-			    ptr.get_call());
+			    ptr);
 		}
 
 		{
@@ -1500,8 +1501,8 @@ namespace big
 		}
 
 		{
-			const auto ptr = kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 41 57 "
-			                                    "48 8B EC 48 83 EC ? 48 8B D9 E8 ? ? ? ? B9");
+			const auto ptr = kcd2_address::scan(
+			    "48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC ? 48 8B F9 E8");
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find C_PlayerStateMovement_ctor";
