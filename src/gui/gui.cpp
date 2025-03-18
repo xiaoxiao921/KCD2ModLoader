@@ -131,11 +131,13 @@ namespace big
 	{
 	}
 
+	void RenderEntityXmlInfo(entity_xml_info_t* current, const std::string& entity_class_name);
+
 	void RenderEntityDetails(int selected_index)
 	{
-		// TODO: Component List
-
 		ImGui::Begin("Entity Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		ImGui::Text("Runtime Info");
 
 		const auto& entity = g_entities[selected_index];
 		const auto& e      = g_entity_infos[entity];
@@ -172,6 +174,16 @@ namespace big
 		}
 		ImGui::Text("GUID: %s", e.guid.c_str());
 
+		auto* xml_info = g_entity_guid_to_xml_infos[e.guid];
+		if (xml_info)
+		{
+			ImGui::Separator();
+
+			ImGui::Text("XML On-Disk Info");
+
+			RenderEntityXmlInfo(xml_info, xml_info->m_entity_class_name);
+		}
+
 		ImGui::End();
 	}
 
@@ -206,7 +218,6 @@ namespace big
 				i++;
 			}
 		};
-		//if (ImGui::InputText("##SearchInput", search_buffer2, IM_ARRAYSIZE(search_buffer2), ImGuiInputTextFlags_EnterReturnsTrue))
 		if (ImGui::InputText("##SearchInput", search_buffer2, IM_ARRAYSIZE(search_buffer2)))
 		{
 			callback_search();
@@ -451,12 +462,16 @@ namespace big
 		}
 	}
 
-	static bool g_show_entity_inspector = true;
-	static bool g_show_ptf_inspector    = true;
+	static entity_xml_info_t* g_selected_entity_xml_info = nullptr;
 
 	void RenderEntityInspector()
 	{
-		ImGui::Begin("Entity List Inspector", &g_show_entity_inspector);
+		if (!g_show_entity_inspector->get_value())
+		{
+			return;
+		}
+
+		ImGui::ConfigBind(ImGui::Begin, "Entity List Inspector", g_show_entity_inspector, 0);
 
 		ImGui::Text("Entity Count: %llu", g_entities.size());
 
@@ -466,6 +481,276 @@ namespace big
 		}
 
 		RenderEntityInspectorTable();
+
+		ImGui::End();
+	}
+
+	void RenderEntityMetadata(const std::string& id)
+	{
+		auto& current = g_entity_xml_metadata[id];
+
+		ImGui::Separator();
+		ImGui::Text(id.c_str());
+		ImGui::Separator();
+
+		if (!current.m_attributes.empty() && ImGui::CollapsingHeader("Attributes"))
+		{
+			size_t i = 0;
+			for (const auto& [key, values] : current.m_attributes)
+			{
+				ImGui::PushID(i++);
+				auto& entity_classes = current.m_attributes_entityclass[key];
+				if (ImGui::TreeNode(key.c_str(), "%s (%zu)", key.c_str(), values.size()))
+				{
+					if (ImGui::TreeNode("Related EntityClass List: %s"))
+					{
+						for (const auto& entity_class : entity_classes)
+						{
+							ImGui::BulletText(entity_class.c_str());
+						}
+						ImGui::TreePop();
+					}
+					ImGui::Text("Example Values:");
+					for (const auto& value : values)
+					{
+						ImGui::BulletText("%s", value.c_str());
+					}
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+		}
+
+		if (!current.m_childrens.empty() && ImGui::CollapsingHeader("Children"))
+		{
+			for (const auto& child_id : current.m_childrens)
+			{
+				if (ImGui::TreeNode(child_id.c_str()))
+				{
+					RenderEntityMetadata(child_id);
+					ImGui::TreePop();
+				}
+			}
+		}
+	}
+
+	void RenderEntityMetadatas()
+	{
+		if (!g_show_entity_metadata_inspector->get_value())
+		{
+			return;
+		}
+
+		std::scoped_lock l(g_xml_info_mutex);
+
+		ImGui::ConfigBind(ImGui::Begin, "Entity Metadata Inspector", g_show_entity_metadata_inspector, 0);
+
+		ImGui::Text("Metadata Count: %llu", g_entity_xml_metadata.size());
+		ImGui::Separator();
+
+		const std::string root_id = "Entity";
+		if (ImGui::TreeNode(root_id.c_str(), "Root: %s", root_id.c_str()))
+		{
+			RenderEntityMetadata(root_id);
+			ImGui::TreePop();
+		}
+
+		ImGui::End();
+	}
+
+	void RenderEntityXmlInfo(entity_xml_info_t* current, const std::string& entity_class_name)
+	{
+		// Fetch metadata for editing features
+		xml_node_metadata_t& linked_metadata = g_entity_xml_metadata[current->m_id];
+
+		if (!current->m_attributes.empty() || !linked_metadata.m_attributes.empty())
+		{
+			if (ImGui::CollapsingHeader("Attributes", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				for (auto& [key, value] : current->m_attributes)
+				{
+					ImGui::Text("%s:", key.c_str());
+
+					ImGui::InputText(("##" + key).c_str(), &value);
+
+					if (linked_metadata.m_attributes.contains(key))
+					{
+						if (ImGui::BeginCombo(("##Combo" + key).c_str(), value.c_str()))
+						{
+							for (const auto& option : linked_metadata.m_attributes[key])
+							{
+								bool is_selected = (value == option);
+								if (ImGui::Selectable(option.c_str(), is_selected))
+								{
+									value = option;
+								}
+								if (is_selected)
+								{
+									ImGui::SetItemDefaultFocus();
+								}
+							}
+							ImGui::EndCombo();
+						}
+					}
+				}
+
+				static std::string new_attribute_name;
+
+				ImGui::InputText("New Attribute Name", &new_attribute_name);
+
+				if (ImGui::BeginCombo("##AddAttribute",
+				                      new_attribute_name.empty() ? "Select Attribute" : new_attribute_name.c_str()))
+				{
+					for (const auto& [possible_attr_name, possible_attr_values] : linked_metadata.m_attributes)
+					{
+						bool is_attr_not_used = true;
+						for (auto& [key, value] : current->m_attributes)
+						{
+							if (key == possible_attr_name)
+							{
+								is_attr_not_used = false;
+								break;
+							}
+						}
+
+						if (is_attr_not_used && linked_metadata.m_attributes_entityclass[possible_attr_name].contains(entity_class_name))
+						{
+							bool is_selected = (new_attribute_name == possible_attr_name);
+							if (ImGui::Selectable(possible_attr_name.c_str(), is_selected))
+							{
+								new_attribute_name = possible_attr_name;
+							}
+							if (is_selected)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Add Attribute") && !new_attribute_name.empty())
+				{
+					current->m_attributes.emplace_back(new_attribute_name, "");
+					new_attribute_name.clear();
+				}
+			}
+		}
+
+		/*ImGui::Separator();
+		ImGui::Text("dump child data, class name: %s", entity_class_name.c_str());
+		for (const auto& possible_child : linked_metadata.m_childrens)
+		{
+			for (const auto& entityclassname : linked_metadata.m_childrens_entityclass[possible_child])
+			{
+				ImGui::Text(entityclassname.c_str());
+			}
+		}
+		ImGui::Separator();*/
+
+		if (!current->m_childrens.empty() || !linked_metadata.m_childrens.empty())
+		{
+			if (ImGui::CollapsingHeader("Children", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				size_t index = 0;
+				for (auto& child_info : current->m_childrens)
+				{
+					ImGui::PushID(index);
+					if (child_info)
+					{
+						if (ImGui::TreeNodeEx(child_info->m_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+						{
+							RenderEntityXmlInfo(child_info, entity_class_name);
+							ImGui::TreePop();
+						}
+					}
+					ImGui::PopID();
+					index++;
+				}
+
+				static std::string new_child_id;
+				if (ImGui::BeginCombo("##AddChild", new_child_id.empty() ? "Select Child" : new_child_id.c_str()))
+				{
+					for (const auto& possible_child_id : linked_metadata.m_childrens)
+					{
+						if (linked_metadata.m_childrens_entityclass[possible_child_id].contains(entity_class_name))
+						{
+							bool is_selected = (new_child_id == possible_child_id);
+							if (ImGui::Selectable(possible_child_id.c_str(), is_selected))
+							{
+								new_child_id = possible_child_id;
+							}
+							if (is_selected)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Add Child") && !new_child_id.empty())
+				{
+					auto new_child    = new entity_xml_info_t;
+					new_child->m_id   = new_child_id;
+					new_child->m_name = g_entity_xml_metadata[new_child_id].m_name;
+					current->m_childrens.push_back(new_child);
+					new_child_id.clear();
+				}
+			}
+		}
+	}
+
+	void RenderEntityXmlInfoWindow(entity_xml_info_t* current)
+	{
+		if (!current)
+		{
+			return;
+		}
+
+		ImGui::Begin("Entity XML Info", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		RenderEntityXmlInfo(current, current->m_entity_class_name);
+
+		ImGui::End();
+	}
+
+	void RenderEntityXmlInfos()
+	{
+		if (!g_show_entity_xml_infos_inspector->get_value())
+		{
+			return;
+		}
+
+		std::scoped_lock l(g_xml_info_mutex);
+
+		ImGui::ConfigBind(ImGui::Begin, "Entity XML Infos Inspector", g_show_entity_xml_infos_inspector, 0);
+
+		ImGui::Text("Entity Count: %llu", g_entity_xml_infos.size());
+		ImGui::Separator();
+
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(g_entity_xml_infos.size()));
+
+		if (ImGui::BeginTable("EntityTable", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+		{
+			while (clipper.Step())
+			{
+				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+				{
+					auto* entity_xml_info = g_entity_xml_infos[i];
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					if (ImGui::Selectable(entity_xml_info->m_entity_name.c_str(), g_selected_entity_xml_info == entity_xml_info))
+					{
+						g_selected_entity_xml_info = entity_xml_info;
+					}
+				}
+			}
+			ImGui::EndTable();
+		}
+
+		RenderEntityXmlInfoWindow(g_selected_entity_xml_info);
 
 		ImGui::End();
 	}
@@ -530,12 +815,13 @@ namespace big
 			}
 		}
 
-		if (g_target_entity_on_crosshair.get_vk_value() && GetAsyncKeyState(g_target_entity_on_crosshair.get_vk_value()) & 0x80'00)
+		if (g_target_entity_on_crosshair.get_vk_value() && GetAsyncKeyState(g_target_entity_on_crosshair.get_vk_value()) & 0x80'00
+		    && GetForegroundWindow() == g_renderer->m_window_handle)
 		{
 			RayWorldIntersection();
 		}
 
-		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity)
+		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity && GetForegroundWindow() == g_renderer->m_window_handle)
 		{
 			const auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
 			auto player_pos               = g_player_entity->GetWorldPos();
@@ -653,17 +939,18 @@ namespace big
 				{
 					if (ImGui::BeginMenu("Entity Inspector"))
 					{
-						if (ImGui::Checkbox("Entity Inspector", &g_show_entity_inspector))
-						{
-							g_show_entity_inspector = !g_show_entity_inspector;
-						}
+						ImGui::ConfigBind(ImGui::Checkbox, "Entity Inspector", g_show_entity_inspector);
 
 						ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair);
 
 						ImGui::EndMenu();
 					}
 
-					ImGui::Checkbox("PTF Inspector", &g_show_ptf_inspector);
+					ImGui::ConfigBind(ImGui::Checkbox, "Entity Metadata Inspector", g_show_entity_metadata_inspector);
+
+					ImGui::ConfigBind(ImGui::Checkbox, "Entity XML Infos Inspector", g_show_entity_xml_infos_inspector);
+
+					ImGui::ConfigBind(ImGui::Checkbox, "PTF Inspector", g_show_ptf_inspector);
 
 					ImGui::EndMenu();
 				}
@@ -817,54 +1104,99 @@ namespace big
 				*(int*)0xDE'AD = 1;
 			}*/
 
-			if (g_CEntitySystem && g_show_entity_inspector)
+			if (g_CEntitySystem)
 			{
 				RenderEntityInspector();
+
+				RenderEntityMetadatas();
+
+				RenderEntityXmlInfos();
 			}
 
-			if (g_show_ptf_inspector)
+			if (g_show_ptf_inspector->get_value())
 			{
-				if (ImGui::Begin("Patched Table Files (PTF) Inspector", &g_show_ptf_inspector))
+				ImGui::ConfigBind(ImGui::Begin, "Patched Table Files (PTF) Inspector", g_show_ptf_inspector, 0);
+				if (ImGui::TreeNode("Modified Lines"))
 				{
-					if (ImGui::TreeNode("Modified Lines"))
+					size_t forloop_id_1 = 0;
+					for (const auto& [table_name, modified_line_map] : g_table_name_to_modified_line_to_info)
 					{
-						size_t forloop_id_1 = 0;
-						for (const auto& [table_name, modified_line_map] : g_table_name_to_modified_line_to_info)
+						ImGui::PushID(forloop_id_1++);
+
+						ImGui::Text("Table: %s", table_name.c_str());
+						ImGui::Separator();
+
+						auto& original_data_maps = g_table_name_to_modified_line_to_original_data[table_name];
+						size_t forloop_id_2      = 0;
+						for (const auto& [modified_line_name, mod_infos] : modified_line_map)
 						{
-							ImGui::PushID(forloop_id_1++);
+							ImGui::PushID(forloop_id_2++);
 
-							ImGui::Text("Table: %s", table_name.c_str());
-							ImGui::Separator();
+							const auto& original_data = original_data_maps[modified_line_name];
 
-							auto& original_data_maps = g_table_name_to_modified_line_to_original_data[table_name];
-							size_t forloop_id_2      = 0;
-							for (const auto& [modified_line_name, mod_infos] : modified_line_map)
+							const auto& first_mod   = mod_infos[0];
+							const size_t last_mod_i = mod_infos.size() - 1;
+							const auto& last_mod    = mod_infos[last_mod_i];
+							const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
+							const float orig_float_2 = *reinterpret_cast<const float*>(original_data.data() + (2 * 4));
+							const std::string title  = std::format("{}: {} (Original: {}) (Last Patch: {})",
+                                                                  modified_line_name,
+                                                                  patched_float_2,
+                                                                  orig_float_2,
+                                                                  last_mod.m_mod_name);
+							if (ImGui::TreeNode(title.c_str()))
 							{
-								ImGui::PushID(forloop_id_2++);
-
-								const auto& original_data = original_data_maps[modified_line_name];
-
-								const auto& first_mod   = mod_infos[0];
-								const size_t last_mod_i = mod_infos.size() - 1;
-								const auto& last_mod    = mod_infos[last_mod_i];
-								const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
-								const float orig_float_2 = *reinterpret_cast<const float*>(original_data.data() + (2 * 4));
-								const std::string title = std::format("{}: {} (Original: {}) (Last Patch: {})",
-								                                      modified_line_name,
-								                                      patched_float_2,
-								                                      orig_float_2,
-								                                      last_mod.m_mod_name);
-								if (ImGui::TreeNode(title.c_str()))
+								ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+								ImGui::Text("Original Data");
+								if (ImGui::BeginChild("##HexOriginalData", ImVec2(0, 60), true))
 								{
+									std::string hex_line;
+									for (size_t i = 0; i < first_mod.m_patched_data.size(); i++)
+									{
+										char byte_hex[4];
+										std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", original_data[i]);
+										hex_line += byte_hex;
+									}
+									ImGui::TextWrapped("%s", hex_line.c_str());
+								}
+								ImGui::EndChild();
+								ImGui::PopStyleVar();
+
+								ImGui::NewLine();
+								ImGui::Separator();
+
+								size_t forloop_id_3 = 0;
+								for (const auto& mod_info : mod_infos)
+								{
+									ImGui::PushID(forloop_id_3++);
+
+									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
+
+									size_t float_count = mod_info.m_patched_data.size() / 4;
+									if (float_count > 2)
+									{
+										ImGui::Text("Floats:");
+										ImGui::SameLine();
+										for (size_t i = 2; i < float_count; ++i)
+										{
+											if (i > 2)
+											{
+												ImGui::SameLine();
+											}
+											float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
+											ImGui::Text("[%zu]: %.3f", i, as_float);
+										}
+									}
+
 									ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
-									ImGui::Text("Original Data");
-									if (ImGui::BeginChild("##HexOriginalData", ImVec2(0, 60), true))
+									ImGui::Text("Patched Data");
+									if (ImGui::BeginChild("##HexPatchedData", ImVec2(0, 60), true))
 									{
 										std::string hex_line;
-										for (size_t i = 0; i < first_mod.m_patched_data.size(); i++)
+										for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
 										{
 											char byte_hex[4];
-											std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", original_data[i]);
+											std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
 											hex_line += byte_hex;
 										}
 										ImGui::TextWrapped("%s", hex_line.c_str());
@@ -875,139 +1207,96 @@ namespace big
 									ImGui::NewLine();
 									ImGui::Separator();
 
-									size_t forloop_id_3 = 0;
-									for (const auto& mod_info : mod_infos)
-									{
-										ImGui::PushID(forloop_id_3++);
-
-										ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
-
-										size_t float_count = mod_info.m_patched_data.size() / 4;
-										if (float_count > 2)
-										{
-											ImGui::Text("Floats:");
-											ImGui::SameLine();
-											for (size_t i = 2; i < float_count; ++i)
-											{
-												if (i > 2)
-												{
-													ImGui::SameLine();
-												}
-												float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
-												ImGui::Text("[%zu]: %.3f", i, as_float);
-											}
-										}
-
-										ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
-										ImGui::Text("Patched Data");
-										if (ImGui::BeginChild("##HexPatchedData", ImVec2(0, 60), true))
-										{
-											std::string hex_line;
-											for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
-											{
-												char byte_hex[4];
-												std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
-												hex_line += byte_hex;
-											}
-											ImGui::TextWrapped("%s", hex_line.c_str());
-										}
-										ImGui::EndChild();
-										ImGui::PopStyleVar();
-
-										ImGui::NewLine();
-										ImGui::Separator();
-
-										ImGui::PopID();
-									}
-									ImGui::TreePop();
+									ImGui::PopID();
 								}
-
-								ImGui::PopID();
+								ImGui::TreePop();
 							}
 
 							ImGui::PopID();
 						}
 
-						ImGui::TreePop();
+						ImGui::PopID();
 					}
 
-					if (ImGui::TreeNode("Added Lines"))
+					ImGui::TreePop();
+				}
+
+				if (ImGui::TreeNode("Added Lines"))
+				{
+					size_t forloop_id_1 = 0;
+					for (const auto& [table_name, added_line_map] : g_table_name_to_added_line_to_info)
 					{
-						size_t forloop_id_1 = 0;
-						for (const auto& [table_name, added_line_map] : g_table_name_to_added_line_to_info)
+						ImGui::PushID(forloop_id_1++);
+
+						ImGui::Text("Table: %s", table_name.c_str());
+						ImGui::Separator();
+
+						size_t forloop_id_2 = 0;
+						for (const auto& [added_line_name, mod_infos] : added_line_map)
 						{
-							ImGui::PushID(forloop_id_1++);
+							ImGui::PushID(forloop_id_2++);
 
-							ImGui::Text("Table: %s", table_name.c_str());
-							ImGui::Separator();
-
-							size_t forloop_id_2 = 0;
-							for (const auto& [added_line_name, mod_infos] : added_line_map)
+							const auto& first_mod   = mod_infos[0];
+							const size_t last_mod_i = mod_infos.size() - 1;
+							const auto& last_mod    = mod_infos[last_mod_i];
+							const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
+							const std::string title =
+							    std::format("{}: {} (By: {})", added_line_name, patched_float_2, last_mod.m_mod_name);
+							if (ImGui::TreeNode(title.c_str()))
 							{
-								ImGui::PushID(forloop_id_2++);
-
-								const auto& first_mod   = mod_infos[0];
-								const size_t last_mod_i = mod_infos.size() - 1;
-								const auto& last_mod    = mod_infos[last_mod_i];
-								const float patched_float_2 = *reinterpret_cast<const float*>(last_mod.m_patched_data.data() + (2 * 4));
-								const std::string title =
-								    std::format("{}: {} (By: {})", added_line_name, patched_float_2, last_mod.m_mod_name);
-								if (ImGui::TreeNode(title.c_str()))
+								size_t forloop_id_3 = 0;
+								for (const auto& mod_info : mod_infos)
 								{
-									size_t forloop_id_3 = 0;
-									for (const auto& mod_info : mod_infos)
+									ImGui::PushID(forloop_id_3++);
+									ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
+
+									size_t float_count = mod_info.m_patched_data.size() / 4;
+									if (float_count > 2)
 									{
-										ImGui::PushID(forloop_id_3++);
-										ImGui::Text("Mod: %s", mod_info.m_mod_name.c_str());
-
-										size_t float_count = mod_info.m_patched_data.size() / 4;
-										if (float_count > 2)
+										ImGui::Text("Floats:");
+										ImGui::SameLine();
+										for (size_t i = 2; i < float_count; ++i)
 										{
-											ImGui::Text("Floats:");
-											ImGui::SameLine();
-											for (size_t i = 2; i < float_count; ++i)
+											if (i > 2)
 											{
-												if (i > 2)
-												{
-													ImGui::SameLine();
-												}
-												float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
-												ImGui::Text("[%zu]: %.3f", i, as_float);
+												ImGui::SameLine();
 											}
+											float as_float = *reinterpret_cast<const float*>(mod_info.m_patched_data.data() + (i * 4));
+											ImGui::Text("[%zu]: %.3f", i, as_float);
 										}
-
-										ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
-										ImGui::Text("Data");
-										if (ImGui::BeginChild("##HexData", ImVec2(0, 60), true))
-										{
-											std::string hex_line;
-											for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
-											{
-												char byte_hex[4];
-												std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
-												hex_line += byte_hex;
-											}
-											ImGui::TextWrapped("%s", hex_line.c_str());
-										}
-										ImGui::EndChild();
-										ImGui::PopStyleVar();
-
-										ImGui::NewLine();
-										ImGui::Separator();
-
-										ImGui::PopID();
 									}
-									ImGui::TreePop();
-								}
 
-								ImGui::PopID();
+									ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+									ImGui::Text("Data");
+									if (ImGui::BeginChild("##HexData", ImVec2(0, 60), true))
+									{
+										std::string hex_line;
+										for (size_t i = 0; i < mod_info.m_patched_data.size(); i++)
+										{
+											char byte_hex[4];
+											std::snprintf(byte_hex, sizeof(byte_hex), "%02X ", mod_info.m_patched_data[i]);
+											hex_line += byte_hex;
+										}
+										ImGui::TextWrapped("%s", hex_line.c_str());
+									}
+									ImGui::EndChild();
+									ImGui::PopStyleVar();
+
+									ImGui::NewLine();
+									ImGui::Separator();
+
+									ImGui::PopID();
+								}
+								ImGui::TreePop();
 							}
 
 							ImGui::PopID();
 						}
 
-						ImGui::TreePop();
+						ImGui::PopID();
 					}
+
+					ImGui::TreePop();
 				}
 				ImGui::End();
 			}

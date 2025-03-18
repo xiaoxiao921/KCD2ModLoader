@@ -1,6 +1,7 @@
 #include "asi_loader/asi_loader.hpp"
 #include "config/config.hpp"
 #include "dll_proxy/dll_proxy.hpp"
+#include "gui/renderer.hpp"
 #include "hooks/hooking.hpp"
 #include "input/hotkey.hpp"
 #include "kcd2_address.hpp"
@@ -8,10 +9,9 @@
 #include "logger/exception_handler.hpp"
 #include "memory/byte_patch_manager.hpp"
 #include "paths/paths.hpp"
+#include "threads/thread_pool.hpp"
 #include "threads/util.hpp"
 #include "version.hpp"
-
-#include <gui/renderer.hpp>
 
 //#include "debug/debug.hpp"
 
@@ -71,6 +71,8 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, PVOID)
 #ifdef FINAL
 		LOG(INFO) << "This is a final build";
 #endif
+
+		auto thread_pool_instance = new thread_pool();
 
 		// Purposely leak it, we are not unloading this module in any case.
 		auto byte_patch_manager_instance = new byte_patch_manager();

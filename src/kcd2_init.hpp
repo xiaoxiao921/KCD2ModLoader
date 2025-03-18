@@ -260,6 +260,11 @@ namespace big
 
 	inline std::vector<CEntity *> g_entities;
 
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_inspector           = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_metadata_inspector  = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_xml_infos_inspector = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_ptf_inspector              = nullptr;
+
 	inline hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
 
 	inline toml_v2::config_file::config_entry<bool> *g_noclip_enabled = nullptr;
@@ -352,6 +357,44 @@ namespace big
 
 	inline CEntitySystem *g_CEntitySystem = nullptr;
 
+	struct xml_node_metadata_t
+	{
+		// id is parent id + this name
+		std::string m_id;
+
+		std::string m_name;
+
+		// attributes and their potential values
+		std::map<std::string, std::set<std::string>> m_attributes;
+		// attributes and the EntityClass they are available on.
+		std::map<std::string, std::set<std::string>> m_attributes_entityclass;
+
+		// potential children ids.
+		std::set<std::string> m_childrens;
+		// children ids and the EntityClass they are available on.
+		std::map<std::string, std::set<std::string>> m_childrens_entityclass;
+	};
+
+	struct entity_xml_info_t
+	{
+		// id is parent id + this name
+		// is same as xml_node_metadata_t, for retrieving potential attributes, childrens, values, and so on for the Editor / Add / Modify Data part.
+		std::string m_id;
+
+		std::string m_name;
+
+		// Only used by Root Entity xml nodes.
+		std::string m_entity_name;
+		// Only used by Root Entity xml nodes.
+		std::string m_entity_class_name;
+
+		// attribute name + attribute value
+		std::vector<std::pair<std::string, std::string>> m_attributes;
+
+		// childrens
+		std::vector<entity_xml_info_t *> m_childrens;
+	};
+
 	struct EntityInfo
 	{
 		std::string name;
@@ -371,7 +414,15 @@ namespace big
 	};
 
 	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
+
+	inline std::recursive_mutex g_xml_info_mutex;
+	inline std::map<decltype(xml_node_metadata_t::m_id), xml_node_metadata_t> g_entity_xml_metadata;
+	inline std::unordered_map<std::string, entity_xml_info_t *> g_entity_guid_to_xml_infos;
+	inline std::vector<entity_xml_info_t *> g_entity_xml_infos;
+
 	inline std::vector<int> g_entities_filtered;
+
+	void ExtractEntityProperties(const char *file_content, size_t file_size);
 
 	struct IPhysicalEntity
 	{
@@ -406,6 +457,184 @@ namespace big
 		int bTerrain;
 		int iPrim;
 		ray_hit_t *next;
+	};
+
+	enum geom_flags
+	{
+		//! collisions between parts are checked if (part0->flagsCollider & part1->flags) !=0
+		geom_colltype0    = 0x00'01,
+		geom_colltype1    = 0x00'02,
+		geom_colltype2    = 0x00'04,
+		geom_colltype3    = 0x00'08,
+		geom_colltype4    = 0x00'10,
+		geom_colltype5    = 0x00'20,
+		geom_colltype6    = 0x00'40,
+		geom_colltype7    = 0x00'80,
+		geom_colltype8    = 0x01'00,
+		geom_colltype9    = 0x02'00,
+		geom_colltype10   = 0x04'00,
+		geom_colltype11   = 0x08'00,
+		geom_colltype12   = 0x10'00,
+		geom_colltype13   = 0x20'00,
+		geom_colltype14   = 0x40'00,
+		geom_colltype_ray = 0x80'00,   //!< special colltype used by raytracing by default
+		geom_floats       = 0x1'00'00, //!< colltype required to apply buoyancy
+		geom_proxy = 0x2'00'00, //!< only used in AddGeometry to specify that this geometry should go to pPhysGeomProxy
+		geom_structure_changes = 0x4'00'00,  //!< part is breaking/deforming
+		geom_can_modify        = 0x8'00'00,  //!< geometry is cloned and is used in this entity only
+		geom_squashy           = 0x10'00'00, //!< part has 'soft' collisions (used for tree foliage proxy)
+		geom_log_interactions = 0x20'00'00, //!< part will post EventPhysBBoxOverlap whenever something happens inside its bbox
+		geom_monitor_contacts   = 0x40'00'00,   //!< part needs collision callback from the solver (used internally)
+		geom_manually_breakable = 0x80'00'00,   //!< part is breakable outside the physics
+		geom_no_coll_response   = 0x1'00'00'00, //!< collisions are detected and reported, but not processed
+		geom_mat_substitutor = 0x2'00'00'00, //!< geometry is used to change other collision's material id if the collision point is inside it
+		geom_break_approximation = 0x4'00'00'00, //!< applies capsule approximation after breaking (used for tree trunks)
+		geom_no_particle_impulse = 0x8'00'00'00, //!< phys particles don't apply impulses to this part; should be used in flagsCollider
+		geom_destroyed_on_break = 0x2'00'00'00,  //!< should be used in flagsCollider
+		geom_allow_id_duplicates = 0x1'00'00'00, //!< doesn't check if id is already used; should be set in flagsCollider
+		geom_ignore_BBox = 0x20'00'00'00,        //!< don't include the part in entity world BBox computation
+		//! mnemonic group names
+		geom_colltype_player        = geom_colltype1,
+		geom_colltype_explosion     = geom_colltype2,
+		geom_colltype_vehicle       = geom_colltype3,
+		geom_colltype_foliage       = geom_colltype4,
+		geom_colltype_debris        = geom_colltype5,
+		geom_colltype_foliage_proxy = geom_colltype13,
+		geom_colltype_obstruct      = geom_colltype14,
+		geom_colltype_solid         = 0x0F'FF & ~geom_colltype_explosion,
+		geom_collides               = 0xFF'FF
+	};
+
+	enum surface_flags
+	{
+		sf_pierceable_mask    = 0x0F,
+		sf_max_pierceable     = 0x0F,
+		sf_important          = 0x2'00,
+		sf_manually_breakable = 0x4'00,
+		sf_matbreakable_bit   = 16
+	};
+
+	enum rwi_flags
+	{
+		rwi_ignore_terrain_holes    = 0x20,
+		rwi_ignore_noncolliding     = 0x40,
+		rwi_ignore_back_faces       = 0x80,
+		rwi_ignore_solid_back_faces = 0x1'00,
+		rwi_pierceability_mask      = 0x0F,
+		rwi_pierceability0          = 0,
+		rwi_stop_at_pierceable      = 0x0F,
+		rwi_max_piercing            = 0x10, //!< the ray will pierce all surfaces (including those with pierceability 0)
+		rwi_separate_important_hits = sf_important, //!< among pierceble hits, materials with sf_important will have priority
+		rwi_colltype_bit = 16, //!< used to manually specify collision geometry types (default is geom_colltype_ray)
+		rwi_colltype_any = 0x4'00, //!< if several colltype flag are specified, switches between requiring all or any of them in a geometry
+		rwi_queue = 0x8'00, //!< queues the RWI request, when done it'll generate EventPhysRWIResult
+		rwi_force_pierceable_noncoll = 0x10'00, //!< non-colliding geometries will be treated as pierceable regardless of the actual material
+		rwi_update_last_hit = 0x40'00, //!< update phitLast with the current hit results (should be set if the last hit should be reused for a "warm" start)
+		rwi_any_hit = 0x80'00 //!< returns the first found hit for meshes, not necessarily the closets
+	};
+
+	enum phentity_flags
+	{
+		// PE_PARTICLE-specific flags
+		particle_single_contact       = 0x01, //!< Full stop after first contact.
+		particle_constant_orientation = 0x02, //!< Forces constant orientation.
+		particle_no_roll = 0x04, //!< 'sliding' mode; entity's 'normal' vector axis will be alinged with the ground normal.
+		particle_no_path_alignment = 0x08, //!< Unless set, entity's y axis will be aligned along the movement trajectory.
+		particle_no_spin            = 0x10,   //!< Disables spinning while flying.
+		particle_no_self_collisions = 0x1'00, //!< Disables collisions with other particles.
+		particle_no_impulse = 0x2'00, //!< Particle will not add hit impulse (expecting that some other system will).
+
+		// PE_LIVING-specific flags
+		lef_push_objects = 0x01,
+		lef_push_players = 0x02, //!< Push objects and players during contacts.
+		lef_snap_velocities = 0x04, //!< Quantizes velocities after each step (was ised in MP for precise deterministic sync).
+		lef_loosen_stuck_checks = 0x08, //!< Don't do additional intersection checks after each step (recommended for NPCs to improve performance).
+		lef_report_sliding_contacts = 0x10, //!< Unless set, 'grazing' contacts are not reported.
+
+		// PE_ROPE-specific flags
+		rope_findiff_attached_vel = 0x01, //!< Approximate velocity of the parent object as v = (pos1-pos0)/time_interval.
+		rope_no_solver = 0x02, //!< No velocity solver; will rely on stiffness (if set) and positional length enforcement.
+		rope_ignore_attachments = 0x4, //!< No collisions with objects the rope is attached to.
+		rope_target_vtx_rel0    = 0x08,
+		rope_target_vtx_rel1    = 0x10, //!< Whether target vertices are set in the parent entity's frame.
+		rope_subdivide_segs = 0x1'00, //!< Turns on 'dynamic subdivision' mode (only in this mode contacts in a strained state are handled correctly).
+		rope_no_tears              = 0x2'00,     //!< Rope will not tear when it reaches its force limit, but stretch.
+		rope_collides              = 0x20'00'00, //!< Rope will collide with objects other than the terrain.
+		rope_collides_with_terrain = 0x40'00'00, //!< Rope will collide with the terrain.
+		rope_collides_with_attachment = 0x80, //!< Rope will collide with the objects it's attached to even if the other collision flags are not set.
+		rope_no_stiffness_when_colliding = 0x10'00'00'00, //!< Rope will use stiffness 0 if it has contacts.
+
+		//! PE_SOFT-specific flags
+		se_skip_longest_edges = 0x01, //!< the longest edge in each triangle with not participate in the solver
+		se_rigid_core         = 0x02, //!< soft body will have an additional rigid body core
+
+		//! PE_RIGID-specific flags (note that PE_ARTICULATED and PE_WHEELEDVEHICLE are derived from it)
+		ref_use_simple_solver  = 0x01, //!< use penalty-based solver (obsolete)
+		ref_no_splashes        = 0x04, //!< will not generate EventPhysCollisions when contacting water
+		ref_checksum_received  = 0x04,
+		ref_checksum_outofsync = 0x08, //!< obsolete
+		ref_small_and_fast = 0x1'00, //!< entity will trace rays against alive characters; set internally unless overriden
+
+		//! PE_ARTICULATED-specific flags
+		aef_recorded_physics = 0x02, //!< specifies a an entity that contains pre-baked physics simulation
+
+		//! PE_WHEELEDVEHICLE-specific flags
+		wwef_fake_inner_wheels = 0x08, //!< exclude wheels between the first and the last one from the solver
+		                               //! (only wheels with non-0 suspension are considered)
+
+		//! general flags
+		pef_parts_traceable     = 0x10,   //!< each entity part will be registered separately in the entity grid
+		pef_disabled            = 0x20,   //!< entity will not be simulated
+		pef_never_break         = 0x40,   //!< entity will not break or deform other objects
+		pef_deforming           = 0x80,   //!< entity undergoes a dynamic breaking/deforming
+		pef_pushable_by_players = 0x2'00, //!< entity can be pushed by playerd
+		pef_traceable           = 0x4'00,
+		particle_traceable      = 0x4'00,
+		rope_traceable          = 0x4'00, //!< entity is registered in the entity grid
+		pef_update = 0x8'00, //!< only entities with this flag are updated if ent_flagged_only is used in TimeStep()
+		pef_monitor_state_changes = 0x10'00, //!< generate immediate events for simulation class changed (typically rigid bodies falling asleep)
+		pef_monitor_collisions    = 0x20'00,   //!< generate immediate events for collisions
+		pef_monitor_env_changes   = 0x40'00,   //!< generate immediate events when something breaks nearby
+		pef_never_affect_triggers = 0x80'00,   //!< don't generate events when moving through triggers
+		pef_invisible             = 0x1'00'00, //!< will apply certain optimizations for invisible entities
+		pef_ignore_ocean          = 0x2'00'00, //!< entity will ignore global water area
+		pef_fixed_damping         = 0x4'00'00, //!< entity will force its damping onto the entire group
+		pef_monitor_poststep      = 0x8'00'00, //!< entity will generate immediate post step events
+		pef_always_notify_on_deletion = 0x10'00'00, //!< when deleted, entity will awake objects around it even if it's not referenced (has refcount 0)
+		pef_override_impulse_scale = 0x20'00'00, //!< entity will ignore breakImpulseScale in PhysVars
+		pef_players_can_break      = 0x40'00'00, //!< playes can break the entiy by bumping into it
+		pef_cannot_squash_players = 0x10'00'00'00, //!< entity will never trigger 'squashed' state when colliding with players
+		pef_ignore_areas      = 0x80'00'00,        //!< entity will ignore phys areas (gravity and water)
+		pef_log_state_changes = 0x1'00'00'00, //!< entity will log simulation class change events
+		pef_log_collisions    = 0x2'00'00'00, //!< entity will log collision events
+		pef_log_env_changes   = 0x4'00'00'00, //!< entity will log EventPhysEnvChange when something breaks nearby
+		pef_log_poststep      = 0x8'00'00'00, //!< entity will log EventPhysPostStep events
+	};
+
+	enum entity_query_flags
+	{
+		ent_static         = 1,
+		ent_sleeping_rigid = 2,
+		ent_rigid          = 4,
+		ent_living         = 8,
+		ent_independent    = 16,
+		ent_deleted        = 128,
+		ent_terrain        = 0x1'00,
+		ent_all            = ent_static | ent_sleeping_rigid | ent_rigid | ent_living | ent_independent | ent_terrain,
+		ent_flagged_only   = pef_update,
+		ent_skip_flagged   = pef_update * 2, //!< "flagged" meas has pef_update set
+		ent_areas          = 32,
+		ent_triggers       = 64,
+		ent_ignore_noncolliding    = 0x1'00'00,
+		ent_sort_by_mass           = 0x2'00'00, //!< sort by mass in ascending order
+		ent_allocate_list          = 0x4'00'00, //!< if not set, the function will return an internal pointer
+		ent_water                  = 0x2'00,    //!< can only be used in RayWorldIntersection
+		ent_no_ondemand_activation = 0x8'00'00, //!< can only be used in RayWorldIntersection
+		ent_delayed_deformations = 0x8'00'00, //!< queues procedural breakage requests; can only be used in SimulateExplosion
+		ent_addref_results = 0x10'00'00, //!< will call AddRef on each entity in the list (expecting the caller call Release)
+		ent_use_sync_coords = 0x20'00'00, //<! use entity coords that are sync'ed to the last poststep event pump
+		ent_reserved2       = 0x20'00'00'00,
+		ent_reserved1       = 0x40'00'00'00
 	};
 
 	void RayWorldIntersection();

@@ -9,6 +9,7 @@
 #include <gui/renderer.hpp>
 #include <lua_extensions/lua_manager_extension.hpp>
 #include <pugixml.hpp>
+#include <threads/thread_pool.hpp>
 
 extern "C"
 {
@@ -618,12 +619,123 @@ namespace big
 		return strip_last_file_separator(strip_last_double_underscore(big::string::to_lower(input)));
 	}
 
+	void parse_xml_entity(pugi::xml_node in_node, const std::string &entity_class_name, xml_node_metadata_t &metadata_out_node, entity_xml_info_t *entity_out_info)
+	{
+		entity_out_info->m_id = metadata_out_node.m_id;
+
+		for (const auto &attr : in_node.attributes())
+		{
+			const std::string attr_name = attr.name();
+			if (attr_name.empty())
+			{
+				continue;
+			}
+			const std::string attr_value = attr.value();
+			if (attr_value.empty())
+			{
+				continue;
+			}
+
+			auto &attribute_potential_values = metadata_out_node.m_attributes[attr_name];
+			if (attribute_potential_values.size() < 20)
+			{
+				attribute_potential_values.insert(attr_value);
+			}
+			auto &attribute_entityclass = metadata_out_node.m_attributes_entityclass[attr_name];
+			attribute_entityclass.insert(entity_class_name);
+
+			entity_out_info->m_attributes.emplace_back(attr_name, attr_value);
+		}
+
+		for (const auto &child : in_node.children())
+		{
+			const std::string child_name = child.name();
+			if (child_name.empty())
+			{
+				continue;
+			}
+
+			const auto metadata_id    = metadata_out_node.m_id + '_' + child_name;
+			auto &child_node_metadata = g_entity_xml_metadata[metadata_id];
+			if (!child_node_metadata.m_id.size())
+			{
+				child_node_metadata.m_id   = metadata_id;
+				child_node_metadata.m_name = child_name;
+			}
+			metadata_out_node.m_childrens.insert(metadata_id);
+			auto &childrens_entityclass = metadata_out_node.m_childrens_entityclass[metadata_id];
+			childrens_entityclass.insert(entity_class_name);
+
+			entity_xml_info_t *child_xml_info = new entity_xml_info_t;
+			child_xml_info->m_name            = child_name;
+
+			parse_xml_entity(child, entity_class_name, child_node_metadata, child_xml_info);
+
+			entity_out_info->m_childrens.push_back(child_xml_info);
+		}
+	}
+
+	void parse_xml_objects_file(const char *file_content_, size_t file_size_)
+	{
+		const std::string file_content(file_content_, file_size_);
+
+		g_thread_pool->push(
+		    [file_content]()
+		    {
+			    pugi::xml_document doc;
+			    if (!doc.load_buffer(file_content.c_str(), file_content.size()))
+			    //if (!doc.load_file("C:/Users/Quentin/Desktop/kcd2/level_kutnohorsko/objects_mission0.xml"))
+			    {
+				    LOG(ERROR) << "Failed to load <Objects> XML file";
+				    return;
+			    }
+
+			    const std::string entity_str = "Entity";
+
+			    std::scoped_lock l(g_xml_info_mutex);
+
+			    for (auto &entity : doc.child("Objects").children(entity_str.c_str()))
+			    {
+				    const std::string entity_guid       = entity.attribute("EntityGuid").value();
+				    const std::string entity_class_name = entity.attribute("EntityClass").value();
+
+				    entity_xml_info_t *entity_xml_info   = new entity_xml_info_t;
+				    entity_xml_info->m_name              = entity_str;
+				    entity_xml_info->m_entity_name       = entity.attribute("Name").value();
+				    entity_xml_info->m_entity_class_name = entity_class_name;
+
+				    auto &entity_root_node = g_entity_xml_metadata[entity_str];
+				    if (!entity_root_node.m_id.size())
+				    {
+					    entity_root_node.m_id   = entity_str;
+					    entity_root_node.m_name = entity_str;
+				    }
+				    parse_xml_entity(entity, entity_class_name, entity_root_node, entity_xml_info);
+
+				    g_entity_xml_infos.push_back(entity_xml_info);
+				    g_entity_guid_to_xml_infos[entity_guid] = entity_xml_info;
+			    }
+
+			    //LOG(INFO) << "Parsed an XML file containing <Objects>";
+		    });
+	}
+
 	static __int64 __fastcall hook_XML_Parse(__int64 parser, const char *pFileContents, int fileSize)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		std::string new_file_content;
-		new_file_content.assign(pFileContents, fileSize);
+		if (big::string::starts_with("<Objects>", pFileContents))
+		{
+			//LOG(INFO) << "Found <Objects>";
+			parse_xml_objects_file(pFileContents, fileSize);
+		}
+
+		// useful for finding xref across data, wh_data however doesn't seem to get parsed here?
+		/*if (new_file_content.contains("a659399b-8517-4cc7") || new_file_content.contains("3a7fb2dc-9118-418a-bb5c-c8db913467ed")
+		    || new_file_content.contains("763db0bb-4469-497d-bdc9-712b3df91b5a") || new_file_content.contains("ksta_additive_man_18"))
+		{
+			LOG(ERROR) << g_xml_current_parsed_filename ? g_xml_current_parsed_filename : "No filename";
+		}*/
 
 		// TODO: try to re-enable this, there is lua vm crashes because of this, due to it not being called from the lua script thread.
 		//if (g_lua_manager)
@@ -660,7 +772,12 @@ namespace big
 				{
 					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << current_parsed_filename << " - " << modded_xml_filename_lowered << ")";
 
+					std::string new_file_content;
+					new_file_content.assign(pFileContents, fileSize);
 					apply_xml_patches(new_file_content, it->second);
+					return big::g_hooking->get_original<hook_XML_Parse>()(parser,
+					                                                      new_file_content.c_str(),
+					                                                      new_file_content.size());
 
 					//if (!modded_xml_filename_lowered.contains("component"))
 					//{
@@ -679,7 +796,7 @@ namespace big
 		}
 
 
-		return big::g_hooking->get_original<hook_XML_Parse>()(parser, new_file_content.c_str(), new_file_content.size());
+		return big::g_hooking->get_original<hook_XML_Parse>()(parser, pFileContents, fileSize);
 	}
 
 	uintptr_t g_CCryPak = 0;
@@ -1025,16 +1142,12 @@ namespace big
 					const char *name = patch_child.name();
 
 					std::string identifier  = patch_child.attribute("Name").value();
-					identifier             += patch_child.attribute("Quality").value();
-					identifier             += patch_child.attribute("Condition").value();
 					identifier             += patch_child.attribute("Ref").value();
 
 					pugi::xml_node matching_node;
 					for (pugi::xml_node base_child : base_node.children(name))
 					{
 						std::string other_identifier  = base_child.attribute("Name").value();
-						other_identifier             += base_child.attribute("Quality").value();
-						other_identifier             += base_child.attribute("Condition").value();
 						other_identifier             += base_child.attribute("Ref").value();
 
 						if (identifier == other_identifier)
@@ -1213,9 +1326,14 @@ namespace big
 
 	void RayWorldIntersection()
 	{
+		if (!g_player_entity)
+		{
+			return;
+		}
+
 		ray_hit_t ray_hit[1];
 
-		// ISystem IphyiscalWorld vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
+		// ISystem_GetIPhysicalWorld_func vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
 		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[74];
 		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
 
@@ -1228,7 +1346,11 @@ namespace big
 		void *pSkipEnts[1];
 		pSkipEnts[0] = g_player_entity->GetPhysics();
 
-		const auto nHits = RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &ray_dir_range, 287, 0x1'00'0Fu, ray_hit, 1, pSkipEnts, 1, 0, 0, "RayWorldIntersection(Physics)");
+		constexpr int iEntTypes = ent_all;
+		//constexpr int geom_flags_val = geom_colltype0 << rwi_colltype_bit | rwi_stop_at_pierceable;
+		constexpr int geom_flags_val = rwi_ignore_noncolliding | rwi_stop_at_pierceable;
+
+		const auto nHits = RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &ray_dir_range, iEntTypes, geom_flags_val, ray_hit, 1, pSkipEnts, 1, 0, 0, "RayWorldIntersection(Physics)");
 
 		for (int i = 0; i < nHits; i++)
 		{
@@ -1316,6 +1438,13 @@ namespace big
 			g_noclip_enabled = big::config::general().bind("Noclip", "Enabled", false, "Toggle noclip mode on or off.");
 			g_noclip_speed_default = big::config::general().bind("Noclip", "Default Speed", 0.1, "Sets the default movement speed for noclip mode.");
 			g_noclip_speed_multiplier = big::config::general().bind("Noclip", "Speed Multiplier", 10.0, "Multiplier applied to speed when boosting in noclip mode.");
+		}
+
+		{
+			g_show_entity_inspector = big::config::general().bind("Inspectors", "Entity", true, "Show the Entity Inspector.");
+			g_show_entity_metadata_inspector = big::config::general().bind("Inspectors", "Entity Metadata", false, "Show the Entity Metadata Inspector.");
+			g_show_entity_xml_infos_inspector = big::config::general().bind("Inspectors", "XML Infos", false, "Show the XML Infos Inspector.");
+			g_show_ptf_inspector = big::config::general().bind("Inspectors", "PTF", true, "Show the PTF Inspector.");
 		}
 
 		{
@@ -1580,6 +1709,8 @@ namespace big
 			}
 			big::hooking::detour_hook_helper::add<hook_CScriptSystem_ExecuteBuffer>("hook_lua_execute_buffer", lua_execute_buffer);
 		}
+
+		//parse_xml_objects_file("", 0);
 
 		char module_file_path[MAX_PATH];
 		const auto path_size                    = GetModuleFileNameA(nullptr, module_file_path, MAX_PATH);
