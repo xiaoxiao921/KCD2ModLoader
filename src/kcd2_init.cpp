@@ -619,6 +619,34 @@ namespace big
 		return strip_last_file_separator(strip_last_double_underscore(big::string::to_lower(input)));
 	}
 
+	static std::string get_xml_context(const std::string &input)
+	{
+		const auto lowered_input = big::string::to_lower(input);
+
+		//LOG(INFO) << lowered_input;
+
+		const std::string levels_str = "levels/";
+		if (lowered_input.contains(levels_str))
+		{
+			auto split1 = big::string::split(lowered_input, levels_str);
+			if (split1.size() > 1)
+			{
+				if (split1[1].contains('/'))
+				{
+					auto split2 = big::string::split(split1[1], '/');
+
+					//LOG(INFO) << "xml context: " << split2[0] << " from " << lowered_input;
+					return split2[0];
+				}
+
+				//LOG(INFO) << "xml context: " << split1[1] << " from " << lowered_input;
+				return split1[1];
+			}
+		}
+
+		return "global";
+	}
+
 	void parse_xml_entity(pugi::xml_node in_node, const std::string &entity_class_name, xml_node_metadata_t &metadata_out_node, entity_xml_info_t *entity_out_info)
 	{
 		entity_out_info->m_id = metadata_out_node.m_id;
@@ -724,12 +752,6 @@ namespace big
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		if (big::string::starts_with("<Objects>", pFileContents))
-		{
-			//LOG(INFO) << "Found <Objects>";
-			parse_xml_objects_file(pFileContents, fileSize);
-		}
-
 		// useful for finding xref across data, wh_data however doesn't seem to get parsed here?
 		/*if (new_file_content.contains("a659399b-8517-4cc7") || new_file_content.contains("3a7fb2dc-9118-418a-bb5c-c8db913467ed")
 		    || new_file_content.contains("763db0bb-4469-497d-bdc9-712b3df91b5a") || new_file_content.contains("ksta_additive_man_18"))
@@ -763,18 +785,27 @@ namespace big
 		{
 			const auto original_filename = get_normalized_original_filename(current_parsed_filename);
 
-			const auto it = g_xml_filename_to_modifications.find(original_filename);
-			if (it != g_xml_filename_to_modifications.end())
+			const auto xml_context = get_xml_context(current_parsed_filename);
+
+			const auto it = g_xml_context_to_xml_filename_to_modifications[xml_context].find(original_filename);
+			if (it != g_xml_context_to_xml_filename_to_modifications[xml_context].end())
 			{
 				std::filesystem::path filename = current_parsed_filename;
 				const auto modded_xml_filename_lowered = big::string::to_lower((char *)filename.filename().u8string().c_str());
-				if (!g_modded_xml_filenames.contains(modded_xml_filename_lowered))
+				if (!g_xml_context_to_modded_xml_filenames[xml_context].contains(modded_xml_filename_lowered))
 				{
-					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << current_parsed_filename << " - " << modded_xml_filename_lowered << ")";
+					LOG(INFO) << "[XML Merger] Applying xml merge patches for " << original_filename << " (" << current_parsed_filename << " - " << modded_xml_filename_lowered << ") xml context: " << xml_context;
 
 					std::string new_file_content;
 					new_file_content.assign(pFileContents, fileSize);
-					apply_xml_patches(new_file_content, it->second);
+					apply_xml_patches(new_file_content, it->second, original_filename.contains("inventorypreset"));
+
+					if (big::string::starts_with("<Objects>", pFileContents))
+					{
+						//LOG(INFO) << "Found <Objects>";
+						parse_xml_objects_file(new_file_content.c_str(), new_file_content.size());
+					}
+
 					return big::g_hooking->get_original<hook_XML_Parse>()(parser,
 					                                                      new_file_content.c_str(),
 					                                                      new_file_content.size());
@@ -793,6 +824,12 @@ namespace big
 			{
 				//LOG(INFO) << original_filename;
 			}
+
+			if (big::string::starts_with("<Objects>", pFileContents))
+			{
+				//LOG(INFO) << "Found <Objects>";
+				parse_xml_objects_file(pFileContents, fileSize);
+		}
 		}
 
 
@@ -842,9 +879,11 @@ namespace big
 		{
 			std::filesystem::path filename = *ptr_to_filename;
 			const auto modded_xml_filename_lowered = big::string::to_lower((char *)filename.filename().u8string().c_str());
-			if (g_modded_xml_filenames.contains(modded_xml_filename_lowered))
+			//LOG(INFO) << "*ptr_to_filename " << *ptr_to_filename;
+			const auto xml_context = get_xml_context((char *)filename.u8string().c_str());
+			if (g_xml_context_to_modded_xml_filenames[xml_context].contains(modded_xml_filename_lowered))
 			{
-				LOG(INFO) << "[XML Merger] Skipping vanilla parsing of " << *ptr_to_filename << " since we already merged it";
+				LOG(INFO) << "[XML Merger] Skipping vanilla parsing of " << *ptr_to_filename << " since we already merged it. xml context: " << xml_context;
 				return true;
 			}
 		}
@@ -1111,9 +1150,8 @@ namespace big
 		return big::g_hooking->get_original<hook_CCryFile_Open>()(this_, filename, mode, nOpenFlags);
 	}
 
-	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents)
+	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents, bool is_inventory_preset)
 	{
-		// Load original file content into a pugixml document
 		pugi::xml_document originalDoc;
 		pugi::xml_parse_result result = originalDoc.load_buffer(originalFileContent.c_str(), originalFileContent.size(), (pugi::parse_default | pugi::parse_comments));
 		if (!result)
@@ -1122,10 +1160,8 @@ namespace big
 			return;
 		}
 
-		// Iterate over each patch file content
 		for (const std::string &patchContent : patchFileContents)
 		{
-			// Load patch content into a pugixml document
 			pugi::xml_document patchDoc;
 			pugi::xml_parse_result patchResult = patchDoc.load_buffer(patchContent.c_str(), patchContent.size(), (pugi::parse_default | pugi::parse_comments));
 			if (!patchResult)
@@ -1134,40 +1170,62 @@ namespace big
 				continue;
 			}
 
+			auto get_node_identifier = [](pugi::xml_node &node, bool is_inventory_preset)
+			{
+				std::string identifier;
+				if (is_inventory_preset)
+				{
+					identifier += node.attribute("Name").value();
+					identifier += node.attribute("Ref").value();
+				}
+				else // objects_mission0.xml
+				{
+					identifier += node.attribute("EntityId").value();
+					identifier += node.attribute("TargetId").value();
+					identifier += node.attribute("TargetGuid").value();
+				}
+
+				return identifier;
+			};
+
 			std::function<void(pugi::xml_node, pugi::xml_node)> merge_nodes;
-			merge_nodes = [&](pugi::xml_node base_node, pugi::xml_node patch_node)
+			merge_nodes = [&](pugi::xml_node original_node, pugi::xml_node patch_node)
 			{
 				for (pugi::xml_node patch_child : patch_node.children())
 				{
 					const char *name = patch_child.name();
 
-					std::string identifier  = patch_child.attribute("Name").value();
-					identifier             += patch_child.attribute("Ref").value();
+					std::string patch_identifier = get_node_identifier(patch_child, is_inventory_preset);
 
-					pugi::xml_node matching_node;
-					for (pugi::xml_node base_child : base_node.children(name))
+					pugi::xml_node original_matching_node;
+					for (pugi::xml_node base_child : original_node.children(name))
 					{
-						std::string other_identifier  = base_child.attribute("Name").value();
-						other_identifier             += base_child.attribute("Ref").value();
+						std::string original_identifier = get_node_identifier(base_child, is_inventory_preset);
 
-						if (identifier == other_identifier)
+						if (patch_identifier == original_identifier)
 						{
-							matching_node = base_child;
+							original_matching_node = base_child;
 							break;
 						}
 					}
 
-					if (matching_node)
+					if (original_matching_node)
 					{
 						for (pugi::xml_attribute attr : patch_child.attributes())
 						{
-							matching_node.attribute(attr.name()).set_value(attr.value());
+							const auto attr_name = attr.name();
+							auto original_attr   = original_matching_node.attribute(attr_name);
+							if (!original_attr)
+							{
+								original_attr = original_matching_node.append_attribute(attr_name);
 						}
-						merge_nodes(matching_node, patch_child);
+							original_attr.set_value(attr.value());
+					}
+						merge_nodes(original_matching_node, patch_child);
 					}
 					else
 					{
-						base_node.append_copy(patch_child);
+						original_node.append_copy(patch_child);
 					}
 				}
 			};
@@ -1178,48 +1236,73 @@ namespace big
 		std::ostringstream outputStream;
 		originalDoc.save(outputStream);
 		originalFileContent = outputStream.str();
+
+		//std::ofstream file("C:/Users/Quentin/Desktop/objects_mission0_PATCHED.xml", std::ios::binary);
+		//if (file)
+		//{
+		//file.write(originalFileContent.data(), originalFileContent.size());
+		//}
+	}
+
+	void read_xmls_from_zip_stream(struct zip_t *zip, const std::string &xml_context = "global")
+	{
+		int n = zip_entries_total(zip);
+		for (int i = 0; i < n; ++i)
+		{
+			zip_entry_openbyindex(zip, i);
+			const std::string zip_entry_name_ = zip_entry_name(zip);
+			int isdir                         = zip_entry_isdir(zip);
+			unsigned long long size           = zip_entry_size(zip);
+
+			if (isdir || size == 0)
+				{
+				zip_entry_close(zip);
+					continue;
+				}
+
+			std::vector<unsigned char> file_content(size);
+			zip_entry_noallocread(zip, file_content.data(), size);
+			zip_entry_close(zip);
+
+			std::filesystem::path entry_path = zip_entry_name_;
+			std::string entry_lower          = big::string::to_lower(entry_path.filename().string());
+
+			if (entry_lower.ends_with(".xml"))
+			{
+				if (entry_lower.contains("inventorypreset") || entry_lower.contains("objects_mission0"))
+				{
+					g_xml_context_to_modded_xml_filenames[xml_context].insert(entry_lower);
+					const auto original_filename = get_original_filename_from_mod_filename(zip_entry_name_);
+					std::string modification(file_content.begin(), file_content.end());
+					g_xml_context_to_xml_filename_to_modifications[xml_context][original_filename].emplace_back(std::move(modification));
+
+					LOG(INFO) << "[XML Merger] Adding modded xml file " << entry_lower << " to " << original_filename << " patch list (count: "
+					          << g_xml_context_to_xml_filename_to_modifications[xml_context][original_filename].size() << ") (xml context: " << xml_context << ")";
+				}
+			}
+			else if (entry_lower.ends_with(".pak"))
+			{
+				struct zip_t *inner_zip = zip_stream_open((const char *)file_content.data(), size, 0, 'r');
+				if (inner_zip)
+				{
+					const auto xml_context_ = get_xml_context(zip_entry_name_);
+					read_xmls_from_zip_stream(inner_zip, xml_context_);
+					zip_close(inner_zip);
+		}
+			}
+		}
 	}
 
 	void read_xmls_from_zip_file_path(const std::string &zipFilePath)
 	{
 		struct zip_t *zip = zip_open(zipFilePath.c_str(), 0, 'r');
-		int i, n = zip_entries_total(zip);
-		for (i = 0; i < n; ++i)
+		if (!zip)
 		{
-			zip_entry_openbyindex(zip, i);
-			{
-				const char *name        = zip_entry_name(zip);
-				int isdir               = zip_entry_isdir(zip);
-				unsigned long long size = zip_entry_size(zip);
-				unsigned int crc32      = zip_entry_crc32(zip);
-
-				if (!strstr(name, ".xml"))
-				{
-					continue;
-				}
-
-				unsigned char *file_content = (unsigned char *)calloc(sizeof(unsigned char), size);
-
-				zip_entry_noallocread(zip, (void *)file_content, size);
-
-				std::filesystem::path modded_xml_filename = name;
-				const auto modded_xml_filename_lowered =
-				    big::string::to_lower((char *)modded_xml_filename.filename().u8string().c_str());
-
-				if (modded_xml_filename_lowered.contains("inventorypreset"))
-				{
-					g_modded_xml_filenames.insert(modded_xml_filename_lowered);
-					const auto original_filename = get_original_filename_from_mod_filename(name);
-					const std::string modification((char *)file_content, size);
-					g_xml_filename_to_modifications[original_filename].emplace_back(modification);
-					LOG(INFO) << "[XML Merger] Adding modded xml file " << modded_xml_filename_lowered << " to " << original_filename
-					          << " patch list (count: " << g_xml_filename_to_modifications[original_filename].size() << ")";
-				}
-
-				free(file_content);
-			}
-			zip_entry_close(zip);
+			return;
 		}
+
+		read_xmls_from_zip_stream(zip);
+
 		zip_close(zip);
 	}
 

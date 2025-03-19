@@ -37,10 +37,14 @@ namespace big
 	inline std::map<std::string, std::string> g_console_command_name_to_help_text;
 
 	inline std::vector<vanilla_mod_system_info> g_vanilla_mods;
-	inline std::unordered_set<std::string> g_modded_xml_filenames;
-	inline std::unordered_map<std::string, std::vector<std::string>> g_xml_filename_to_modifications;
 
-	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents);
+	// global|level_name_specific -> xml filename
+	inline std::unordered_map<std::string, std::unordered_set<std::string>> g_xml_context_to_modded_xml_filenames;
+
+	// global|level_name_specific -> xml filename -> modifications buffer
+	inline std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>> g_xml_context_to_xml_filename_to_modifications;
+
+	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents, bool is_inventory_preset);
 
 	struct Vec3
 	{
