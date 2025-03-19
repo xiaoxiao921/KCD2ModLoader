@@ -20,7 +20,7 @@ It's using [ReturnOfModdingBase](https://github.com/xiaoxiao921/ReturnOfModdingB
 
 - To uninstall the mod loader or revert to a vanilla experience without mods, you can simply rename or delete the `d3d12.dll` file.
 
-## Notable Features
+## Feature Summary
 
 - Easy hot reloading of .lua files through a file watcher system, just save your .lua file and your main.lua file will get executed again by the mod loader.
 
@@ -33,6 +33,10 @@ It's using [ReturnOfModdingBase](https://github.com/xiaoxiao921/ReturnOfModdingB
 - ASI mod loading, it has the same feature set as [this one](https://github.com/ThirteenAG/Ultimate-ASI-Loader), minus the configuration part.
 
 - XML Merging System. For files like InventoryPreset which are not supported fully by the game PTF System.
+
+- Trainer, right now with a very easy and nice to use Noclip.
+
+- Debug Inspectors: PTF, Entities.
 
 ## Test Mod
 
@@ -56,9 +60,13 @@ It showcase multiple things:
 
 #### XML
 
-- ~XML parsing function from the game is hooked and modified on the fly, you can then hook up a xml <-> lua table library ([like this one](https://github.com/manoelcampos/xml2lua)) for very easy modifications for merging and so on.~
+- ~XML parsing function from the game is hooked and modified on the fly, you can then hook up a xml <-> lua table library ([like this one](https://github.com/manoelcampos/xml2lua)) for very easy modifications for merging and so on.~ (Currently disabled due to crashes related to the Lua VM being used across multiple threads, will try to re-enable it in the future.)
 
-- Currently disabled due to crashes related to the Lua VM being used across multiple threads, will try to re-enable it in the future.
+- XML Merging System: 
+
+- For files like InventoryPreset which are not supported fully by the game PTF System yet.
+
+- For `levels` xmls, right now only `objects_mission0` files are supported.
 
 #### CryEngine Pak Files
 
