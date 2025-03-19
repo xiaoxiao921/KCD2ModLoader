@@ -35,6 +35,31 @@ end
 
 -- print(rom.game.player.inventory:CreateItem("some-item-guid", 1, 1))
 
+-- local player_inventory = rom.game.player.inventory
+
+-- for k,v in pairs(player_inventory) do
+
+	-- print(k,v)
+
+-- end
+
+-- for k,v in pairs(player_inventory:GetInventoryTable()) do
+
+	-- local item = rom.game.ItemManager.GetItem(v)
+	-- local item_name = rom.game.ItemManager.GetItemName(item.class)
+	-- print(item_name, item.class, item.amount, item.entity)
+	
+	-- for kk,vv in pairs(rom.game.ItemManager.GetItem(v)) do
+		-- print(kk)
+	-- end
+
+-- end
+
+-- playerTeleportTo = { x = 2968, y = 894 , z = 65 }
+-- rom.game.player:SetWorldPos(playerTeleportTo)
+
+-- rom.game.System.GetEntityByName("ksta_additive_woman_7"):SetWorldScale(1)
+
 -- UI Showcase
 
 local example_bool = false

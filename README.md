@@ -76,4 +76,14 @@ It showcase multiple things:
 
 ### Using the vanilla Lua game api
 
-- Example usage of `rom.game.player.inventory:CreateItem`.
+- Example usage of:
+
+- `player.inventory:CreateItem`.
+
+- `System.GetEntityByName`.
+
+- `Entity:SetWorldPos`.
+
+- `ItemManager`.
+
+- `inventory:GetInventoryTable`.
