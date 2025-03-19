@@ -426,6 +426,10 @@ namespace big
 
 	inline std::vector<int> g_entities_filtered;
 
+	inline uintptr_t g_CD3D9Renderer = 0;
+	using CD3D9Renderer_UnProjectFromScreen_t = __int64 (*)(void *this_, float sx, float sy, float sz, float *px, float *py, float *pz);
+	inline CD3D9Renderer_UnProjectFromScreen_t g_CD3D9Renderer_UnProjectFromScreen = nullptr;
+
 	void ExtractEntityProperties(const char *file_content, size_t file_size);
 
 	struct IPhysicalEntity
@@ -641,7 +645,8 @@ namespace big
 		ent_reserved1       = 0x40'00'00'00
 	};
 
-	void RayWorldIntersection();
+	void target_entity_on_crosshair();
+	void target_entity_on_screen_cursor();
 	inline int g_selected_index_entity_detail_inspector = -1;
 
 	inline uintptr_t g_ISystem         = 0;
@@ -650,6 +655,16 @@ namespace big
 	inline uintptr_t g_C_PlayerStateMovement = 0;
 	inline uintptr_t g_C_Player              = 0;
 
+	using RayWorldIntersection_t = int (*)(__int64 IPhysicalWorld_instance, Vec3 *source, Vec3 *direction, unsigned int iEntTypes, unsigned int flags, ray_hit_t *hits, int nmaxhits, void **pSkipEnts, int nSkipEnts, __int64 pForeignData, int iForeignData, const char *pNameTag);
+	inline RayWorldIntersection_t g_RayWorldIntersection = nullptr;
+
+	inline int RayWorldIntersection(const Vec3 &source, const Vec3 &direction, unsigned int iEntTypes, unsigned int flags, ray_hit_t *hits, int nmaxhits, void **pSkipEnts = 0, int nSkipEnts = 0, __int64 pForeignData = 0, int iForeignData = 0, const char *pNameTag = "RayWorldIntersection(Physics)")
+	{
+		// ISystem_GetIPhysicalWorld_func vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
+		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[74];
+		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
+		return g_RayWorldIntersection(IPhysicalWorld_instance, (Vec3 *)&source, (Vec3 *)&direction, iEntTypes, flags, hits, nmaxhits, pSkipEnts, nSkipEnts, pForeignData, iForeignData, pNameTag);
+	}
 
 	inline std::vector<std::string> g_lua_execute_buffer_queue;
 

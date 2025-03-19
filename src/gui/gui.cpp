@@ -475,10 +475,7 @@ namespace big
 
 		ImGui::Text("Entity Count: %llu", g_entities.size());
 
-		if (ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair))
-		{
-			RayWorldIntersection();
-		}
+		ImGui::Hotkey("Target Entity on Crosshair", g_target_entity_on_crosshair);
 
 		RenderEntityInspectorTable();
 
@@ -815,13 +812,9 @@ namespace big
 			}
 		}
 
-		if (g_target_entity_on_crosshair.get_vk_value() && GetAsyncKeyState(g_target_entity_on_crosshair.get_vk_value()) & 0x80'00
-		    && GetForegroundWindow() == g_renderer->m_window_handle)
-		{
-			RayWorldIntersection();
-		}
+		const auto foreground_window = GetForegroundWindow();
 
-		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity && GetForegroundWindow() == g_renderer->m_window_handle)
+		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity && foreground_window == g_renderer->m_window_handle)
 		{
 			const auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
 			auto player_pos               = g_player_entity->GetWorldPos();
@@ -1347,6 +1340,16 @@ namespace big
 
 	void gui::wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	{
+		if (msg == WM_RBUTTONUP)
+		{
+			target_entity_on_screen_cursor();
+		}
+
+		if (msg == WM_KEYUP && wparam == g_target_entity_on_crosshair.get_vk_value())
+		{
+			target_entity_on_crosshair();
+		}
+
 		if (msg == WM_KEYUP && wparam == g_noclip_enabled_keybind.get_vk_value())
 		{
 			g_noclip_enabled->set_value(!g_noclip_enabled->get_value());

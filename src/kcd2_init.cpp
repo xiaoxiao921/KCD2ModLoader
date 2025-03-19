@@ -829,7 +829,7 @@ namespace big
 			{
 				//LOG(INFO) << "Found <Objects>";
 				parse_xml_objects_file(pFileContents, fileSize);
-		}
+			}
 		}
 
 
@@ -1065,6 +1065,23 @@ namespace big
 		return res;
 	}
 
+	/*
+		sx (float) - The x-coordinate in screen space.
+		sy (float) - The y-coordinate in screen space.
+		sz (float) - The depth value (typically between 0.0 and 1.0 in normalized device coordinates).
+		px (float)* - Pointer to store the resulting world x-coordinate.
+		py (float)* - Pointer to store the resulting world y-coordinate.
+		pz (float)* - Pointer to store the resulting world z-coordinate.
+	*/
+	static __int64 __fastcall hook_CD3D9Renderer_UnProjectFromScreen(__int64 a1, float sx, float sy, float sz, float *px, float *py, float *pz)
+	{
+		g_CD3D9Renderer = a1;
+
+		const auto res = big::g_hooking->get_original<hook_CD3D9Renderer_UnProjectFromScreen>()(a1, sx, sy, sz, px, py, pz);
+
+		return res;
+	}
+
 	static __int64 hook_wh_db_table_patch_find_line(__int64 table_metadata, char *table_vanilla_data, unsigned int table_vanilla_line_index, char *table_mod_data, unsigned int table_mod_line_index)
 	{
 		const auto res = big::g_hooking->get_original<hook_wh_db_table_patch_find_line>()(table_metadata, table_vanilla_data, table_vanilla_line_index, table_mod_data, table_mod_line_index);
@@ -1218,9 +1235,9 @@ namespace big
 							if (!original_attr)
 							{
 								original_attr = original_matching_node.append_attribute(attr_name);
-						}
+							}
 							original_attr.set_value(attr.value());
-					}
+						}
 						merge_nodes(original_matching_node, patch_child);
 					}
 					else
@@ -1255,10 +1272,10 @@ namespace big
 			unsigned long long size           = zip_entry_size(zip);
 
 			if (isdir || size == 0)
-				{
+			{
 				zip_entry_close(zip);
-					continue;
-				}
+				continue;
+			}
 
 			std::vector<unsigned char> file_content(size);
 			zip_entry_noallocread(zip, file_content.data(), size);
@@ -1288,7 +1305,7 @@ namespace big
 					const auto xml_context_ = get_xml_context(zip_entry_name_);
 					read_xmls_from_zip_stream(inner_zip, xml_context_);
 					zip_close(inner_zip);
-		}
+				}
 			}
 		}
 	}
@@ -1403,24 +1420,13 @@ namespace big
 		return {camera_position, camera_direction};
 	}
 
-	static int RayWorldIntersection_definition(__int64 IPhysicalWorld_instance, Vec3 *source, Vec3 *direction, unsigned int iEntTypes, unsigned int flags, ray_hit_t *hits, int nmaxhits, void **pSkipEnts = 0, int nSkipEnts = 0, __int64 pForeignData = 0, int iForeignData = 0, const char *pNameTag = "RayWorldIntersection(Physics)")
-	{
-	}
-
-	void RayWorldIntersection()
+	void target_entity_on_crosshair()
 	{
 		if (!g_player_entity)
 		{
 			return;
 		}
 
-		ray_hit_t ray_hit[1];
-
-		// ISystem_GetIPhysicalWorld_func vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
-		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[74];
-		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
-
-		static auto RayWorldIntersection_func = kcd2_address::scan("E8 ? ? ? ? 48 FF 03 48 81 C4").get_call().as_func<decltype(RayWorldIntersection_definition)>();
 		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
 
 		// Extend the max range distance to 1000
@@ -1429,15 +1435,84 @@ namespace big
 		void *pSkipEnts[1];
 		pSkipEnts[0] = g_player_entity->GetPhysics();
 
-		constexpr int iEntTypes = ent_all;
 		//constexpr int geom_flags_val = geom_colltype0 << rwi_colltype_bit | rwi_stop_at_pierceable;
-		constexpr int geom_flags_val = rwi_ignore_noncolliding | rwi_stop_at_pierceable;
 
-		const auto nHits = RayWorldIntersection_func(IPhysicalWorld_instance, &camera_pos_and_dir.first, &ray_dir_range, iEntTypes, geom_flags_val, ray_hit, 1, pSkipEnts, 1, 0, 0, "RayWorldIntersection(Physics)");
-
-		for (int i = 0; i < nHits; i++)
+		ray_hit_t ray_hit;
+		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_ignore_noncolliding | rwi_stop_at_pierceable, &ray_hit, 1, pSkipEnts, 1))
 		{
-			const auto &hit                   = ray_hit[i];
+			const auto PHYS_FOREIGN_ID_STATIC = 2;
+			const auto hit_entity             = ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+			if (hit_entity)
+			{
+				LOG(INFO) << "[Raycast] Entity hit: " << hit_entity->GetName();
+
+				size_t k = 0;
+				for (const auto &ent : g_entities)
+				{
+					if (ent == hit_entity)
+					{
+						g_selected_index_entity_detail_inspector = k;
+						return;
+					}
+
+					k++;
+				}
+			}
+		}
+
+		g_selected_index_entity_detail_inspector = -1;
+	}
+
+	static void CHardwareMouse_GetHardwareMouseClientPosition(float *pfX, float *pfY)
+	{
+		POINT pointCursor;
+		GetCursorPos(&pointCursor);
+		ScreenToClient(g_renderer->m_window_handle, &pointCursor);
+		*pfX = (float)pointCursor.x;
+		*pfY = (float)pointCursor.y;
+	}
+
+	void target_entity_on_screen_cursor()
+	{
+		if (!g_player_entity)
+		{
+			return;
+		}
+
+		if (!g_gui)
+		{
+			return;
+		}
+
+		if (!g_gui->is_open())
+		{
+			return;
+		}
+
+		if (ImGui::IsAnyItemHovered())
+		{
+			return;
+		}
+
+		float mouseX, mouseY;
+		CHardwareMouse_GetHardwareMouseClientPosition(&mouseX, &mouseY);
+
+		ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+
+		// Invert mouse Y
+		mouseY = displaySize.y - mouseY;
+
+		Vec3 vPos0(0, 0, 0);
+		g_CD3D9Renderer_UnProjectFromScreen((void *)g_CD3D9Renderer, mouseX, mouseY, 0, &vPos0.x, &vPos0.y, &vPos0.z);
+
+		Vec3 vPos1(0, 0, 0);
+		g_CD3D9Renderer_UnProjectFromScreen((void *)g_CD3D9Renderer, mouseX, mouseY, 1, &vPos1.x, &vPos1.y, &vPos1.z);
+
+		Vec3 vDir = (vPos1 - vPos0).Normalized() * 1000.0f;
+
+		ray_hit_t hit;
+		if (RayWorldIntersection(vPos0, vDir, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &hit, 1))
+		{
 			const auto PHYS_FOREIGN_ID_STATIC = 2;
 			const auto hit_entity             = hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
 			if (hit_entity)
@@ -1450,20 +1525,15 @@ namespace big
 					if (ent == hit_entity)
 					{
 						g_selected_index_entity_detail_inspector = k;
-
-						break;
+						return;
 					}
 
 					k++;
 				}
 			}
-			else
-			{
-				LOG(INFO) << "[Raycast] No entity hit";
-			}
-			LOG(INFO) << "[Raycast] Hit distance: " << hit.dist;
-			LOG(INFO) << "[Raycast] Hit pos: " << hit.pt.x << " y: " << hit.pt.y << " z: " << hit.pt.z;
 		}
+
+		g_selected_index_entity_detail_inspector = -1;
 	}
 
 	void kcd2_init()
@@ -1732,6 +1802,33 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_C_Player_ctor>("hook_C_Player_ctor", ptr);
+		}
+
+		{
+			const auto ptr =
+			    kcd2_address::scan("E8 ? ? ? ? F3 44 0F 10 05 ? ? ? ? 48 8D 45 ? 48 89 44 24 ? 41 0F 28 D8");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CD3D9Renderer_UnProjectFromScreen";
+				return;
+			}
+
+			g_CD3D9Renderer_UnProjectFromScreen = ptr.get_call().as<decltype(g_CD3D9Renderer_UnProjectFromScreen)>();
+
+			big::hooking::detour_hook_helper::add<hook_CD3D9Renderer_UnProjectFromScreen>(
+			    "hook_CD3D9Renderer_UnProjectFromScreen",
+			    g_CD3D9Renderer_UnProjectFromScreen);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 FF 03 48 81 C4");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find RayWorldIntersection";
+				return;
+			}
+
+			g_RayWorldIntersection = ptr.get_call().as<decltype(g_RayWorldIntersection)>();
 		}
 
 		// Early main Lua
