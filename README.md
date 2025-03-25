@@ -78,12 +78,12 @@ It showcase multiple things:
 
 - Example usage of:
 
-- `player.inventory:CreateItem`.
+- `player.inventory:CreateItem`
 
-- `System.GetEntityByName`.
+- `System.GetEntityByName`
 
-- `Entity:SetWorldPos`.
+- `Entity:SetWorldPos`
 
-- `ItemManager`.
+- `ItemManager`
 
-- `inventory:GetInventoryTable`.
+- `inventory:GetInventoryTable`

@@ -98,6 +98,12 @@ namespace big
 		}
 	};
 
+	struct AABB
+	{
+		Vec3 min;
+		Vec3 max;
+	};
+
 	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection();
 
 	struct Archetype
@@ -119,6 +125,662 @@ namespace big
 	struct CEntity;
 	inline CEntity *g_player_entity                                           = nullptr;
 	inline void *(*g_CEntity_SetWorldTM)(CEntity *this_, void *tm, int flags) = nullptr;
+
+	enum EERType
+	{
+		eERType_NotRenderNode,
+		eERType_Brush,
+		eERType_Vegetation,
+		eERType_Light,
+		eERType_Dummy_5, //!< Used to be eERType_Cloud, preserve order for compatibility.
+		eERType_MergedMeshInstance,
+		eERType_FogVolume,
+		eERType_Decal,
+		eERType_ParticleEmitter,
+		eERType_WaterVolume,
+		eERType_WaterWave,
+		eERType_Road,
+		eERType_DistanceCloud,
+		eERType_Dummy_4, // Used to be eERType_VolumeObject, preserve order for compatibility.
+		eERType_Dummy_0, //!< Used to be eERType_AutoCubeMap, preserve order for compatibility.
+		eERType_Rope,
+		eERType_Dummy_3, //!< Used to be  eERType_PrismObject, preserve order for compatibility.
+		eERType_TerrainSector,
+		eERType_Dummy_2, //!< Used to be eERType_LightPropagationVolume, preserve order for compatibility.
+		eERType_MovableBrush,
+		eERType_GameEffect,
+		eERType_BreakableGlass,
+		eERType_CloudBlocker,
+		eERType_MergedMesh,
+		eERType_GeomCache,
+		eERType_Character,
+		eERType_TypesNum, //!< Must be at the end - gives the total number of ER types.
+	};
+
+	class CLodValue
+	{
+	public:
+		CLodValue()
+		{
+			m_nLodA        = -1;
+			m_nLodB        = -1;
+			m_nDissolveRef = 0;
+		}
+
+		CLodValue(int nLodA)
+		{
+			m_nLodA        = nLodA;
+			m_nLodB        = -1;
+			m_nDissolveRef = 0;
+		}
+
+		CLodValue(int nLodA, uint8_t nDissolveRef, int nLodB)
+		{
+			m_nLodA        = nLodA;
+			m_nLodB        = nLodB;
+			m_nDissolveRef = nDissolveRef;
+		}
+
+		int LodA() const
+		{
+			return m_nLodA;
+		}
+
+		int LodSafeA() const
+		{
+			return m_nLodA == -1 ? 0 : m_nLodA;
+		}
+
+		int LodB() const
+		{
+			return m_nLodB;
+		}
+
+		unsigned int DissolveRefA() const
+		{
+			return m_nDissolveRef;
+		}
+
+		unsigned int DissolveRefB() const
+		{
+			return 255 - m_nDissolveRef;
+		}
+
+	private:
+		int16_t m_nLodA;
+		int16_t m_nLodB;
+		uint8_t m_nDissolveRef;
+	};
+
+	const int MAX_GSM_CACHED_LODS_NUM = 3;
+	struct IRenderNone;
+
+	struct IShadowCaster
+	{
+		virtual ~IShadowCaster();
+
+		virtual bool HasOcclusionmap(int nLod, void *pLightOwner);
+
+		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo);
+
+		virtual void Render(const void *RendParams, const void *passInfo) = 0;
+		virtual const AABB GetBBox() const                                = 0;
+		virtual void FillBBox(AABB &aabb) const                           = 0;
+		virtual struct ICharacterInstance *GetEntityCharacter(void *pMatrix = NULL, bool bReturnOnlyVisible = false) = 0;
+		virtual EERType GetRenderNodeType() const = 0;
+
+		void *m_unk;
+	};
+
+#define BIT8(x) ((static_cast<uint8_t>(1)) << (x))
+
+	struct IRenderNode : public IShadowCaster
+	{
+		enum EInternalFlags : uint8_t
+		{
+			DECAL_OWNER                = BIT8(0), //!< Owns some decals.
+			REQUIRES_NEAREST_CUBEMAP   = BIT8(1), //!< Pick nearest cube map.
+			UPDATE_DECALS              = BIT8(2), //!< The node changed geometry - decals must be updated.
+			REQUIRES_FORWARD_RENDERING = BIT8(3), //!< Special shadow processing needed.
+			WAS_INVISIBLE              = BIT8(4), //!< Was invisible last frame.
+			WAS_IN_VISAREA             = BIT8(5), //!< Was inside vis-ares last frame.
+			WAS_FARAWAY         = BIT8(6), //!< Was considered 'far away' for the purposes of physics deactivation.
+			HAS_OCCLUSION_PROXY = BIT8(7), //!< This node has occlusion proxy.
+		};
+
+		typedef uint64_t RenderFlagsType;
+
+		struct SUpdateStreamingPriorityContext
+		{
+			const void *pPassInfo = nullptr;
+			float distance        = 0.0f;
+			float importance      = 0.0f;
+			bool bFullUpdate      = false;
+			int lod               = 0;
+		};
+
+	public:
+
+		IRenderNode()
+		{
+			m_dwRndFlags           = 0;
+			m_ucViewDistRatio      = 100;
+			m_ucLodRatio           = 100;
+			m_pOcNode              = nullptr;
+			m_nHUDSilhouettesParam = 0;
+			m_fWSMaxViewDist       = 0;
+			m_nInternalFlags       = 0;
+			m_nMaterialLayers      = 0;
+			m_pTempData            = nullptr;
+			m_pPrev = m_pNext = nullptr;
+
+			//ZeroArray(m_shadowCacheLod);
+			//ZeroArray(m_shadowCacheLastRendered);
+
+			m_onePassTraversalFrameId        = 0;
+			m_onePassTraversalShadowCascades = 0;
+		}
+
+		virtual bool CanExecuteRenderAsJob() const
+		{
+			return false;
+		}
+
+		// <interfuscator:shuffle>
+
+		//! Debug info about object.
+		virtual const char *GetName() const            = 0;
+		virtual const char *GetEntityClassName() const = 0;
+
+		virtual std::string GetDebugString(char type = 0) const
+		{
+			return "";
+		}
+
+		virtual float GetImportance() const
+		{
+			return 1.f;
+		}
+
+		//! Releases IRenderNode.
+		virtual void ReleaseNode(bool bImmediate = false);
+
+		virtual IRenderNode *Clone() const
+		{
+			return NULL;
+		}
+
+		//! Sets render node transformation matrix.
+		virtual void SetMatrix(const void *mat34)
+		{
+		}
+
+		//! Gets local bounds of the render node.
+		virtual void GetLocalBounds(AABB &bbox) const
+		{
+			AABB WSBBox(GetBBox());
+			bbox = AABB(WSBBox.min - GetPos(true), WSBBox.max - GetPos(true));
+		}
+
+		virtual Vec3 GetPos(bool bWorldOnly = true) const = 0;
+		virtual const AABB GetBBox() const                = 0;
+
+		virtual void FillBBox(AABB &aabb) const
+		{
+			aabb = GetBBox();
+		}
+
+		virtual void SetBBox(const AABB &WSBBox) = 0;
+
+		//! Changes the world coordinates position of this node by delta.
+		//! Don't forget to call this base function when overriding it.
+		virtual void OffsetPosition(const Vec3 &delta) = 0;
+
+		//! Is node geometry visible in passInfo's camera
+		virtual bool IsVisible(const AABB &nodeBox, const float nodeDistance, const void *passInfo) const
+		{
+			return true;
+		}
+
+		//! Renders node geometry
+		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) = 0;
+
+		//! Helpers to check state of node
+		bool IsHidden() const;
+
+		bool IsRenderable() const;
+
+		bool IsInstanced() const;
+
+		//! Gives access to object components.
+		virtual void *GetEntityStatObj(unsigned int nSubPartId = 0, void *pMatrix34a = NULL, bool bReturnOnlyVisible = false);
+
+		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = NULL)
+		{
+		}
+
+		//! Retrieve access to the character instance of the the RenderNode
+		virtual ICharacterInstance *GetEntityCharacter(void *pMatrix34a = NULL, bool bReturnOnlyVisible = false)
+		{
+			return 0;
+		}
+
+		//! \return IRenderMesh of the object.
+		virtual struct IRenderMesh *GetRenderMesh(int nLod) const
+		{
+			return 0;
+		}
+
+		//! Allows to adjust default lod distance settings.
+		//! If fLodRatio is 100 - default lod distance is used.
+		virtual void SetLodRatio(int nLodRatio);
+
+		//! Get material layers mask.
+		virtual uint8_t GetMaterialLayers() const;
+
+		//! Get physical entity.
+		virtual struct IPhysicalEntity *GetPhysics() const = 0;
+		virtual void SetPhysics(IPhysicalEntity *pPhys)    = 0;
+
+		//! Physicalizes if it isn't already.
+		virtual void CheckPhysicalized()
+		{
+		}
+
+		//! Physicalize the node.
+		virtual void Physicalize(bool bInstant = false)
+		{
+		}
+
+		//! Physicalize stat object's foliage.
+		virtual bool PhysicalizeFoliage(bool bPhysicalize = true, int iSource = 0, int nSlot = 0)
+		{
+			return false;
+		}
+
+		//! Get physical entity (rope) for a given branch (if foliage is physicalized).
+		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0)
+		{
+			return 0;
+		}
+
+		//! \return Physicalized foliage, or NULL if it isn't physicalized.
+		virtual struct IFoliage *GetFoliage(int nSlot = 0)
+		{
+			return 0;
+		}
+
+		//! Make sure I3DEngine::FreeRenderNodeState(this) is called in destructor of derived class.
+		virtual ~IRenderNode();
+
+		//! Set override material for this instance.
+		virtual void SetMaterial(void *pMat) = 0;
+
+		//! Queries override material of this instance.
+		virtual void *GetMaterial(Vec3 *pHitPos = NULL) const = 0;
+		virtual void *GetMaterialOverride() const             = 0;
+
+		//! Used by the editor during export.
+		virtual void SetCollisionClassIndex(int tableIndex)
+		{
+		}
+
+		virtual void SetStatObjGroupIndex(int nVegetationGroupIndex)
+		{
+		}
+
+		virtual int GetStatObjGroupId() const
+		{
+			return -1;
+		}
+
+		virtual void SetLayerId(uint16_t nLayerId)
+		{
+		}
+
+		virtual uint16_t GetLayerId() const
+		{
+			return 0;
+		}
+
+		virtual float GetMaxViewDist() const = 0;
+
+		virtual EERType GetRenderNodeType() const = 0;
+
+		virtual bool IsAllocatedOutsideOf3DEngineDLL()
+		{
+			return GetOwnerEntity() != nullptr;
+		}
+
+		virtual void Dephysicalize(bool bKeepIfReferenced = false)
+		{
+		}
+
+		virtual void Dematerialize()
+		{
+		}
+
+		virtual void GetMemoryUsage(void *pSizer) const = 0;
+
+		virtual void Precache()
+		{
+		}
+
+		virtual void UpdateStreamingPriority(const SUpdateStreamingPriorityContext &streamingContext)
+		{
+		}
+
+		//	virtual float GetLodForDistance(float fDistance) { return 0; }
+
+		//! Called immediately when render node becomes visible from any thread.
+		//! Not reentrant, multiple simultaneous calls to this method on the same rendernode from multiple threads is not supported and should not happen
+		virtual void OnRenderNodeBecomeVisibleAsync(void *pTempData, const void *passInfo)
+		{
+		}
+
+		//! Called when RenderNode becomes visible or invisible, can only be called from the Main thread
+		virtual void OnRenderNodeVisible(bool bBecomeVisible)
+		{
+		}
+
+		virtual uint8_t GetSortPriority() const
+		{
+			return 0;
+		}
+
+		//! Object can be used by GI system in several ways.
+		enum EGIMode
+		{
+			eGM_None = 0,             //!< No voxelization.
+			eGM_StaticVoxelization,   //!< Incremental or asynchronous lazy voxelization.
+			eGM_DynamicVoxelization,  //!< Real-time every-frame voxelization on GPU.
+			eGM_HideIfGiIsActive,     //!< Hide this light source if GI is enabled
+			eGM_AnalyticalProxy_Soft, //!< Analytical proxy (with shadow fading)
+			eGM_AnalyticalProxy_Hard, //!< Analytical proxy (no shadow fading)
+			eGM_AnalytPostOccluder,   //!< Analytical occluder (used with average light direction)
+			eGM_IntegrateIntoTerrain, //!< Copy object mesh into terrain mesh and render using usual terrain materials
+		};
+
+		//! Retrieves the way object is used by GI system.
+		virtual EGIMode GetGIMode() const;
+
+		virtual void SetMinSpec(RenderFlagsType nMinSpec);
+
+		//! Allows to adjust default max view distance settings.
+		//! If fMaxViewDistRatio is 100 - default max view distance is used.
+		virtual void SetViewDistRatio(int nViewDistRatio);
+
+		virtual bool GetLodDistances(const void *frameLodInfo, float *distances) const;
+
+		//! Bias value to add to the regular lod
+		virtual void SetShadowLodBias(int8_t nShadowLodBias)
+		{
+		}
+
+		//! Sets supplemental parameters used for camera-space rendering (ERF_FOB_NEAREST).
+		//! Parameter values shall reflect the current render node position, as supplied with SetMatrix().
+		//! Usage of this feature is optional. The benefit is increased rendering precision.
+		virtual void SetCameraSpaceParams(void *cameraSpaceParams)
+		{
+		}
+
+		//! Retrieves camera space parameters that have been previously set by a call to SetCameraSpaceParams().
+		virtual void *GetCameraSpaceParams() const;
+
+		void MarkAsUncompiled() const;
+		void *GetParent() const;
+
+		virtual void SetEditorObjectId(uint32_t nEditorObjectId)
+		{
+		}
+
+		virtual void SetEditorObjectInfo(bool bSelected, bool bHighlighted);
+
+		// Set a new owner entity
+		virtual void SetOwnerEntity(void *pEntity);
+
+		// Retrieve a pointer to the entity who owns this render node.
+		virtual void *GetOwnerEntity() const;
+
+	private:
+		template<class T>
+		friend struct TDoublyLinkedList;
+		friend struct IOctreeNode;
+		friend class COctreeNode;
+
+		//! Every sector has linked list of IRenderNode objects.
+		IRenderNode *m_pNext, *m_pPrev;
+
+	protected:
+
+		//! Current objects tree cell.
+		IOctreeNode *m_pOcNode;
+
+		//! Render flags (@see ERenderNodeFlags)
+		RenderFlagsType m_dwRndFlags;
+
+		//! Hides/shows node in renderer.
+		virtual void Hide(bool bHide);
+
+		//! Enables/disables instancing on the node
+		virtual void Instance(bool bInstance) {};
+
+	public:
+		//! Pointer to temporary data allocated only for currently visible objects.
+		void *m_pTempData       = nullptr;
+		int m_manipulationFrame = -1;
+
+		//! Hud silhouette parameter, default is black with alpha zero
+		uint32_t m_nHUDSilhouettesParam;
+
+		//! Used to request visiting of the node during one-pass traversal
+		union
+		{
+			struct
+			{
+				uint32_t m_onePassTraversalFrameId;
+				uint32_t m_onePassTraversalShadowCascades;
+			};
+		};
+
+		//! Max view distance.
+		float m_fWSMaxViewDist;
+
+		//! Flags for render node internal usage, one or more bits from EInternalFlags.
+		uint8_t m_nInternalFlags;
+
+		//! Max view distance settings.
+		uint8_t m_ucViewDistRatio;
+
+		//! LOD settings.
+		uint8_t m_ucLodRatio;
+
+		//! Material layers bitmask -> which material layers are active.
+		uint8_t m_nMaterialLayers;
+	}; // namespace big
+
+	struct IBrush : public IRenderNode
+	{
+		virtual const void *GetMatrix34() const            = 0;
+		virtual void SetDrawLast(bool enable)              = 0;
+		virtual void DisablePhysicalization(bool bDisable) = 0; //!< This render node will not be physicalized
+		virtual float GetScale() const                     = 0;
+
+		// Hide mask disable individual sub-objects rendering in the compound static objects
+		// Only implemented by few nodes.
+		//virtual void SetSubObjectHideMask(hidemask subObjHideMask);
+		virtual void SetSubObjectHideMask(uint64_t subObjHideMask);
+	};
+
+	struct Cry3DEngineBase
+	{
+	};
+
+	class CBrush : public IBrush, public Cry3DEngineBase
+	{
+		friend class COctreeNode;
+
+	public:
+		CBrush();
+		virtual ~CBrush();
+
+		virtual const char *GetEntityClassName() const final;
+		virtual Vec3 GetPos(bool bWorldOnly = true) const final;
+		virtual float GetScale() const final;
+		virtual const char *GetName() const final;
+		virtual bool HasChanged();
+		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) final;
+		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo) final;
+		void Render(const CLodValue &lodValue, const void *passInfo, void *pTerrainTexInfo);
+
+		virtual void *GetEntityStatObj(unsigned int nSubPartId = 0, void *pMatrix34a = NULL, bool bReturnOnlyVisible = false);
+
+		virtual bool GetLodDistances(const void *frameLodInfo, float *distances) const final;
+
+		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = NULL) final;
+
+		virtual IRenderNode *Clone() const final;
+
+		virtual void SetCollisionClassIndex(int tableIndex) final
+		{
+			m_collisionClassIdx = tableIndex;
+		}
+
+		virtual void SetLayerId(uint16_t nLayerId) final;
+
+		virtual uint16_t GetLayerId() const final
+		{
+			return m_nLayerId;
+		}
+		virtual struct IRenderMesh *GetRenderMesh(int nLod) const final;
+
+		virtual IPhysicalEntity *GetPhysics() const final;
+		virtual void SetPhysics(IPhysicalEntity *pPhys) final;
+		static bool IsMatrixValid(const void *mat34);
+		virtual void Dephysicalize(bool bKeepIfReferenced = false) final;
+		virtual void Physicalize(bool bInstant = false) final;
+		void PhysicalizeOnHeap(void *pHeap, bool bInstant = false);
+		virtual bool PhysicalizeFoliage(bool bPhysicalize = true, int iSource = 0, int nSlot = 0) final;
+
+		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0) final;
+		virtual struct IFoliage *GetFoliage(int nSlot = 0) final;
+
+		//! Assign final material to this entity.
+		virtual void SetMaterial(void *pMat) final;
+		virtual void *GetMaterial(Vec3 *pHitPos = NULL) const final;
+
+		virtual void *GetMaterialOverride() const final;
+
+		virtual void CheckPhysicalized() final;
+
+		virtual float GetMaxViewDist() const final;
+
+		virtual EERType GetRenderNodeType() const;
+
+		void SetStatObj(void *pStatObj);
+
+		void SetMatrix(const void *mat34) final;
+
+		const void *GetMatrix34() const final
+		{
+			return m_Matrix;
+		}
+
+		virtual void SetDrawLast(bool enable) final
+		{
+			m_bDrawLast = enable;
+		}
+
+		bool GetDrawLast() const
+		{
+			return m_bDrawLast;
+		}
+
+		void Dematerialize() final;
+		virtual void GetMemoryUsage(void *pSizer) const final;
+
+		virtual const AABB GetBBox() const final;
+
+		virtual void SetBBox(const AABB &WSBBox) final
+		{
+			m_WSBBox = WSBBox;
+		}
+
+		virtual void FillBBox(AABB &aabb) const final
+		{
+			aabb = GetBBox();
+		}
+
+		virtual void OffsetPosition(const Vec3 &delta) final;
+
+		virtual void SetCameraSpaceParams(void *cameraSpaceParams) override;
+		virtual void *GetCameraSpaceParams() const override;
+
+		virtual void SetSubObjectHideMask(uint64_t subObjHideMask) final;
+		//virtual void SetSubObjectHideMask(hidemask subObjHideMask) final;
+
+		virtual bool CanExecuteRenderAsJob() const final;
+
+		virtual void DisablePhysicalization(bool bDisable) final;
+
+		//private:
+		void CalcBBox();
+		void UpdatePhysicalMaterials(int bThreadSafe = 0);
+
+		virtual void OnRenderNodeBecomeVisibleAsync(void *pTempData, const void *passInfo) final;
+
+		bool HasDeformableData() const
+		{
+			return m_pDeform != NULL;
+		}
+
+
+	private:
+		void CalcNearestTransform(void *transformMatrix34, const void *passInfo);
+		void InvalidatePermanentRenderObjectMatrix();
+
+	public:
+		// Transformation Matrix
+		//Matrix34 m_Matrix;
+		float m_Matrix[3 * 4];
+
+		// Physical Entity, when this node is physicalized.
+		IPhysicalEntity *m_pPhysEnt = nullptr;
+
+		//! Override material, will override default material assigned to the Geometry.
+		//_smart_ptr<IMaterial> m_pMaterial;
+		void *m_pMaterial;
+
+		uint16_t m_collisionClassIdx = 0;
+		uint16_t m_nLayerId          = 0;
+
+		// Geometry referenced and rendered by this node.
+		//_smart_ptr<CStatObj> m_pStatObj;
+		void *m_pStatObj;
+
+		//CDeformableNode *m_pDeform = nullptr;
+		void *m_pDeform      = nullptr;
+		IFoliage *m_pFoliage = nullptr;
+
+		uint32_t m_bVehicleOnlyPhysics : 1;
+		uint32_t m_bDrawLast           : 1;
+		uint32_t m_bNoPhysicalize      : 1;
+
+		// World space bounding box for this node.
+		AABB m_WSBBox;
+
+		// Last frame this object moved
+		uint32_t m_lastMoveFrameId = 0;
+		// Hide mask disable individual sub-objects rendering in the compound static objects
+		//hidemask m_nSubObjHideMask;
+		uint64_t m_nSubObjHideMask;
+
+		uint64_t m_unk2;
+		uint64_t m_unk3;
+		uint64_t m_unk4;
+		uint64_t m_unk5;
+		uint64_t m_unk6;
+	};
 
 #pragma pack(push, 1)
 

@@ -7,6 +7,7 @@
 #include <config/config.hpp>
 #include <gui/gui.hpp>
 #include <gui/renderer.hpp>
+#include <logger/stack_trace.hpp>
 #include <lua_extensions/lua_manager_extension.hpp>
 #include <pugixml.hpp>
 #include <threads/thread_pool.hpp>
@@ -1031,6 +1032,63 @@ namespace big
 		return res;
 	}
 
+	static __int64 hook_CBrush_dctor(uintptr_t inst, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CBrush_dctor>()(inst, a2);
+
+		return res;
+	}
+
+	static std::unordered_set<void *> g_CBrush_callers;
+
+	static big::stack_trace trace;
+
+	static int log_stack_trace_filter(EXCEPTION_POINTERS *ep)
+	{
+		trace.new_stack_trace(ep);
+
+		LOG(ERROR) << trace;
+		Logger::FlushQueue();
+
+		return EXCEPTION_EXECUTE_HANDLER;
+	}
+
+	static void log_stack_trace()
+	{
+		__try
+		{
+			// On purpose to print a stack trace.
+			*reinterpret_cast<int *>(0xDE'AD) = 0;
+		}
+		__except (log_stack_trace_filter(GetExceptionInformation()))
+		{
+		}
+	}
+
+	static __int64 hook_CBrush_ctor(uintptr_t a1, __int64 a2)
+	{
+		const auto ret_address = _ReturnAddress();
+
+		//if (!g_CBrush_callers.contains(ret_address))
+		//{
+		//g_CBrush_callers.insert(ret_address);
+
+		//#define HEX_TO_UPPER_OFFSETWH(value) \
+	//"0x" << std::hex << std::uppercase << ((DWORD64)value - (DWORD64)GetModuleHandleA("WHGame.dll")) << std::dec << std::nouppercase
+		//LOG(ERROR) << "CBrush caller: " << HEX_TO_UPPER_OFFSETWH(ret_address);
+
+		//log_stack_trace();
+		//}
+
+		const auto res = big::g_hooking->get_original<hook_CBrush_ctor>()(a1, a2);
+
+		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", (*reinterpret_cast<void ***>(a1))[0]);
+
+		//LOG(INFO) << HEX_TO_UPPER(a1);
+
+		return res;
+	}
+
 	//__int64 hook_CPlayerStateMovement_Ledge_callback(__int64 a1, __int64 a2, __int64 a3, int32_t *a4)
 	//{
 	//const auto res = big::g_hooking->get_original<hook_CPlayerStateMovement_Ledge_callback>()(a1, a2, a3, a4);
@@ -1734,6 +1792,16 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CEntity_ctor>("hook_CEntity_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B D8 4C 8B 8C 24");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CBrush_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CBrush_ctor>("hook_CBrush_ctor", ptr.get_call());
 		}
 
 		{
