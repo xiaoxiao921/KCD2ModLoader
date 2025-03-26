@@ -329,7 +329,8 @@ namespace big
 		virtual ICharacterInstance *GetEntityCharacter(void *pMatrix34a = NULL, bool bReturnOnlyVisible = false) = 0;
 
 		//! \return IRenderMesh of the object.
-		virtual struct IRenderMesh *GetRenderMesh(int nLod) const = 0;
+		//virtual struct IRenderMesh *GetRenderMesh(int nLod) const = 0;
+		virtual void *GetRenderMesh(int nLod) const = 0;
 
 		//! Allows to adjust default lod distance settings.
 		//! If fLodRatio is 100 - default lod distance is used.
@@ -355,7 +356,8 @@ namespace big
 		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0) = 0;
 
 		//! \return Physicalized foliage, or NULL if it isn't physicalized.
-		virtual struct IFoliage *GetFoliage(int nSlot = 0) = 0;
+		//virtual struct IFoliage *GetFoliage(int nSlot = 0) = 0;
+		virtual void *GetFoliage(int nSlot = 0) = 0;
 
 		//! Make sure I3DEngine::FreeRenderNodeState(this) is called in destructor of derived class.
 		virtual ~IRenderNode() = 0;
@@ -532,84 +534,86 @@ namespace big
 		//CBrush();
 		virtual ~CBrush() = 0;
 
-		virtual const char *GetEntityClassName() const                                           = 0;
-		virtual Vec3 GetPos(bool bWorldOnly = true) const final                                  = 0;
-		virtual float GetScale() const final                                                     = 0;
-		virtual const char *GetName() const final                                                = 0;
-		virtual bool HasChanged()                                                                = 0;
-		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) final = 0;
-		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo) final                  = 0;
+		virtual const char *GetEntityClassName() const                                     = 0;
+		virtual Vec3 GetPos(bool bWorldOnly = true) const                                  = 0;
+		virtual float GetScale() const                                                     = 0;
+		virtual const char *GetName() const                                                = 0;
+		virtual bool HasChanged()                                                          = 0;
+		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) = 0;
+		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo)                  = 0;
 
 		virtual void *GetEntityStatObj(unsigned int nSubPartId = 0, void *pMatrix34a = nullptr, bool bReturnOnlyVisible = false) = 0;
 
-		virtual bool GetLodDistances(const void *frameLodInfo, float *distances) const final = 0;
+		virtual bool GetLodDistances(const void *frameLodInfo, float *distances) const = 0;
 
-		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = nullptr) final = 0;
+		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = nullptr) = 0;
 
-		virtual IRenderNode *Clone() const final = 0;
+		virtual IRenderNode *Clone() const = 0;
 
-		virtual void SetCollisionClassIndex(int tableIndex) final = 0;
+		virtual void SetCollisionClassIndex(int tableIndex) = 0;
 
-		virtual void SetLayerId(uint16_t nLayerId) final = 0;
+		virtual void SetLayerId(uint16_t nLayerId) = 0;
 
-		virtual uint16_t GetLayerId() const final = 0;
+		virtual uint16_t GetLayerId() const = 0;
 
-		virtual struct IRenderMesh *GetRenderMesh(int nLod) const final = 0;
+		//virtual struct IRenderMesh *GetRenderMesh(int nLod) const final = 0;
+		virtual void *GetRenderMesh(int nLod) const = 0;
 
-		virtual IPhysicalEntity *GetPhysics() const final                                               = 0;
-		virtual void SetPhysics(IPhysicalEntity *pPhys) final                                           = 0;
-		virtual void Dephysicalize(bool bKeepIfReferenced = false) final                                = 0;
-		virtual void Physicalize(bool bInstant = false) final                                           = 0;
-		virtual bool PhysicalizeFoliage(bool bPhysicalize = true, int iSource = 0, int nSlot = 0) final = 0;
+		virtual IPhysicalEntity *GetPhysics() const                                               = 0;
+		virtual void SetPhysics(IPhysicalEntity *pPhys)                                           = 0;
+		virtual void Dephysicalize(bool bKeepIfReferenced = false)                                = 0;
+		virtual void Physicalize(bool bInstant = false)                                           = 0;
+		virtual bool PhysicalizeFoliage(bool bPhysicalize = true, int iSource = 0, int nSlot = 0) = 0;
 
-		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0) final = 0;
-		virtual struct IFoliage *GetFoliage(int nSlot = 0) final             = 0;
+		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0) = 0;
+		//virtual struct IFoliage *GetFoliage(int nSlot = 0) final             = 0;
+		virtual void *GetFoliage(int nSlot = 0) = 0;
 
 		//! Assign final material to this entity.
-		virtual void SetMaterial(void *pMat) final                  = 0;
-		virtual void *GetMaterial(Vec3 *pHitPos = NULL) const final = 0;
+		virtual void SetMaterial(void *pMat)                  = 0;
+		virtual void *GetMaterial(Vec3 *pHitPos = NULL) const = 0;
 
-		virtual void *GetMaterialOverride() const final = 0;
+		virtual void *GetMaterialOverride() const = 0;
 
-		virtual void CheckPhysicalized() final = 0;
+		virtual void CheckPhysicalized() = 0;
 
-		virtual float GetMaxViewDist() const final = 0;
+		virtual float GetMaxViewDist() const = 0;
 
-		virtual EERType GetRenderNodeType() const = 0;
+		virtual EERType GetRenderNodeType() = 0;
 
-		const void *GetMatrix34() const final
+		const void *GetMatrix34() const
 		{
 			return m_Matrix;
 		}
 
-		virtual void SetDrawLast(bool enable) final = 0;
+		virtual void SetDrawLast(bool enable) = 0;
 
 		bool GetDrawLast() const
 		{
 			return m_bDrawLast;
 		}
 
-		virtual void GetMemoryUsage(void *pSizer) const final = 0;
+		virtual void GetMemoryUsage(void *pSizer) const = 0;
 
-		virtual const AABB GetBBox() const final = 0;
+		virtual const AABB GetBBox() const = 0;
 
-		virtual void SetBBox(const AABB &WSBBox) final = 0;
+		virtual void SetBBox(const AABB &WSBBox) = 0;
 
-		virtual void FillBBox(AABB &aabb) const final = 0;
+		virtual void FillBBox(AABB &aabb) const = 0;
 
-		virtual void OffsetPosition(const Vec3 &delta) final = 0;
+		virtual void OffsetPosition(const Vec3 &delta) = 0;
 
 		virtual void SetCameraSpaceParams(void *cameraSpaceParams) override = 0;
 		virtual void *GetCameraSpaceParams() const override                 = 0;
 
-		virtual void SetSubObjectHideMask(uint64_t subObjHideMask) final = 0;
+		virtual void SetSubObjectHideMask(uint64_t subObjHideMask) = 0;
 		//virtual void SetSubObjectHideMask(hidemask subObjHideMask) final=0;
 
-		virtual bool CanExecuteRenderAsJob() const final = 0;
+		virtual bool CanExecuteRenderAsJob() const = 0;
 
-		virtual void DisablePhysicalization(bool bDisable) final = 0;
+		virtual void DisablePhysicalization(bool bDisable) = 0;
 
-		virtual void OnRenderNodeBecomeVisibleAsync(void *pTempData, const void *passInfo) final = 0;
+		virtual void OnRenderNodeBecomeVisibleAsync(void *pTempData, const void *passInfo) = 0;
 
 		bool HasDeformableData() const
 		{
@@ -638,8 +642,9 @@ namespace big
 		void *m_pStatObj;
 
 		//CDeformableNode *m_pDeform = nullptr;
-		void *m_pDeform      = nullptr;
-		IFoliage *m_pFoliage = nullptr;
+		void *m_pDeform = nullptr;
+		//IFoliage *m_pFoliage = nullptr;
+		void *m_pFoliage = nullptr;
 
 		uint32_t m_bVehicleOnlyPhysics : 1;
 		uint32_t m_bDrawLast           : 1;

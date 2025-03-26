@@ -1063,7 +1063,7 @@ namespace big
 		}
 	}
 
-	static __int64 hook_CBrush_ctor(uintptr_t a1, __int64 a2)
+	static __int64 hook_CBrush_ctor(CBrush *a1, __int64 a2)
 	{
 		const auto ret_address = _ReturnAddress();
 
@@ -1083,6 +1083,8 @@ namespace big
 		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", (*reinterpret_cast<void ***>(a1))[0]);
 
 		//LOG(INFO) << HEX_TO_UPPER(a1);
+
+		LOG(INFO) << a1->GetName();
 
 		return res;
 	}
