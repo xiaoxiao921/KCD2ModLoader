@@ -309,7 +309,6 @@ namespace big
 		lua_close(early_main_state);
 
 		LOG(INFO) << "Starting hook queue";
-		Logger::FlushQueue();
 
 		// no idea if all these hook are necessary, the one that did the trick was lua_load i'm pretty sure
 		big::hooking::detour_hook_helper::add_queue<hook_luaV_execute>("", &luaV_execute);
@@ -338,7 +337,6 @@ namespace big
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
-		Logger::FlushQueue();
 
 		const auto res = big::g_hooking->get_original<hook_CryScriptSystem_Init>()(this_, a2);
 
