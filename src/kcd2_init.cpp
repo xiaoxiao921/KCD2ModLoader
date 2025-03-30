@@ -1030,9 +1030,16 @@ namespace big
 		return res;
 	}
 
-	static __int64 hook_CBrush_dctor(uintptr_t inst, char a2)
+	static __int64 hook_CBrush_dctor(CBrush *inst, char a2)
 	{
 		const auto res = big::g_hooking->get_original<hook_CBrush_dctor>()(inst, a2);
+
+		const auto it = std::find(g_cbrushes.begin(), g_cbrushes.end(), inst);
+		if (it != g_cbrushes.end())
+		{
+			*it = g_cbrushes.back();
+			g_cbrushes.pop_back();
+		}
 
 		return res;
 	}
@@ -1082,9 +1089,9 @@ namespace big
 
 		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", (*reinterpret_cast<void ***>(a1))[0]);
 
-		//LOG(INFO) << HEX_TO_UPPER(a1);
+		g_cbrushes.push_back(a1);
 
-		LOG(INFO) << a1->GetName();
+		//LOG(INFO) << HEX_TO_UPPER(a1);
 
 		return res;
 	}
@@ -1521,6 +1528,69 @@ namespace big
 		g_selected_index_entity_detail_inspector = -1;
 	}
 
+	void target_entity_on_crosshair_include_cbrush()
+	{
+		if (!g_player_entity)
+		{
+			return;
+		}
+
+		LOG(INFO) << "target_entity_on_crosshair_include_cbrush";
+
+		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+
+		// Extend the max range distance
+		Vec3 ray_dir_range = camera_pos_and_dir.second * 100000.0f;
+
+		void *pSkipEnts[1];
+		pSkipEnts[0] = g_player_entity->GetPhysics();
+
+		ray_hit_t ray_hit;
+		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_ignore_noncolliding | rwi_stop_at_pierceable, &ray_hit, 1, pSkipEnts, 1))
+		{
+			const auto PHYS_FOREIGN_ID_STATIC = 2;
+			CEntity *hit_entity{};
+			if (ray_hit.pCollider)
+			{
+				hit_entity = ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+			}
+			if (hit_entity)
+			{
+				LOG(INFO) << "Found entity.";
+			}
+			else
+			{
+				if (!g_cbrushes.empty())
+				{
+					LOG(INFO) << "Trying to find cbrush.";
+
+					size_t best_cbrush_index = 0;
+					float min_distance       = std::numeric_limits<float>::max();
+					Vec3 hit_position        = ray_hit.pt;
+
+					for (size_t i = 0; i < g_cbrushes.size(); ++i)
+					{
+						const auto cbrush_pos  = g_cbrushes[i]->GetPos();
+						float current_distance = (hit_position - cbrush_pos).Length();
+
+						if (current_distance < min_distance)
+						{
+							min_distance      = current_distance;
+							best_cbrush_index = i;
+						}
+					}
+
+					g_selected_cbrush_detail_inspector = best_cbrush_index;
+
+					auto brush_name = g_cbrushes[best_cbrush_index]->GetName();
+					auto brush_pos  = g_cbrushes[best_cbrush_index]->GetPos();
+					LOG(INFO) << "Best cbrush id found: " << best_cbrush_index << " Name: " << (brush_name ? brush_name : "No Name")
+					          << " Position: " << brush_pos.x << " " << brush_pos.y << " " << brush_pos.z;
+				}
+			}
+		}
+	}
+
 	static void CHardwareMouse_GetHardwareMouseClientPosition(float *pfX, float *pfY)
 	{
 		POINT pointCursor;
@@ -1655,6 +1725,7 @@ namespace big
 			g_show_entity_inspector = big::config::general().bind("Inspectors", "Entity", true, "Show the Entity Inspector.");
 			g_show_entity_metadata_inspector = big::config::general().bind("Inspectors", "Entity Metadata", false, "Show the Entity Metadata Inspector.");
 			g_show_entity_xml_infos_inspector = big::config::general().bind("Inspectors", "XML Infos", false, "Show the XML Infos Inspector.");
+			g_show_cbrush_inspector = big::config::general().bind("Inspectors", "CBrush", false, "Show the CBrush Inspector.");
 			g_show_ptf_inspector = big::config::general().bind("Inspectors", "PTF", true, "Show the PTF Inspector.");
 		}
 
@@ -1886,6 +1957,17 @@ namespace big
 			big::hooking::detour_hook_helper::add<hook_CD3D9Renderer_UnProjectFromScreen>(
 			    "hook_CD3D9Renderer_UnProjectFromScreen",
 			    g_CD3D9Renderer_UnProjectFromScreen);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("48 83 EC ? 48 8B 0D ? ? ? ? 0F 29 74 24 ? 0F 28 F2 0F 29 7C 24");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CD3D9Renderer_ProjectToScreen";
+				return;
+			}
+
+			g_CD3D9Renderer_ProjectToScreen = ptr.as<decltype(g_CD3D9Renderer_ProjectToScreen)>();
 		}
 
 		{

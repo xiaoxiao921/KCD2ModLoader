@@ -217,16 +217,28 @@ namespace big
 
 	struct IShadowCaster
 	{
+		// 0
 		virtual ~IShadowCaster() = 0;
 
+		// 1
 		virtual bool HasOcclusionmap(int nLod, void *pLightOwner) = 0;
 
+		// 2
 		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo) = 0;
 
+		// 3
 		virtual void Render(const void *RendParams, const void *passInfo) = 0;
-		virtual const AABB GetBBox() const                                = 0;
-		virtual void FillBBox(AABB &aabb) const                           = 0;
+
+		// 4
+		virtual const AABB GetBBox() const = 0;
+
+		// 5
+		virtual void FillBBox(AABB &aabb) const = 0;
+
+		// 6
 		virtual struct ICharacterInstance *GetEntityCharacter(void *pMatrix = NULL, bool bReturnOnlyVisible = false) = 0;
+
+		// 7
 		virtual EERType GetRenderNodeType() const = 0;
 
 		void *m_unk;
@@ -281,59 +293,72 @@ namespace big
 			m_onePassTraversalShadowCascades = 0;
 		}
 
+		// 8
 		virtual bool CanExecuteRenderAsJob() const = 0;
 
-		// <interfuscator:shuffle>
+		// Debug info about object.
+		// 9
+		virtual const char *GetName() const = 0;
 
-		//! Debug info about object.
-		virtual const char *GetName() const            = 0;
+		// 10
 		virtual const char *GetEntityClassName() const = 0;
 
+		// 11
 		virtual std::string GetDebugString(char type = 0) const = 0;
-		virtual float GetImportance() const                     = 0;
+
+		// 12
+		virtual float GetImportance() const = 0;
 
 		//! Releases IRenderNode.
+		// 13
 		virtual void ReleaseNode(bool bImmediate = false) = 0;
 
+		// 14
 		virtual IRenderNode *Clone() const = 0;
 
+		// TODO: Investigate what is that function.
+		virtual void *Pad15() const = 0;
+
 		//! Sets render node transformation matrix.
+		// 16
 		virtual void SetMatrix(const void *mat34) = 0;
 
 		//! Gets local bounds of the render node.
+		// 17
 		virtual void GetLocalBounds(AABB &bbox) const = 0;
 
+		// 18
 		virtual Vec3 GetPos(bool bWorldOnly = true) const = 0;
-		virtual const AABB GetBBox() const                = 0;
 
-		virtual void FillBBox(AABB &aabb) const = 0;
-
+		// 19
 		virtual void SetBBox(const AABB &WSBBox) = 0;
 
 		//! Changes the world coordinates position of this node by delta.
 		//! Don't forget to call this base function when overriding it.
+		// 20
 		virtual void OffsetPosition(const Vec3 &delta) = 0;
 
 		//! Is node geometry visible in passInfo's camera
 		virtual bool IsVisible(const AABB &nodeBox, const float nodeDistance, const void *passInfo) const = 0;
 
-		//! Renders node geometry
-		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) = 0;
-
 		//! Gives access to object components.
 		virtual void *GetEntityStatObj(unsigned int nSubPartId = 0, void *pMatrix34a = NULL, bool bReturnOnlyVisible = false) = 0;
 
+		virtual void *Pad23() const = 0;
+
 		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = NULL) = 0;
 
-		//! Retrieve access to the character instance of the the RenderNode
-		virtual ICharacterInstance *GetEntityCharacter(void *pMatrix34a = NULL, bool bReturnOnlyVisible = false) = 0;
+		virtual void *Pad24() const = 0;
+		virtual void *Pad25() const = 0;
+		virtual void *Pad26() const = 0;
 
 		//! \return IRenderMesh of the object.
-		//virtual struct IRenderMesh *GetRenderMesh(int nLod) const = 0;
+		// 27
 		virtual void *GetRenderMesh(int nLod) const = 0;
 
 		//! Allows to adjust default lod distance settings.
 		//! If fLodRatio is 100 - default lod distance is used.
+		// 28
 		virtual void SetLodRatio(int nLodRatio) = 0;
 
 		//! Get material layers mask.
@@ -534,86 +559,22 @@ namespace big
 		//CBrush();
 		virtual ~CBrush() = 0;
 
-		virtual const char *GetEntityClassName() const                                     = 0;
-		virtual Vec3 GetPos(bool bWorldOnly = true) const                                  = 0;
-		virtual float GetScale() const                                                     = 0;
-		virtual const char *GetName() const                                                = 0;
-		virtual bool HasChanged()                                                          = 0;
-		virtual void Render(const struct SRendParams &EntDrawParams, const void *passInfo) = 0;
-		virtual CLodValue ComputeLod(int wantedLod, const void *passInfo)                  = 0;
+		//inline Vec3 GetPos()
+		//{
+		//return {m_Matrix[3], m_Matrix[7], m_Matrix[11]};
+		//}
 
-		virtual void *GetEntityStatObj(unsigned int nSubPartId = 0, void *pMatrix34a = nullptr, bool bReturnOnlyVisible = false) = 0;
-
-		virtual bool GetLodDistances(const void *frameLodInfo, float *distances) const = 0;
-
-		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = nullptr) = 0;
-
-		virtual IRenderNode *Clone() const = 0;
-
-		virtual void SetCollisionClassIndex(int tableIndex) = 0;
-
-		virtual void SetLayerId(uint16_t nLayerId) = 0;
-
-		virtual uint16_t GetLayerId() const = 0;
-
-		//virtual struct IRenderMesh *GetRenderMesh(int nLod) const final = 0;
-		virtual void *GetRenderMesh(int nLod) const = 0;
-
-		virtual IPhysicalEntity *GetPhysics() const                                               = 0;
-		virtual void SetPhysics(IPhysicalEntity *pPhys)                                           = 0;
-		virtual void Dephysicalize(bool bKeepIfReferenced = false)                                = 0;
-		virtual void Physicalize(bool bInstant = false)                                           = 0;
-		virtual bool PhysicalizeFoliage(bool bPhysicalize = true, int iSource = 0, int nSlot = 0) = 0;
-
-		virtual IPhysicalEntity *GetBranchPhys(int idx, int nSlot = 0) = 0;
-		//virtual struct IFoliage *GetFoliage(int nSlot = 0) final             = 0;
-		virtual void *GetFoliage(int nSlot = 0) = 0;
-
-		//! Assign final material to this entity.
-		virtual void SetMaterial(void *pMat)                  = 0;
-		virtual void *GetMaterial(Vec3 *pHitPos = NULL) const = 0;
-
-		virtual void *GetMaterialOverride() const = 0;
-
-		virtual void CheckPhysicalized() = 0;
-
-		virtual float GetMaxViewDist() const = 0;
-
-		virtual EERType GetRenderNodeType() = 0;
+		virtual bool HasChanged() = 0;
 
 		const void *GetMatrix34() const
 		{
 			return m_Matrix;
 		}
 
-		virtual void SetDrawLast(bool enable) = 0;
-
 		bool GetDrawLast() const
 		{
 			return m_bDrawLast;
 		}
-
-		virtual void GetMemoryUsage(void *pSizer) const = 0;
-
-		virtual const AABB GetBBox() const = 0;
-
-		virtual void SetBBox(const AABB &WSBBox) = 0;
-
-		virtual void FillBBox(AABB &aabb) const = 0;
-
-		virtual void OffsetPosition(const Vec3 &delta) = 0;
-
-		virtual void SetCameraSpaceParams(void *cameraSpaceParams) override = 0;
-		virtual void *GetCameraSpaceParams() const override                 = 0;
-
-		virtual void SetSubObjectHideMask(uint64_t subObjHideMask) = 0;
-		//virtual void SetSubObjectHideMask(hidemask subObjHideMask) final=0;
-
-		virtual bool CanExecuteRenderAsJob() const = 0;
-
-		virtual void DisablePhysicalization(bool bDisable) = 0;
-
-		virtual void OnRenderNodeBecomeVisibleAsync(void *pTempData, const void *passInfo) = 0;
 
 		bool HasDeformableData() const
 		{
@@ -716,7 +677,7 @@ namespace big
 		virtual void Pad43()            = 0;
 		virtual void Pad44()            = 0;
 		virtual void Pad45()            = 0;
-		virtual void GetPos(float *pos) = 0; // offset 368
+		virtual void GetPos(Vec3 &pos)  = 0; // offset 368
 		virtual void Pad47()            = 0;
 		virtual void Pad48()            = 0;
 		virtual void Pad49()            = 0;
@@ -813,6 +774,7 @@ namespace big
 	inline toml_v2::config_file::config_entry<bool> *g_show_entity_inspector           = nullptr;
 	inline toml_v2::config_file::config_entry<bool> *g_show_entity_metadata_inspector  = nullptr;
 	inline toml_v2::config_file::config_entry<bool> *g_show_entity_xml_infos_inspector = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_cbrush_inspector           = nullptr;
 	inline toml_v2::config_file::config_entry<bool> *g_show_ptf_inspector              = nullptr;
 
 	inline hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
@@ -964,6 +926,7 @@ namespace big
 	};
 
 	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
+	inline std::vector<CBrush *> g_cbrushes;
 
 	inline std::recursive_mutex g_xml_info_mutex;
 	inline std::map<decltype(xml_node_metadata_t::m_id), xml_node_metadata_t> g_entity_xml_metadata;
@@ -973,7 +936,28 @@ namespace big
 	inline std::vector<int> g_entities_filtered;
 
 	inline uintptr_t g_CD3D9Renderer = 0;
-	using CD3D9Renderer_UnProjectFromScreen_t = __int64 (*)(void *this_, float sx, float sy, float sz, float *px, float *py, float *pz);
+
+	using CD3D9Renderer_ProjectToScreen_t = bool (*)(uintptr_t this_, float ptx, float pty, float ptz, float *sx, float *sy, float *sz);
+	/*
+		ptx (float) - world x-coordinate.
+		pty (float) - world y-coordinate.
+		ptz (float) - world z-coordinate.
+		sx (float)* - Pointer to the resulting screen space x-coordinate.
+		sy (float)* - Pointer to the resulting screen space x-coordinate.
+		sz (float)* - Pointer to the depth value (typically between 0.0 and 1.0 in normalized device coordinates).
+		Returns true if successful.
+	*/
+	inline CD3D9Renderer_ProjectToScreen_t g_CD3D9Renderer_ProjectToScreen = nullptr;
+
+	using CD3D9Renderer_UnProjectFromScreen_t = int (*)(void *this_, float sx, float sy, float sz, float *px, float *py, float *pz);
+	/*
+		sx (float) - The x-coordinate in screen space.
+		sy (float) - The y-coordinate in screen space.
+		sz (float) - The depth value (typically between 0.0 and 1.0 in normalized device coordinates).
+		px (float)* - Pointer to the resulting world x-coordinate.
+		py (float)* - Pointer to the resulting world y-coordinate.
+		pz (float)* - Pointer to the resulting world z-coordinate.
+	*/
 	inline CD3D9Renderer_UnProjectFromScreen_t g_CD3D9Renderer_UnProjectFromScreen = nullptr;
 
 	struct IPhysicalEntity
@@ -1190,8 +1174,10 @@ namespace big
 	};
 
 	void target_entity_on_crosshair();
+	void target_entity_on_crosshair_include_cbrush();
 	void target_entity_on_screen_cursor();
 	inline int g_selected_index_entity_detail_inspector = -1;
+	inline int g_selected_cbrush_detail_inspector       = -1;
 
 	inline uintptr_t g_ISystem         = 0;
 	inline uintptr_t *g_gEnv_pGame_ptr = 0;

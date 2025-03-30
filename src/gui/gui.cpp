@@ -147,19 +147,21 @@ namespace big
 		ImGui::Text("Archetype: %s", e.archetype_name.c_str());
 		ImGui::Text("ID: %u (Mask: %u) (Salt: %u)", e.id, e.id_mask, e.id_salt);
 
-		float position[3];
+		Vec3 position;
 		entity->GetPos(position);
-		ImGui::Text("Position: (%.2f, %.2f, %.2f)", position[0], position[1], position[2]);
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
 		if (ImGui::Button("Teleport To Position"))
 		{
-			const auto formatted_str =
-			    std::vformat("if rom and rom.game then "
-			                 "rom.game.player:SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) else player:"
-			                 "SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) end",
-			                 std::make_format_args(position[0], position[1], position[2], position[0], position[1], position[2]));
+			g_player_entity->SetWorldPos(position);
+
+			//const auto formatted_str =
+			//std::vformat("if rom and rom.game then "
+			//"rom.game.player:SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) else player:"
+			//"SetWorldPos({{x={:.2f},y={:.2f},z={:.2f}}}) end",
+			//std::make_format_args(position[0], position[1], position[2], position[0], position[1], position[2]));
 
 
-			g_lua_execute_buffer_queue.push_back(formatted_str);
+			//g_lua_execute_buffer_queue.push_back(formatted_str);
 		}
 
 		ImGui::Text("Active: %s", entity->IsActive() ? "Yes" : "No");
@@ -460,6 +462,95 @@ namespace big
 		{
 			RenderEntityDetails(g_selected_index_entity_detail_inspector);
 		}
+	}
+
+	void RenderCBrushDetail()
+	{
+		ImGui::Begin("CBrush Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		const auto& brush = g_cbrushes[g_selected_cbrush_detail_inspector];
+
+		ImGui::Text("Name: %s", brush->GetName());
+
+		const auto position = brush->GetPos();
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
+		if (ImGui::Button("Teleport To Position"))
+		{
+			g_player_entity->SetWorldPos(position);
+		}
+
+		static float new_pos[3] = {position.x, position.y, position.z};
+
+		static int last_selected_brush = -1;
+		// Reset new_pos if the selected brush changes
+		if (last_selected_brush != g_selected_cbrush_detail_inspector)
+		{
+			new_pos[0]          = position.x;
+			new_pos[1]          = position.y;
+			new_pos[2]          = position.z;
+			last_selected_brush = g_selected_cbrush_detail_inspector;
+		}
+
+		ImGui::Text("New Position:");
+		ImGui::InputFloat3("##position", new_pos);
+
+		if (ImGui::Button("Validate"))
+		{
+			float new_matrix[3 * 4];
+			memcpy(new_matrix, brush->m_Matrix, sizeof(new_matrix));
+			new_matrix[3]  = new_pos[0];
+			new_matrix[7]  = new_pos[1];
+			new_matrix[11] = new_pos[2];
+
+			brush->SetMatrix(new_matrix);
+		}
+
+		ImGui::End();
+	}
+
+	void RenderCBrushInspector()
+	{
+		if (!g_show_cbrush_inspector->get_value())
+		{
+			return;
+		}
+
+		ImGui::ConfigBind(ImGui::Begin, "CBrush Inspector", g_show_cbrush_inspector, 0);
+
+		ImGui::Text("CBrush Count: %llu", g_cbrushes.size());
+		ImGui::Separator();
+
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(g_cbrushes.size()));
+
+		if (ImGui::BeginTable("CBrushTable", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+		{
+			size_t push_id = 0;
+			while (clipper.Step())
+			{
+				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+				{
+					ImGui::PushID(push_id);
+
+					auto* cbrush = g_cbrushes[i];
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					auto brush_name = cbrush->GetName();
+					if (ImGui::Selectable(strlen(brush_name) ? brush_name : "No Name", g_selected_cbrush_detail_inspector == i))
+					{
+						g_selected_cbrush_detail_inspector = i;
+					}
+
+					ImGui::PopID();
+					push_id++;
+				}
+			}
+			ImGui::EndTable();
+		}
+
+		RenderCBrushDetail();
+
+		ImGui::End();
 	}
 
 	static entity_xml_info_t* g_selected_entity_xml_info = nullptr;
@@ -868,6 +959,66 @@ namespace big
 			g_player_entity->SetWorldPos(player_pos);
 		}
 
+		if (g_selected_cbrush_detail_inspector != -1 && g_show_cbrush_inspector->get_value())
+		{
+			const auto& brush = g_cbrushes[g_selected_cbrush_detail_inspector];
+
+			AABB bounds;
+			brush->FillBBox(bounds);
+
+			// Project the 8 corners of the AABB
+			float screen_corners[8][3];
+			const Vec3 bbox_corners[8] = {
+			    {bounds.min.x, bounds.min.y, bounds.min.z}, // 0
+			    {bounds.max.x, bounds.min.y, bounds.min.z}, // 1
+			    {bounds.min.x, bounds.max.y, bounds.min.z}, // 2
+			    {bounds.max.x, bounds.max.y, bounds.min.z}, // 3
+			    {bounds.min.x, bounds.min.y, bounds.max.z}, // 4
+			    {bounds.max.x, bounds.min.y, bounds.max.z}, // 5
+			    {bounds.min.x, bounds.max.y, bounds.max.z}, // 6
+			    {bounds.max.x, bounds.max.y, bounds.max.z}  // 7
+			};
+
+			// Project all corners into screen space
+			for (int i = 0; i < 8; i++)
+			{
+				g_CD3D9Renderer_ProjectToScreen(g_CD3D9Renderer, bbox_corners[i].x, bbox_corners[i].y, bbox_corners[i].z, &screen_corners[i][0], &screen_corners[i][1], &screen_corners[i][2]);
+			}
+
+			// Get screen size for coordinate conversion
+			ImDrawList* draw_list     = ImGui::GetForegroundDrawList();
+			const ImVec2 display_size = ImGui::GetIO().DisplaySize;
+			ImU32 color               = IM_COL32(255, 0, 0, 255); // Red color for the bounding box
+
+			// Define edges to draw
+			const int edges[12][2] = {
+			    {0, 1},
+			    {1, 3},
+			    {3, 2},
+			    {2, 0}, // Bottom face edges
+			    {4, 5},
+			    {5, 7},
+			    {7, 6},
+			    {6, 4}, // Top face edges
+			    {0, 4},
+			    {1, 5},
+			    {2, 6},
+			    {3, 7} // Vertical edges
+			};
+
+			// Draw lines
+			for (const auto& edge : edges)
+			{
+				int idx1 = edge[0];
+				int idx2 = edge[1];
+
+				ImVec2 p1(screen_corners[idx1][0] * display_size.x / 100.0f, screen_corners[idx1][1] * display_size.y / 100.0f);
+				ImVec2 p2(screen_corners[idx2][0] * display_size.x / 100.0f, screen_corners[idx2][1] * display_size.y / 100.0f);
+
+				draw_list->AddLine(p1, p2, color, 2.0f); // Line thickness = 2.0
+			}
+		}
+
 		if (m_is_open)
 		{
 			if (ImGui::BeginMainMenuBar())
@@ -942,6 +1093,8 @@ namespace big
 					ImGui::ConfigBind(ImGui::Checkbox, "Entity Metadata Inspector", g_show_entity_metadata_inspector);
 
 					ImGui::ConfigBind(ImGui::Checkbox, "Entity XML Infos Inspector", g_show_entity_xml_infos_inspector);
+
+					ImGui::ConfigBind(ImGui::Checkbox, "CBrush Inspector", g_show_cbrush_inspector);
 
 					ImGui::ConfigBind(ImGui::Checkbox, "PTF Inspector", g_show_ptf_inspector);
 
@@ -1104,6 +1257,8 @@ namespace big
 				RenderEntityMetadatas();
 
 				RenderEntityXmlInfos();
+
+				RenderCBrushInspector();
 			}
 
 			if (g_show_ptf_inspector->get_value())
@@ -1347,7 +1502,8 @@ namespace big
 
 		if (msg == WM_KEYUP && wparam == g_target_entity_on_crosshair.get_vk_value())
 		{
-			target_entity_on_crosshair();
+			//target_entity_on_crosshair();
+			target_entity_on_crosshair_include_cbrush();
 		}
 
 		if (msg == WM_KEYUP && wparam == g_noclip_enabled_keybind.get_vk_value())
