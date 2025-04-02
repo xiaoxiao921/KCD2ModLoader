@@ -225,31 +225,13 @@ namespace big
 	{
 		big::g_hooking->get_original<hook_CScriptTable_SetMetatable>()(this_, pMetatable);
 
-		if (g_lua_game_metatables.contains(pMetatable))
-		{
-			return;
-		}
-
-		g_lua_game_metatables.insert(pMetatable);
+		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
 
 		auto L = g_lua_manager->lua_state();
-
-		lua_getglobal(L, "__cryengine__metatables");
-
-		// Check if the global table exists, if not, create it
-		if (lua_isnil(L, -1))
-		{
-			lua_pop(L, 1);                               // Pop the nil value
-			lua_newtable(L);                             // Create a new table
-			lua_pushvalue(L, -1);                        // Duplicate the table reference
-			lua_setglobal(L, "__cryengine__metatables"); // Store in _G
-		}
-
-		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
+		sol::state_view state_view(L);
 
 		const auto &cscriptable_info = g_metatable_ptr_to_CScriptable[pMetatable];
 
-		// TODO: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L2618
 		std::string key;
 		if (!cscriptable_info.m_typeid_name.empty())
 		{
@@ -261,12 +243,28 @@ namespace big
 			key                         = std::format("Unknown Metatable {}", unk_counter++);
 		}
 
-		lua_pushstring(L, key.c_str()); // Push key
-		PushRef(this_, pMetatable);     // Push value
-		lua_settable(L, -3);            // __cryengine__metatables[key] = value
-
-		// Pop the __cryengine__metatables table
+		PushRef(this_, this_);
+		const auto table_entry = sol::stack::get<sol::table>(state_view, -1);
 		lua_pop(L, 1);
+		PushRef(this_, pMetatable);
+		const auto metatable_entry = sol::stack::get<sol::table>(state_view, -1);
+		lua_pop(L, 1);
+		std::scoped_lock guard(big::g_lua_manager->m_module_lock);
+		for (const auto &mod_ : big::g_lua_manager->m_modules)
+		{
+			auto mod = (lua_module_ext *)mod_.get();
+			for (const auto &cb : mod->m_data_ext.m_on_cryengine_lua_userdata_bind)
+			{
+				cb(key, table_entry, metatable_entry);
+			}
+		}
+
+		if (g_lua_game_metatables.contains(pMetatable))
+		{
+			return;
+		}
+
+		g_lua_game_metatables.insert(pMetatable);
 	}
 
 	void hook_CScriptableBase_Init(__int64 a1, __int64 IScriptSystem_pSS, __int64 ISystem_pSystem, int nParamIdOffset)

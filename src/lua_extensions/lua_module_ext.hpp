@@ -16,6 +16,8 @@ namespace big
 		std::unordered_map<std::string, std::string> m_cryfile_open_replace_map;
 
 		std::vector<sol::protected_function> m_on_fmod_getevent;
+
+		std::vector<sol::protected_function> m_on_cryengine_lua_userdata_bind;
 	};
 
 	class lua_module_ext : public lua_module

@@ -220,5 +220,23 @@ namespace lua::kcd2
 			// All fmod string events used by the game so far.
 			ns["events"] = sol::as_table(std::ref(big::g_fmod_events));
 		}
+
+		{
+			auto ns = state.create_named("cryengine");
+
+			// Lua API: Function
+			// Table: cryengine
+			// Name: on_lua_userdata_bind
+			// Param: function: function: signature (string cscriptablebase_name, table binded_script_table, table binded_metatable)
+			// The passed function will be called when a cryengine lua userdata is bound.
+			ns["on_lua_userdata_bind"] = [](sol::protected_function f, sol::this_environment env)
+			{
+				auto mod = (big::lua_module_ext*)big::lua_module::this_from(env);
+				if (mod)
+				{
+					mod->m_data_ext.m_on_cryengine_lua_userdata_bind.push_back(f);
+				}
+			};
+		}
 	}
 } // namespace lua::kcd2
