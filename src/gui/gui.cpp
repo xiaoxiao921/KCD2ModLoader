@@ -1015,7 +1015,7 @@ namespace big
 				ImVec2 p1(screen_corners[idx1][0] * display_size.x / 100.0f, screen_corners[idx1][1] * display_size.y / 100.0f);
 				ImVec2 p2(screen_corners[idx2][0] * display_size.x / 100.0f, screen_corners[idx2][1] * display_size.y / 100.0f);
 
-				draw_list->AddLine(p1, p2, color, 2.0f); // Line thickness = 2.0
+				draw_list->AddLine(p1, p2, color, 1.0f);
 			}
 		}
 

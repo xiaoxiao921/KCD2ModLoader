@@ -585,7 +585,6 @@ namespace big
 
 	public:
 		// Transformation Matrix
-		//Matrix34 m_Matrix;
 		float m_Matrix[3 * 4];
 
 		// Physical Entity, when this node is physicalized.

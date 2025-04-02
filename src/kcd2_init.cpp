@@ -1469,18 +1469,23 @@ namespace big
 	{
 		// vtable offset retrieved by looking at the lua exposed function "GetViewCameraPos"
 		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[133];
-		uintptr_t camera_matrix = ((__int64 (*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
+		float *camera_matrix = ((float *(*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
 		Vec3 camera_position;
-		camera_position.x = *(float *)(camera_matrix + 12);
-		camera_position.y = *(float *)(camera_matrix + 12 + 16);
-		camera_position.z = *(float *)(camera_matrix + 12 + 16 + 16);
+		camera_position.x = camera_matrix[3];
+		camera_position.y = camera_matrix[7];
+		camera_position.z = camera_matrix[11];
 
 		Vec3 camera_direction;
-		camera_direction.x = *(float *)(camera_matrix + 4);
-		camera_direction.y = *(float *)(camera_matrix + 4 + 16);
-		camera_direction.z = *(float *)(camera_matrix + 4 + 16 + 16);
+		camera_direction.x = camera_matrix[1];
+		camera_direction.y = camera_matrix[5];
+		camera_direction.z = camera_matrix[9];
 
 		return {camera_position, camera_direction};
+	}
+
+	void GetCameraRenderProjectionMatrix()
+	{
+		// TODO: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/RenderDll/XRenderD3D9/DriverD3D.cpp#L4520
 	}
 
 	void target_entity_on_crosshair()
