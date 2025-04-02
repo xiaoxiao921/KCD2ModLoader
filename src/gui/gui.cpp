@@ -468,6 +468,13 @@ namespace big
 	{
 		ImGui::Begin("CBrush Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
+		if (g_selected_cbrush_detail_inspector < 0 || static_cast<size_t>(g_selected_cbrush_detail_inspector) >= g_cbrushes.size())
+		{
+			ImGui::Text("No brush selected.");
+			ImGui::End();
+			return;
+		}
+
 		const auto& brush = g_cbrushes[g_selected_cbrush_detail_inspector];
 
 		ImGui::Text("Name: %s", brush->GetName());
