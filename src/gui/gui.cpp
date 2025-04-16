@@ -468,7 +468,8 @@ namespace big
 	{
 		ImGui::Begin("CBrush Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-		if (g_selected_cbrush_detail_inspector < 0 || static_cast<size_t>(g_selected_cbrush_detail_inspector) >= g_cbrushes.size())
+		if (g_selected_cbrush_detail_inspector < 0
+		    || static_cast<size_t>(g_selected_cbrush_detail_inspector) >= g_cbrushes.size())
 		{
 			ImGui::Text("No brush selected.");
 			ImGui::End();
@@ -488,20 +489,24 @@ namespace big
 
 		static float new_pos[3] = {position.x, position.y, position.z};
 
-		static int last_selected_brush = -1;
+		static int last_selected_brush_index = -1;
 		// Reset new_pos if the selected brush changes
-		if (last_selected_brush != g_selected_cbrush_detail_inspector)
+		if (last_selected_brush_index != g_selected_cbrush_detail_inspector)
 		{
-			new_pos[0]          = position.x;
-			new_pos[1]          = position.y;
-			new_pos[2]          = position.z;
-			last_selected_brush = g_selected_cbrush_detail_inspector;
+			new_pos[0]                = position.x;
+			new_pos[1]                = position.y;
+			new_pos[2]                = position.z;
+			last_selected_brush_index = g_selected_cbrush_detail_inspector;
 		}
+
+		ImGui::Text("Matrix Manipulation Mode:");
+		ImGui::RadioButton("Local", &g_imguizmo_editor_local_or_world, ImGuizmo::LOCAL);
+		ImGui::SameLine();
+		ImGui::RadioButton("World", &g_imguizmo_editor_local_or_world, ImGuizmo::WORLD);
 
 		ImGui::Text("New Position:");
 		ImGui::InputFloat3("##position", new_pos);
-
-		if (ImGui::Button("Validate"))
+		if (ImGui::Button("Validate Position"))
 		{
 			float new_matrix[3 * 4];
 			memcpy(new_matrix, brush->m_Matrix, sizeof(new_matrix));
@@ -511,6 +516,32 @@ namespace big
 
 			brush->SetMatrix(new_matrix);
 		}
+
+		if (ImGui::Button("Clone"))
+		{
+			auto brush_cloned = brush->Clone();
+
+			// SetMatrix needed otherwise the cloned brush will be invisible for some reason?
+			brush_cloned->SetMatrix(brush->m_Matrix);
+		}
+
+		ImGui::Text("CStatObj Index:");
+		ImGui::SameLine();
+		static int cstat_obj_index = 0;
+		ImGui::InputInt("##CStatObjIndex", &cstat_obj_index);
+		if (cstat_obj_index < 0)
+		{
+			cstat_obj_index = 0;
+		}
+		else if (cstat_obj_index >= g_cstatobjs.size())
+		{
+			cstat_obj_index = g_cstatobjs.size() - 1;
+		}
+
+		/*if (ImGui::Button("SetStatObj Test"))
+		{
+			g_CBrush_SetStatObj(brush, (void*)g_cstatobjs[cstat_obj_index]);
+		}*/
 
 		ImGui::End();
 	}
@@ -556,6 +587,94 @@ namespace big
 		}
 
 		RenderCBrushDetail();
+
+		ImGui::End();
+	}
+
+	void RenderCMergedMeshRenderNodeDetail()
+	{
+		ImGui::Begin("CMergedMeshRenderNode Details", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		if (g_selected_CMergedMeshRenderNode_detail_inspector < 0
+		    || static_cast<size_t>(g_selected_CMergedMeshRenderNode_detail_inspector) >= g_CMergedMeshRenderNodes.size())
+		{
+			ImGui::Text("No CMergedMeshRenderNode selected.");
+			ImGui::End();
+			return;
+		}
+
+		const auto& obj = g_CMergedMeshRenderNodes[g_selected_CMergedMeshRenderNode_detail_inspector];
+
+		ImGui::Text("Name: %s", obj->GetName());
+
+		const auto position = obj->GetPos();
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
+		if (ImGui::Button("Teleport To Position"))
+		{
+			g_player_entity->SetWorldPos(position);
+		}
+
+		static float new_pos[3] = {position.x, position.y, position.z};
+
+		static int last_selected_obj_index = -1;
+		// Reset new_pos if the selected obj changes
+		if (last_selected_obj_index != g_selected_CMergedMeshRenderNode_detail_inspector)
+		{
+			new_pos[0]              = position.x;
+			new_pos[1]              = position.y;
+			new_pos[2]              = position.z;
+			last_selected_obj_index = g_selected_CMergedMeshRenderNode_detail_inspector;
+		}
+
+		ImGui::Text("Matrix Manipulation Mode:");
+		ImGui::RadioButton("Local", &g_imguizmo_editor_local_or_world, ImGuizmo::LOCAL);
+		ImGui::SameLine();
+		ImGui::RadioButton("World", &g_imguizmo_editor_local_or_world, ImGuizmo::WORLD);
+
+		ImGui::End();
+	}
+
+	void RenderCMergedMeshRenderNodeInspector()
+	{
+		if (!g_show_CMergedMeshRenderNode_inspector->get_value())
+		{
+			return;
+		}
+
+		ImGui::ConfigBind(ImGui::Begin, "CMergedMeshRenderNode Inspector", g_show_CMergedMeshRenderNode_inspector, 0);
+
+		ImGui::Text("CMergedMeshRenderNode Count: %llu", g_CMergedMeshRenderNodes.size());
+		ImGui::Separator();
+
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(g_CMergedMeshRenderNodes.size()));
+
+		if (ImGui::BeginTable("CMergedMeshRenderNodeTable", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+		{
+			size_t push_id = 0;
+			while (clipper.Step())
+			{
+				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+				{
+					ImGui::PushID(push_id);
+
+					auto obj = g_CMergedMeshRenderNodes[i];
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					auto name = obj->GetName();
+					if (ImGui::Selectable(strlen(name) ? name : "No Name", g_selected_CMergedMeshRenderNode_detail_inspector == i))
+					{
+						g_selected_CMergedMeshRenderNode_detail_inspector = i;
+					}
+
+					ImGui::PopID();
+					push_id++;
+				}
+			}
+			ImGui::EndTable();
+		}
+
+		RenderCMergedMeshRenderNodeDetail();
 
 		ImGui::End();
 	}
@@ -914,7 +1033,7 @@ namespace big
 
 		if (g_noclip_enabled && g_noclip_enabled->get_value() && g_player_entity && foreground_window == g_renderer->m_window_handle)
 		{
-			const auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+			const auto camera_pos_and_dir = get_camera_position_and_direction();
 			auto player_pos               = g_player_entity->GetWorldPos();
 
 			static float previous_z = player_pos.z;
@@ -966,54 +1085,126 @@ namespace big
 			g_player_entity->SetWorldPos(player_pos);
 		}
 
-		if (g_selected_cbrush_detail_inspector != -1 && g_show_cbrush_inspector->get_value())
+		if (g_show_cbrush_inspector->get_value() && g_selected_cbrush_detail_inspector > 0
+		    && g_selected_cbrush_detail_inspector < g_cbrushes.size())
 		{
-			const auto& brush = g_cbrushes[g_selected_cbrush_detail_inspector];
+			auto& brush = g_cbrushes[g_selected_cbrush_detail_inspector];
 
 			AABB bounds;
 			brush->FillBBox(bounds);
 
-			// Project the 8 corners of the AABB
-			float screen_corners[8][3];
-			const Vec3 bbox_corners[8] = {
-			    {bounds.min.x, bounds.min.y, bounds.min.z}, // 0
-			    {bounds.max.x, bounds.min.y, bounds.min.z}, // 1
-			    {bounds.min.x, bounds.max.y, bounds.min.z}, // 2
-			    {bounds.max.x, bounds.max.y, bounds.min.z}, // 3
-			    {bounds.min.x, bounds.min.y, bounds.max.z}, // 4
-			    {bounds.max.x, bounds.min.y, bounds.max.z}, // 5
-			    {bounds.min.x, bounds.max.y, bounds.max.z}, // 6
-			    {bounds.max.x, bounds.max.y, bounds.max.z}  // 7
-			};
+			float brush_matrix[3 * 4];
+			memcpy(brush_matrix, brush->m_Matrix, sizeof(brush_matrix));
 
-			// Project all corners into screen space
+			ImGuiIO& io           = ImGui::GetIO();
+			ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+			ImVec2 display_size   = io.DisplaySize;
+
+			ImGuizmo::SetOrthographic(false);
+			ImGuizmo::SetDrawlist(draw_list);
+
+			auto [view_matrix, projection_matrix] = get_camera_view_and_projection_matrix();
+
+			ImGuizmo::SetRect(0, 0, display_size.x, display_size.y);
+
+			float brush_matrix_4x4[16] = {brush_matrix[0], brush_matrix[1], brush_matrix[2], 0.0f, brush_matrix[4], brush_matrix[5], brush_matrix[6], 0.0f, brush_matrix[8], brush_matrix[9], brush_matrix[10], 0.0f, brush_matrix[3], brush_matrix[7], brush_matrix[11], 1.0f};
+
+			if (ImGuizmo::Manipulate(view_matrix, projection_matrix, ImGuizmo::TRANSLATE | ImGuizmo::ROTATE | ImGuizmo::SCALE, (ImGuizmo::MODE)g_imguizmo_editor_local_or_world, brush_matrix_4x4))
+			{
+				// Extract updated values back to your 3×4 matrix
+				brush_matrix[0]  = brush_matrix_4x4[0];
+				brush_matrix[1]  = brush_matrix_4x4[1];
+				brush_matrix[2]  = brush_matrix_4x4[2];
+				brush_matrix[4]  = brush_matrix_4x4[4];
+				brush_matrix[5]  = brush_matrix_4x4[5];
+				brush_matrix[6]  = brush_matrix_4x4[6];
+				brush_matrix[8]  = brush_matrix_4x4[8];
+				brush_matrix[9]  = brush_matrix_4x4[9];
+				brush_matrix[10] = brush_matrix_4x4[10];
+
+				brush_matrix[3]  = brush_matrix_4x4[12];
+				brush_matrix[7]  = brush_matrix_4x4[13];
+				brush_matrix[11] = brush_matrix_4x4[14];
+
+				brush->SetMatrix(brush_matrix);
+
+				//static auto
+
+				// TODO:
+				// - Saving brush modifications to a file, uniquely identify a Brush by its name, and its position.
+				// - Creating a new brush:
+				// Loading and spawning a brush from disk: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/Cry3DEngine/ObjectsTree_Serialize.cpp#L796
+				// Cloning existing brush:  https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/Cry3DEngine/terran_edit.cpp#L651
+				// - Adding completly custom assets: CMatMan::LoadMaterial -> CObjMan::LoadStatObjAsync
+				// https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/Cry3DEngine/3dEngineLoad.cpp#L822
+			}
+
+			// Project and draw bounding box as before
+			/*float screen_corners[8][3];
+			const Vec3 bbox_corners[8] = {{bounds.min.x, bounds.min.y, bounds.min.z},
+			                              {bounds.max.x, bounds.min.y, bounds.min.z},
+			                              {bounds.min.x, bounds.max.y, bounds.min.z},
+			                              {bounds.max.x, bounds.max.y, bounds.min.z},
+			                              {bounds.min.x, bounds.min.y, bounds.max.z},
+			                              {bounds.max.x, bounds.min.y, bounds.max.z},
+			                              {bounds.min.x, bounds.max.y, bounds.max.z},
+			                              {bounds.max.x, bounds.max.y, bounds.max.z}};
+
 			for (int i = 0; i < 8; i++)
 			{
 				g_CD3D9Renderer_ProjectToScreen(g_CD3D9Renderer, bbox_corners[i].x, bbox_corners[i].y, bbox_corners[i].z, &screen_corners[i][0], &screen_corners[i][1], &screen_corners[i][2]);
 			}
 
-			// Get screen size for coordinate conversion
-			ImDrawList* draw_list     = ImGui::GetForegroundDrawList();
-			const ImVec2 display_size = ImGui::GetIO().DisplaySize;
-			ImU32 color               = IM_COL32(255, 0, 0, 255); // Red color for the bounding box
+			const int edges[12][2] = {{0, 1}, {1, 3}, {3, 2}, {2, 0}, {4, 5}, {5, 7}, {7, 6}, {6, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 
-			// Define edges to draw
-			const int edges[12][2] = {
-			    {0, 1},
-			    {1, 3},
-			    {3, 2},
-			    {2, 0}, // Bottom face edges
-			    {4, 5},
-			    {5, 7},
-			    {7, 6},
-			    {6, 4}, // Top face edges
-			    {0, 4},
-			    {1, 5},
-			    {2, 6},
-			    {3, 7} // Vertical edges
-			};
+			ImU32 color = IM_COL32(255, 0, 0, 255);
 
-			// Draw lines
+			for (const auto& edge : edges)
+			{
+				int idx1 = edge[0];
+				int idx2 = edge[1];
+
+				ImVec2 p1(screen_corners[idx1][0] * display_size.x / 100.0f, screen_corners[idx1][1] * display_size.y / 100.0f);
+				ImVec2 p2(screen_corners[idx2][0] * display_size.x / 100.0f, screen_corners[idx2][1] * display_size.y / 100.0f);
+
+				draw_list->AddLine(p1, p2, color, 1.0f);
+			}*/
+		}
+
+		if (g_show_CMergedMeshRenderNode_inspector->get_value() && g_selected_CMergedMeshRenderNode_detail_inspector > 0
+		    && g_selected_CMergedMeshRenderNode_detail_inspector < g_CMergedMeshRenderNodes.size())
+		{
+			auto& obj = g_CMergedMeshRenderNodes[g_selected_CMergedMeshRenderNode_detail_inspector];
+
+			AABB bounds;
+			obj->FillBBox(bounds);
+
+			ImGuiIO& io           = ImGui::GetIO();
+			ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+			ImVec2 display_size   = io.DisplaySize;
+
+			//auto [view_matrix, projection_matrix] = get_camera_view_and_projection_matrix();
+
+			// Project and draw bounding box as before
+			float screen_corners[8][3];
+			const Vec3 bbox_corners[8] = {{bounds.min.x, bounds.min.y, bounds.min.z},
+			                              {bounds.max.x, bounds.min.y, bounds.min.z},
+			                              {bounds.min.x, bounds.max.y, bounds.min.z},
+			                              {bounds.max.x, bounds.max.y, bounds.min.z},
+			                              {bounds.min.x, bounds.min.y, bounds.max.z},
+			                              {bounds.max.x, bounds.min.y, bounds.max.z},
+			                              {bounds.min.x, bounds.max.y, bounds.max.z},
+			                              {bounds.max.x, bounds.max.y, bounds.max.z}};
+
+			for (int i = 0; i < 8; i++)
+			{
+				g_CD3D9Renderer_ProjectToScreen(g_CD3D9Renderer, bbox_corners[i].x, bbox_corners[i].y, bbox_corners[i].z, &screen_corners[i][0], &screen_corners[i][1], &screen_corners[i][2]);
+			}
+
+			const int edges[12][2] = {{0, 1}, {1, 3}, {3, 2}, {2, 0}, {4, 5}, {5, 7}, {7, 6}, {6, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+
+			ImU32 color = IM_COL32(255, 0, 0, 255);
+
 			for (const auto& edge : edges)
 			{
 				int idx1 = edge[0];
@@ -1102,6 +1293,8 @@ namespace big
 					ImGui::ConfigBind(ImGui::Checkbox, "Entity XML Infos Inspector", g_show_entity_xml_infos_inspector);
 
 					ImGui::ConfigBind(ImGui::Checkbox, "CBrush Inspector", g_show_cbrush_inspector);
+
+					ImGui::ConfigBind(ImGui::Checkbox, "CMergedMesh Inspector", g_show_CMergedMeshRenderNode_inspector);
 
 					ImGui::ConfigBind(ImGui::Checkbox, "PTF Inspector", g_show_ptf_inspector);
 
@@ -1266,6 +1459,8 @@ namespace big
 				RenderEntityXmlInfos();
 
 				RenderCBrushInspector();
+
+				RenderCMergedMeshRenderNodeInspector();
 			}
 
 			if (g_show_ptf_inspector->get_value())
@@ -1507,22 +1702,25 @@ namespace big
 			target_entity_on_screen_cursor();
 		}
 
-		if (msg == WM_KEYUP && wparam == g_target_entity_on_crosshair.get_vk_value())
+		if (!m_is_open)
 		{
-			//target_entity_on_crosshair();
-			target_entity_on_crosshair_include_cbrush();
-		}
+			if (msg == WM_KEYUP && wparam == g_target_entity_on_crosshair.get_vk_value())
+			{
+				target_entity_on_crosshair();
+				target_entity_on_crosshair_include_cbrush();
+			}
 
-		if (msg == WM_KEYUP && wparam == g_noclip_enabled_keybind.get_vk_value())
-		{
-			g_noclip_enabled->set_value(!g_noclip_enabled->get_value());
+			if (msg == WM_KEYUP && wparam == g_noclip_enabled_keybind.get_vk_value())
+			{
+				g_noclip_enabled->set_value(!g_noclip_enabled->get_value());
+			}
 		}
 
 		if (msg == WM_KEYUP && wparam == g_gui_toggle.get_vk_value())
 		{
 			// Persist and restore the cursor position between menu instances.
 			static POINT cursor_coords{};
-			if (g_gui->m_is_open)
+			if (m_is_open)
 			{
 				GetCursorPos(&cursor_coords);
 			}

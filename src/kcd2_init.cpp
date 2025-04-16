@@ -155,7 +155,7 @@ namespace big
 	static sol::optional<sol::environment> env_to_add;
 	static kcd2_address game_lua_pcall;
 
-	//static std::unordered_set<size_t> g_lua_different_threads;
+	//static ankerl::unordered_dense::set<size_t> g_lua_different_threads;
 
 	static int hook_game_lua_pcall(lua_State *L, int nargs, int nresults, int errfunc)
 	{
@@ -203,7 +203,7 @@ namespace big
 	{
 	}
 
-	static std::unordered_set<void *> g_lua_game_metatables;
+	static ankerl::unordered_dense::set<void *> g_lua_game_metatables;
 
 	class vtable_helper
 	{
@@ -219,7 +219,7 @@ namespace big
 		std::string m_typeid_name;
 	};
 
-	static std::unordered_map<void *, CScriptableBase_info> g_metatable_ptr_to_CScriptable;
+	static ankerl::unordered_dense::map<void *, CScriptableBase_info> g_metatable_ptr_to_CScriptable;
 
 	static void hook_CScriptTable_SetMetatable(void *this_, void *pMetatable)
 	{
@@ -282,18 +282,18 @@ namespace big
 		}
 	}
 
-	static void *hook_lua_custom_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
+	static void *hook_lua_mimalloc(void *ud, void *ptr, size_t osize, size_t nsize)
 	{
 		(void)ud;
 		(void)osize;
 		if (nsize == 0)
 		{
-			free(ptr);
+			mi_free(ptr);
 			return NULL;
 		}
 		else
 		{
-			return realloc(ptr, nsize);
+			return mi_realloc_aligned(ptr, nsize, 16);
 		}
 	}
 
@@ -331,7 +331,7 @@ namespace big
 		big::hooking::detour_hook_helper::add_queue<hook_CScriptableBase_Init>("hook_CScriptableBase_Init",
 		                                                                       CScriptableBase_Init_func.get_call());
 		const auto lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88");
-		big::hooking::detour_hook_helper::add_queue<hook_lua_custom_alloc>("hook_lua_custom_alloc", lua_custom_alloc.get_call());
+		big::hooking::detour_hook_helper::add_queue<hook_lua_mimalloc>("hook_lua_custom_alloc", lua_custom_alloc.get_call());
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
@@ -1028,6 +1028,108 @@ namespace big
 		return res;
 	}
 
+	static __int64 hook_CStatObj_dctor(uintptr_t this_, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CStatObj_dctor>()(this_, a2);
+
+		const auto it = std::find(g_cstatobjs.begin(), g_cstatobjs.end(), this_);
+		if (it != g_cstatobjs.end())
+		{
+			*it = g_cstatobjs.back();
+			g_cstatobjs.pop_back();
+		}
+
+		return res;
+	}
+
+	static void *hook_CStatObj_ctor(uintptr_t this_)
+	{
+		const auto res = big::g_hooking->get_original<hook_CStatObj_ctor>()(this_);
+
+		g_cstatobjs.push_back(this_);
+
+		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CStatObj_dctor>("hook_CStatObj_dctor", (*reinterpret_cast<void ***>(this_))[0]);
+
+		return res;
+	}
+
+	static __int64 hook_CGeomCacheRenderNode_dctor(IRenderNode *this_, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CGeomCacheRenderNode_dctor>()(this_, a2);
+
+		const auto it = std::find(g_CGeomCacheRenderNodes.begin(), g_CGeomCacheRenderNodes.end(), this_);
+		if (it != g_CGeomCacheRenderNodes.end())
+		{
+			*it = g_CGeomCacheRenderNodes.back();
+			g_CGeomCacheRenderNodes.pop_back();
+		}
+
+		return res;
+	}
+
+	static void *hook_CGeomCacheRenderNode_ctor(IRenderNode *this_)
+	{
+		const auto res = big::g_hooking->get_original<hook_CGeomCacheRenderNode_ctor>()(this_);
+
+		g_CGeomCacheRenderNodes.push_back(this_);
+
+		static auto hook_dctor =
+		    big::hooking::detour_hook_helper::add<hook_CGeomCacheRenderNode_dctor>("hook_CGeomCacheRenderNode_dctor", (*reinterpret_cast<void ***>(this_))[0]);
+
+		return res;
+	}
+
+	static __int64 hook_CVegetation_dctor(IRenderNode *this_, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CVegetation_dctor>()(this_, a2);
+
+		const auto it = std::find(g_CVegetations.begin(), g_CVegetations.end(), this_);
+		if (it != g_CVegetations.end())
+		{
+			*it = g_CVegetations.back();
+			g_CVegetations.pop_back();
+		}
+
+		return res;
+	}
+
+	static void *hook_CVegetation_ctor(IRenderNode *this_)
+	{
+		const auto res = big::g_hooking->get_original<hook_CVegetation_ctor>()(this_);
+
+		g_CVegetations.push_back(this_);
+
+		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CVegetation_dctor>("hook_CVegetation_dctor", (*reinterpret_cast<void ***>(this_))[0]);
+
+		return res;
+	}
+
+	static __int64 hook_CMergedMeshRenderNode_dctor(IRenderNode *this_, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CMergedMeshRenderNode_dctor>()(this_, a2);
+
+		const auto it = std::find(g_CMergedMeshRenderNodes.begin(), g_CMergedMeshRenderNodes.end(), this_);
+		if (it != g_CMergedMeshRenderNodes.end())
+		{
+			*it = g_CMergedMeshRenderNodes.back();
+			g_CMergedMeshRenderNodes.pop_back();
+		}
+
+		return res;
+	}
+
+	static void *hook_CMergedMeshRenderNode_ctor(IRenderNode *this_)
+	{
+		const auto res = big::g_hooking->get_original<hook_CMergedMeshRenderNode_ctor>()(this_);
+
+		g_CMergedMeshRenderNodes.push_back(this_);
+
+		static auto hook_dctor =
+		    big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_dctor>("hook_CMergedMeshRenderNode_dctor", (*reinterpret_cast<void ***>(this_))[0]);
+
+		return res;
+	}
+
 	static __int64 hook_CBrush_dctor(CBrush *inst, char a2)
 	{
 		const auto res = big::g_hooking->get_original<hook_CBrush_dctor>()(inst, a2);
@@ -1042,7 +1144,7 @@ namespace big
 		return res;
 	}
 
-	static std::unordered_set<void *> g_CBrush_callers;
+	static ankerl::unordered_dense::set<void *> g_CBrush_callers;
 
 	static big::stack_trace trace;
 
@@ -1068,6 +1170,31 @@ namespace big
 		}
 	}
 
+	__int64 __fastcall hook_CMovableBrush_ctor(uintptr_t a1)
+	{
+		const auto res = big::g_hooking->get_original<hook_CMovableBrush_ctor>()(a1);
+
+		return res;
+	}
+
+	PBYTE hook_vtable_func(uintptr_t **ppVTable, PBYTE pHook, SIZE_T iIndex)
+	{
+		DWORD dwOld = 0;
+		VirtualProtect((void *)((*ppVTable) + iIndex), sizeof(PDWORD64), PAGE_EXECUTE_READWRITE, &dwOld);
+
+		PBYTE pOrig         = ((PBYTE)(*ppVTable)[iIndex]);
+		(*ppVTable)[iIndex] = (DWORD64)pHook;
+		VirtualProtect((void *)((*ppVTable) + iIndex), sizeof(PDWORD64), dwOld, &dwOld);
+
+		return pOrig;
+	}
+
+	static EERType CMovableBrush_GetRenderNodeType()
+	{
+		//return eERType_MovableBrush;
+		return eERType_Brush;
+	}
+
 	static __int64 hook_CBrush_ctor(CBrush *a1, __int64 a2)
 	{
 		const auto ret_address = _ReturnAddress();
@@ -1083,9 +1210,16 @@ namespace big
 		//log_stack_trace();
 		//}
 
+		//const auto res = big::g_hooking->get_original<hook_CMovableBrush_ctor>()((uintptr_t)a1);
 		const auto res = big::g_hooking->get_original<hook_CBrush_ctor>()(a1, a2);
 
 		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", (*reinterpret_cast<void ***>(a1))[0]);
+		//static auto hook_vtable_once = true;
+		//if (hook_vtable_once)
+		//{
+		//hook_vtable_once = false;
+		//hook_vtable_func((*reinterpret_cast<uintptr_t ***>(a1)), (PBYTE)CMovableBrush_GetRenderNodeType, 7);
+		//}
 
 		g_cbrushes.push_back(a1);
 
@@ -1124,6 +1258,64 @@ namespace big
 		g_C_Player = a1;
 
 		const auto res = big::g_hooking->get_original<hook_C_Player_ctor>()(a1);
+
+		return res;
+	}
+
+	std::recursive_mutex g_rendernodes_mutex;
+
+	inline void hook_C3DEngine_UnRegisterEntityImpl(uintptr_t this_, IRenderNode *node)
+	{
+		big::g_hooking->get_original<hook_C3DEngine_UnRegisterEntityImpl>()(this_, node);
+
+		std::scoped_lock l(g_rendernodes_mutex);
+
+		const auto it = std::find(g_rendernodes.begin(), g_rendernodes.end(), node);
+		if (it != g_rendernodes.end())
+		{
+			*it = g_rendernodes.back();
+			g_rendernodes.pop_back();
+		}
+	}
+
+	bool is_render_node_valid(IRenderNode *node)
+	{
+		__try
+		{
+			node->GetPhysics();
+			return true;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+
+		return false;
+	}
+
+	inline void hook_C3DEngine_RegisterEntity(uintptr_t this_, IRenderNode *node)
+	{
+		big::g_hooking->get_original<hook_C3DEngine_RegisterEntity>()(this_, node);
+
+		std::scoped_lock l(g_rendernodes_mutex);
+
+		if (is_render_node_valid(node))
+		{
+			g_rendernodes.push_back(node);
+		}
+	}
+
+	__int64 hook_C3DEngine_ctor(__int64 a1)
+	{
+		g_C3DEngine = a1;
+
+		const auto res = big::g_hooking->get_original<hook_C3DEngine_ctor>()(a1);
+
+		static auto hook_register =
+		    big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", (*reinterpret_cast<void ***>(a1))[38]);
+		static auto hook_unregister = big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>(
+		    "hook_C3DEngine_UnRegisterEntityImpl",
+		    kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call());
 
 		return res;
 	}
@@ -1465,11 +1657,19 @@ namespace big
 		}
 	}
 
-	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection()
+	uintptr_t isystem_get_camera()
 	{
 		// vtable offset retrieved by looking at the lua exposed function "GetViewCameraPos"
-		const auto ISystem_GetViewCameraMatrix_func = (*reinterpret_cast<void ***>(g_ISystem))[133];
-		float *camera_matrix = ((float *(*)(uint64_t))ISystem_GetViewCameraMatrix_func)(g_ISystem);
+
+		const auto ISystem_GetCamera_func = (*reinterpret_cast<void ***>(g_ISystem))[133];
+		return ((uintptr_t (*)(uintptr_t))ISystem_GetCamera_func)(g_ISystem);
+	}
+
+	std::pair<Vec3, Vec3> get_camera_position_and_direction()
+	{
+		// offsets retrieved by looking at the lua exposed function "GetViewCameraPos"
+
+		float *camera_matrix = (float *)isystem_get_camera();
 		Vec3 camera_position;
 		camera_position.x = camera_matrix[3];
 		camera_position.y = camera_matrix[7];
@@ -1483,9 +1683,16 @@ namespace big
 		return {camera_position, camera_direction};
 	}
 
-	void GetCameraRenderProjectionMatrix()
+	std::pair<float *, float *> get_camera_view_and_projection_matrix()
 	{
-		// TODO: https://github.com/ValtoGameEngines/CryEngine/blob/d9d2c9f000836f0676e65a90bed40dcc3b1451eb/Code/CryEngine/RenderDll/XRenderD3D9/DriverD3D.cpp#L4520
+		// offsets retrieved by looking at CD3D9Renderer_UnProjectFromScreen
+
+		uintptr_t ccamera = isystem_get_camera();
+
+		const auto view_matrix44 = (float *)(ccamera + 548);
+		const auto proj_matrix44 = (float *)(ccamera + 548 + (4 * 4 * sizeof(float)));
+
+		return {view_matrix44, proj_matrix44};
 	}
 
 	void target_entity_on_crosshair()
@@ -1495,21 +1702,18 @@ namespace big
 			return;
 		}
 
-		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+		auto camera_pos_and_dir = get_camera_position_and_direction();
 
 		// Extend the max range distance to 1000
-		Vec3 ray_dir_range = camera_pos_and_dir.second * 1000.0f;
+		Vec3 ray_dir_range = camera_pos_and_dir.second * 100000.0f;
 
 		void *pSkipEnts[1];
 		pSkipEnts[0] = g_player_entity->GetPhysics();
 
-		//constexpr int geom_flags_val = geom_colltype0 << rwi_colltype_bit | rwi_stop_at_pierceable;
-
 		ray_hit_t ray_hit;
-		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_ignore_noncolliding | rwi_stop_at_pierceable, &ray_hit, 1, pSkipEnts, 1))
+		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &ray_hit, 1, pSkipEnts, 1))
 		{
-			const auto PHYS_FOREIGN_ID_STATIC = 2;
-			const auto hit_entity             = ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+			const auto hit_entity = (CEntity *)ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 			if (hit_entity)
 			{
 				LOG(INFO) << "[Raycast] Entity hit: " << hit_entity->GetName();
@@ -1531,16 +1735,48 @@ namespace big
 		g_selected_index_entity_detail_inspector = -1;
 	}
 
-	void target_entity_on_crosshair_include_cbrush()
+	EERType safe_render_node_type(IRenderNode *node)
+	{
+		EERType render_node_type = eERType_NotRenderNode;
+		__try
+		{
+			render_node_type = node->GetRenderNodeType();
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return eERType_NotRenderNode;
+		}
+
+		return render_node_type;
+	}
+
+	std::mutex g_cphysicalentity_mutex;
+
+	void unregister_all_rendernode()
+	{
+		for (auto render_node : g_rendernodes)
+		{
+			__try
+			{
+				big::g_hooking->get_original<hook_C3DEngine_UnRegisterEntityImpl>()(g_C3DEngine, render_node);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+				continue;
+			}
+		}
+	}
+
+	void offset_every_object_around()
 	{
 		if (!g_player_entity)
 		{
 			return;
 		}
 
-		LOG(INFO) << "target_entity_on_crosshair_include_cbrush";
+		LOG(INFO) << "offset_every_object_around";
 
-		auto camera_pos_and_dir = GetViewCameraPositionAndDirection();
+		auto camera_pos_and_dir = get_camera_position_and_direction();
 
 		// Extend the max range distance
 		Vec3 ray_dir_range = camera_pos_and_dir.second * 100000.0f;
@@ -1549,13 +1785,12 @@ namespace big
 		pSkipEnts[0] = g_player_entity->GetPhysics();
 
 		ray_hit_t ray_hit;
-		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_ignore_noncolliding | rwi_stop_at_pierceable, &ray_hit, 1, pSkipEnts, 1))
+		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &ray_hit, 1, pSkipEnts, 1))
 		{
-			const auto PHYS_FOREIGN_ID_STATIC = 2;
 			CEntity *hit_entity{};
 			if (ray_hit.pCollider)
 			{
-				hit_entity = ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+				hit_entity = (CEntity *)ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 			}
 			if (hit_entity)
 			{
@@ -1573,7 +1808,8 @@ namespace big
 
 					for (size_t i = 0; i < g_cbrushes.size(); ++i)
 					{
-						const auto cbrush_pos  = g_cbrushes[i]->GetPos();
+						const auto cbrush_pos = g_cbrushes[i]->GetPos();
+
 						float current_distance = (hit_position - cbrush_pos).Length();
 
 						if (current_distance < min_distance)
@@ -1589,8 +1825,199 @@ namespace big
 					auto brush_pos  = g_cbrushes[best_cbrush_index]->GetPos();
 					LOG(INFO) << "Best cbrush id found: " << best_cbrush_index << " Name: " << (brush_name ? brush_name : "No Name")
 					          << " Position: " << brush_pos.x << " " << brush_pos.y << " " << brush_pos.z;
+
+					//const Vec3 offset_pos = {0, 0, 500.0f};
+					const Vec3 offset_pos = {0, 0, 0};
+
+
+					//static auto ResetTerrainVertBuffers =
+					//kcd2_address::scan("48 83 EC ? 48 8B 49 ? 48 85 C9 74 ? 4C 8B C2");
+
+					//ResetTerrainVertBuffers.as_func<void(__int64, void *)>()(g_CTerrain, nullptr);
+
+					// move every cbrush position around the best cbrush found, all cbrush within 100 of distance.
+					for (size_t i = 0; i < g_cbrushes.size(); ++i)
+					{
+						const auto cbrush_pos  = g_cbrushes[i]->GetPos();
+						float current_distance = (cbrush_pos - brush_pos).Length();
+						if (current_distance < 1000.0f)
+						{
+							float new_matrix[3 * 4];
+							memcpy(new_matrix, g_cbrushes[i]->m_Matrix, sizeof(new_matrix));
+							//new_matrix[3]  = new_matrix[3] + 50.0f;
+							//new_matrix[7]  = new_matrix[7] + 50.0f;
+							//new_matrix[11] = new_matrix[11] + 50.0f;
+
+							//g_cbrushes[i]->SetMatrix(new_matrix);
+
+							//g_cbrushes[i]->m_bNoPhysicalize = false;
+							//#define BIT64(x) (1ull << (x))
+							//g_cbrushes[i]->m_dwRndFlags &= ~(BIT64(39)); // ERF_NO_3DENGINE_REGISTRATION
+
+							//auto aabb_obj = g_cbrushes[i]->GetBBox();
+
+							//g_cbrushes[i]->OffsetPosition(offset_pos);
+							//C3DEngine_UnRegisterEntityDirect(g_cbrushes[i]);
+
+							//g_cbrushes[i]->Dephysicalize();
+							//C3DEngine_UnRegisterEntityDirect(g_cbrushes[i]);
+
+							// GetTerrain()->ResetTerrainVertBuffers(&aabb);
+							//(*(void(__fastcall **)(__int64, void *))(*(uintptr_t *)g_CTerrain + 152))(g_CTerrain, &aabb_obj);
+
+							//C3DEngine_RegisterEntity(g_cbrushes[i]);
+							//g_cbrushes[i]->Physicalize(true);
+							//LOG(INFO) << "Moved cbrush id: " << i << " to position: " << new_matrix[3] << " " << new_matrix[7] << " " << new_matrix[11];
+						}
+					}
+
+					//const Vec3 offset_pos = {50.0f, 50.0f, 50.0f};
+					for (size_t i = 0; i < g_CMergedMeshRenderNodes.size(); ++i)
+					{
+						const auto cbrush_pos  = g_CMergedMeshRenderNodes[i]->GetPos();
+						float current_distance = (cbrush_pos - brush_pos).Length();
+						if (current_distance < 1000.0f)
+						{
+							//g_CMergedMeshRenderNodes[i]->OffsetPosition(offset_pos);
+							//C3DEngine_UnRegisterEntityDirect(g_CMergedMeshRenderNodes[i]);
+
+							//g_CMergedMeshRenderNodes[i]->Dephysicalize();
+							//C3DEngine_UnRegisterEntityDirect(g_CMergedMeshRenderNodes[i]);
+
+							//auto aabb_obj = g_CMergedMeshRenderNodes[i]->GetBBox();
+
+							// GetTerrain()->ResetTerrainVertBuffers(&aabb);
+							//(*(void(__fastcall **)(__int64, void *))(*(uintptr_t *)g_CTerrain + 152LL))(g_CTerrain, &aabb_obj);
+							//ResetTerrainVertBuffers.as_func<void(__int64, void *)>()(g_CTerrain, &aabb_obj);
+
+							//C3DEngine_RegisterEntity(g_CMergedMeshRenderNodes[i]);
+							//g_CMergedMeshRenderNodes[i]->Physicalize(true);
+						}
+					}
+
+					std::scoped_lock ll(g_rendernodes_mutex);
+					//unregister_all_rendernode();
+
+					std::scoped_lock l(g_cphysicalentity_mutex);
+					LOG(ERROR) << "dephys " << g_physicalentities.size();
+					//for (auto render_node : g_physicalentities)
+					for (auto physent : g_physicalentities)
+					{
+						if (!physent)
+						{
+							continue;
+						}
+
+
+						//pe_params_pos pos_params{};
+						//if (getparams_safe(physent, pos_params))
+						//{
+						//float current_distance = (pos_params.pos - brush_pos).Length();
+						//if (current_distance < 1000.0f)
+						//{
+						//pos_params.pos += offset_pos;
+						//physent->SetParams(&pos_params);
+						//}
+						//}
+
+						//EERType render_node_type = safe_render_node_type(render_node);
+
+						//if (render_node_type != eERType_NotRenderNode && render_node_type != eERType_Character)
+						//{
+						//render_node->Dephysicalize();
+						//}
+
+						// clang-format off
+						/*if (render_node_type == eERType_Brush ||
+							render_node_type == eERType_MergedMeshInstance ||
+							render_node_type == eERType_Decal ||
+							render_node_type == eERType_Road ||
+							render_node_type == eERType_MovableBrush ||
+							render_node_type == eERType_MergedMesh ||
+							render_node_type == eERType_GeomCache
+							)
+						{
+							render_node->Dephysicalize();
+						}*/
+						// clang-format on
+					}
 				}
 			}
+		}
+	}
+
+	void target_entity_on_crosshair_include_cbrush()
+	{
+		if (!g_player_entity)
+		{
+			return;
+		}
+
+		LOG(INFO) << "target_entity_on_crosshair_include_cbrush";
+
+		auto camera_pos_and_dir = get_camera_position_and_direction();
+
+		// Extend the max range distance
+		Vec3 ray_dir_range = camera_pos_and_dir.second * 100000.0f;
+
+		void *pSkipEnts[1];
+		pSkipEnts[0] = g_player_entity->GetPhysics();
+
+		ray_hit_t ray_hit;
+		if (RayWorldIntersection(camera_pos_and_dir.first, ray_dir_range, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &ray_hit, 1, pSkipEnts, 1))
+		{
+			if (ray_hit.pCollider)
+			{
+				LOG(INFO) << "Found collider " << typeid(*ray_hit.pCollider).name() << " " << HEX_TO_UPPER(ray_hit.pCollider);
+
+				LOG(INFO) << "is ray hit point inside: " << ray_hit.pCollider->IsPointInside(ray_hit.pt);
+
+				if (strstr(typeid(*ray_hit.pCollider).name(), "CPhysicalEntity"))
+				{
+					if (0)
+					{
+						const auto pos_offset = Vec3(0, 0, 50);
+
+						pe_params_bbox bboxparam;
+						ray_hit.pCollider->GetParams(&bboxparam);
+						bboxparam.BBox.min += pos_offset;
+						bboxparam.BBox.max += pos_offset;
+						ray_hit.pCollider->SetParams(&bboxparam);
+
+						pe_params_part part_params;
+						ray_hit.pCollider->GetParams(&part_params);
+						part_params.pos += pos_offset;
+						ray_hit.pCollider->SetParams(&part_params);
+
+						for (const auto render_node : g_cbrushes)
+						{
+							if (ray_hit.pCollider->IsPointInside(render_node->GetPos()))
+							{
+								render_node->OffsetPosition(pos_offset);
+
+								LOG(INFO) << render_node->GetName() << " " << render_node->GetEntityClassName() << " "
+								          << typeid(*render_node).name();
+							}
+						}
+					}
+				}
+
+				for (size_t i = 0; i < 200; i++)
+				{
+					if (ray_hit.pCollider->GetForeignData(i))
+					{
+						LOG(INFO) << "Collider type: " << i;
+					}
+				}
+			}
+			else
+			{
+				LOG(INFO) << "No collider found.";
+			}
+		}
+		else
+		{
+			LOG(INFO) << "Didn't hit shit.";
 		}
 	}
 
@@ -1639,13 +2066,15 @@ namespace big
 		Vec3 vPos1(0, 0, 0);
 		g_CD3D9Renderer_UnProjectFromScreen((void *)g_CD3D9Renderer, mouseX, mouseY, 1, &vPos1.x, &vPos1.y, &vPos1.z);
 
-		Vec3 vDir = (vPos1 - vPos0).Normalized() * 1000.0f;
+		Vec3 vDir = (vPos1 - vPos0).Normalized() * 100000.0f;
+
+		void *pSkipEnts[1];
+		pSkipEnts[0] = g_player_entity->GetPhysics();
 
 		ray_hit_t hit;
-		if (RayWorldIntersection(vPos0, vDir, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &hit, 1))
+		if (RayWorldIntersection(vPos0, vDir, ent_all, rwi_stop_at_pierceable | rwi_colltype_any, &hit, 1, pSkipEnts, 1))
 		{
-			const auto PHYS_FOREIGN_ID_STATIC = 2;
-			const auto hit_entity             = hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+			const auto hit_entity = (CEntity *)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY);
 			if (hit_entity)
 			{
 				LOG(INFO) << "[Raycast] Entity hit: " << hit_entity->GetName();
@@ -1667,6 +2096,82 @@ namespace big
 		g_selected_index_entity_detail_inspector = -1;
 	}
 
+	__int64 __fastcall hook_REGISTER_CVAR(const char *a1, int *a2, int a3, int a4, __int64 a5, __int64 a6)
+	{
+		if (strcmp(a1, "e_TerrainIntegrateObjectsMaxVertices") == 0)
+		{
+			LOG(INFO) << "e_TerrainIntegrateObjectsMaxVertices intercepted. Setting to 0.";
+			*a2 = 0;
+		}
+
+		const auto res = big::g_hooking->get_original<hook_REGISTER_CVAR>()(a1, a2, a3, a4, a5, a6);
+
+		return res;
+	}
+
+	char __fastcall hook_CTerrain_Load(__int64 a1, __int64 a2, int nDataSize, char *a4, __int64 **a5, __int64 *a6)
+	{
+		g_CTerrain = a1;
+
+		const auto res = big::g_hooking->get_original<hook_CTerrain_Load>()(a1, a2, nDataSize, a4, a5, a6);
+
+		return res;
+	}
+
+	bool g_inside_StepDataSBrush = false;
+
+	char __fastcall hook_StepDataSBrush(CBrush *cbrush_, __int64 *pChunk_, __int64 pStatObjTable, __int64 pMatTable, char a5, __int64 a6, int eLoadMode)
+	{
+		g_inside_StepDataSBrush = true;
+
+		const auto res = big::g_hooking->get_original<hook_StepDataSBrush>()(cbrush_, pChunk_, pStatObjTable, pMatTable, a5, a6, eLoadMode);
+
+		g_inside_StepDataSBrush = false;
+
+		return res;
+	}
+
+	__int64 __fastcall hook_LoadCommonData(__int64 pChunk, IRenderNode *a2, __int64 a3)
+	{
+		const auto res = big::g_hooking->get_original<hook_LoadCommonData>()(pChunk, a2, a3);
+
+		if (g_inside_StepDataSBrush)
+		{
+			//auto matrix  = (float *)(pChunk + 40);
+			//matrix[11]  += 50.0f;
+		}
+
+		return res;
+	}
+
+	static __int64 hook_CPhysicalEntity_dctor(IPhysicalEntity *inst, char a2)
+	{
+		const auto res = big::g_hooking->get_original<hook_CPhysicalEntity_dctor>()(inst, a2);
+
+		const auto it = std::find(g_physicalentities.begin(), g_physicalentities.end(), inst);
+		if (it != g_physicalentities.end())
+		{
+			*it = g_physicalentities.back();
+			g_physicalentities.pop_back();
+		}
+
+		return res;
+	}
+
+	__int64 hook_CPhysicalEntity_ctor(IPhysicalEntity *a1, __int64 a2, __int64 a3)
+	{
+		const auto res = big::g_hooking->get_original<hook_CPhysicalEntity_ctor>()(a1, a2, a3);
+
+		std::scoped_lock l(g_cphysicalentity_mutex);
+
+		g_physicalentities.push_back(a1);
+
+		static auto hook_dctor =
+		    big::hooking::detour_hook_helper::add<hook_CPhysicalEntity_dctor>("hook_CPhysicalEntity_dctor", (*reinterpret_cast<void ***>(a1))[0]);
+
+		return res;
+	}
+
 	void kcd2_init()
 	{
 		{
@@ -1678,6 +2183,37 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_attachVariable>("attachVariable hook", cryengine_attachVariable.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? F2 41 0F 10 46");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find LoadCommonData";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_LoadCommonData>("hook_LoadCommonData", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 33 D2 83 8B");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CPhysicalEntity_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CPhysicalEntity_ctor>("hook_CPhysicalEntity_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr =
+			    kcd2_address::scan("E8 ? ? ? ? 48 8B 0D ? ? ? ? 48 8D 1D ? ? ? ? 48 85 C9 74 ? 48 8B 01 4C 8D 05");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CryEngine REGISTER_CVAR";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_REGISTER_CVAR>("attachVariable hook", ptr.get_call());
 		}
 
 		{
@@ -1729,6 +2265,7 @@ namespace big
 			g_show_entity_metadata_inspector = big::config::general().bind("Inspectors", "Entity Metadata", false, "Show the Entity Metadata Inspector.");
 			g_show_entity_xml_infos_inspector = big::config::general().bind("Inspectors", "XML Infos", false, "Show the XML Infos Inspector.");
 			g_show_cbrush_inspector = big::config::general().bind("Inspectors", "CBrush", false, "Show the CBrush Inspector.");
+			g_show_CMergedMeshRenderNode_inspector = big::config::general().bind("Inspectors", "CMergedMesh", false, "Show the CMergedMesh Inspector.");
 			g_show_ptf_inspector = big::config::general().bind("Inspectors", "PTF", true, "Show the PTF Inspector.");
 		}
 
@@ -1878,6 +2415,17 @@ namespace big
 			big::hooking::detour_hook_helper::add<hook_CBrush_ctor>("hook_CBrush_ctor", ptr.get_call());
 		}
 
+		//{
+		//const auto ptr = kcd2_address::scan(
+		//"E8 ? ? ? ? EB ? B9 ? ? ? ? E8 ? ? ? ? 48 8B C8 33 C0 48 85 C9 74 ? E8 ? ? ? ? 48 8B 5C 24");
+		//if (!ptr)
+		//{
+		//LOG(ERROR) << "Failed to find CMovableBrush_ctor";
+		//return;
+		//}
+		//big::hooking::detour_hook_helper::add<hook_CMovableBrush_ctor>("hook_CMovableBrush_ctor", ptr.get_call());
+		//}
+
 		{
 			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 84 C0 0F 84 ? ? ? ? 4C 8B 45 ? 4C 3B C7");
 			if (!ptr)
@@ -1925,8 +2473,89 @@ namespace big
 		}
 
 		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? 48 8B 45 ? 48 89 18");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find StepDataSBrush";
+				return;
+			}
+
+			big::hooking::detour_hook_helper::add<hook_StepDataSBrush>("hook_StepDataSBrush", ptr.get_call());
+		}
+
+		{
+			const auto ptr =
+			    kcd2_address::scan("E8 ? ? ? ? 84 C0 75 ? 48 8B 0D ? ? ? ? 48 85 C9 74 ? 48 8B 01 41 8B D5");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CTerrain_Load";
+				return;
+			}
+
+			big::hooking::detour_hook_helper::add<hook_CTerrain_Load>("hook_CTerrain_Load", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 8B 57 ? 49 8B CF");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CBrush_SetStatObj";
+				return;
+			}
+
+			g_CBrush_SetStatObj = ptr.get_call().as<decltype(g_CBrush_SetStatObj)>();
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B F8 4C 89 BF");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CStatObj_ctor";
+				return;
+			}
+
+			g_CStatObj_ctor = ptr.get_call().as<decltype(g_CStatObj_ctor)>();
+
+			big::hooking::detour_hook_helper::add<hook_CStatObj_ctor>("hook_CStatObj_ctor", g_CStatObj_ctor);
+		}
+
+		{
 			const auto ptr = kcd2_address::scan(
-			    "48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC ? 48 8B F9 E8");
+			    "E8 ? ? ? ? E9 ? ? ? ? B9 ? ? ? ? E8 ? ? ? ? 48 8B C8 33 C0 48 85 C9 0F 84 ? ? ? ? E8 ? ? ? ? EB");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CGeomCacheRenderNode_ctor";
+				return;
+			}
+
+			big::hooking::detour_hook_helper::add<hook_CGeomCacheRenderNode_ctor>("hook_CGeomCacheRenderNode_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B D0 F2 0F 10 43");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CVegetation_ctor";
+				return;
+			}
+
+			big::hooking::detour_hook_helper::add<hook_CVegetation_ctor>("hook_CVegetation_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 4C 8B D0 EB ? 4C 8B D3 48 8B 57");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find CMergedMeshRenderNode_ctor";
+				return;
+			}
+
+			big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_ctor>("hook_CMergedMeshRenderNode_ctor", ptr.get_call());
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 55 41 54 41 55 41 56 41 "
+			                                    "57 48 8B EC 48 83 EC ? 48 8B F9 E8");
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find C_PlayerStateMovement_ctor";
@@ -1944,6 +2573,16 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_C_Player_ctor>("hook_C_Player_ctor", ptr);
+		}
+
+		{
+			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B 5C 24 ? 48 89 47 ? B0");
+			if (!ptr)
+			{
+				LOG(ERROR) << "Failed to find C3DEngine_ctor";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_C3DEngine_ctor>("hook_C3DEngine_ctor", ptr.get_call());
 		}
 
 		{
@@ -2014,8 +2653,7 @@ namespace big
 		}
 
 		{
-			const auto cryscriptsystem_init =
-			    kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? 48 8B 46 ? 48 8B 88 ? ? ? ? 48 8B 01");
+			const auto cryscriptsystem_init = kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? E8 ? ? ? ? 41 38 BE");
 			if (!cryscriptsystem_init)
 			{
 				LOG(ERROR) << "Failed to find CryScriptSystem::Init";

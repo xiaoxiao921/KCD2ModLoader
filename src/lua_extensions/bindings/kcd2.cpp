@@ -9,13 +9,13 @@
 namespace big
 {
 	extern toml_v2::config_file::config_entry<bool>* g_hook_log_write_enabled;
-	extern std::unordered_set<std::string> g_fmod_events;
+	extern ankerl::unordered_dense::set<std::string> g_fmod_events;
 	extern uintptr_t g_CCryPak;
 } // namespace big
 
 namespace lua::kcd2
 {
-	static std::unordered_map<std::string, void*> g_file_path_to_bank;
+	static ankerl::unordered_dense::map<std::string, void*> g_file_path_to_bank;
 
 	// Lua API: Function
 	// Table: audio

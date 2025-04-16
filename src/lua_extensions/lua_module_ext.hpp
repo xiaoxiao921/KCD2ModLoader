@@ -13,7 +13,7 @@ namespace big
 
 		std::vector<sol::protected_function> m_on_pak_openable;
 
-		std::unordered_map<std::string, std::string> m_cryfile_open_replace_map;
+		ankerl::unordered_dense::map<std::string, std::string> m_cryfile_open_replace_map;
 
 		std::vector<sol::protected_function> m_on_fmod_getevent;
 

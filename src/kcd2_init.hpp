@@ -1,6 +1,7 @@
 #pragma once
 
 #include <config/config.hpp>
+#include <ImGuizmo.h>
 #include <input/hotkey.hpp>
 
 namespace big
@@ -39,10 +40,10 @@ namespace big
 	inline std::vector<vanilla_mod_system_info> g_vanilla_mods;
 
 	// global|level_name_specific -> xml filename
-	inline std::unordered_map<std::string, std::unordered_set<std::string>> g_xml_context_to_modded_xml_filenames;
+	inline ankerl::unordered_dense::map<std::string, ankerl::unordered_dense::set<std::string>> g_xml_context_to_modded_xml_filenames;
 
 	// global|level_name_specific -> xml filename -> modifications buffer
-	inline std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>> g_xml_context_to_xml_filename_to_modifications;
+	inline ankerl::unordered_dense::map<std::string, ankerl::unordered_dense::map<std::string, std::vector<std::string>>> g_xml_context_to_xml_filename_to_modifications;
 
 	void apply_xml_patches(std::string &originalFileContent, const std::vector<std::string> &patchFileContents, bool is_inventory_preset);
 
@@ -96,7 +97,24 @@ namespace big
 			float len = Length();
 			return (len > 0) ? (*this * (1.0f / len)) : Vec3{0, 0, 0};
 		}
+
+		std::string to_string()
+		{
+			std::ostringstream oss;
+			oss << "Vec3(" << x << ", " << y << ", " << z << ")";
+			return oss.str();
+		}
 	};
+
+	inline bool operator==(const Vec3 &lhs, const Vec3 &rhs)
+	{
+		return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+	}
+
+	inline bool operator!=(const Vec3 &lhs, const Vec3 &rhs)
+	{
+		return !(lhs == rhs);
+	}
 
 	struct AABB
 	{
@@ -104,7 +122,19 @@ namespace big
 		Vec3 max;
 	};
 
-	std::pair<Vec3, Vec3> GetViewCameraPositionAndDirection();
+	inline bool operator==(const AABB &lhs, const AABB &rhs)
+	{
+		return lhs.min == rhs.min && lhs.max == rhs.max;
+	}
+
+	inline bool operator!=(const AABB &lhs, const AABB &rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	std::pair<Vec3, Vec3> get_camera_position_and_direction();
+
+	std::pair<float *, float *> get_camera_view_and_projection_matrix();
 
 	struct Archetype
 	{
@@ -339,6 +369,7 @@ namespace big
 		virtual void OffsetPosition(const Vec3 &delta) = 0;
 
 		//! Is node geometry visible in passInfo's camera
+		// 21
 		virtual bool IsVisible(const AABB &nodeBox, const float nodeDistance, const void *passInfo) const = 0;
 
 		//! Gives access to object components.
@@ -348,7 +379,6 @@ namespace big
 
 		virtual void SetEntityStatObj(void *pStatObj, const void *pMatrix34a = NULL) = 0;
 
-		virtual void *Pad24() const = 0;
 		virtual void *Pad25() const = 0;
 		virtual void *Pad26() const = 0;
 
@@ -362,6 +392,7 @@ namespace big
 		virtual void SetLodRatio(int nLodRatio) = 0;
 
 		//! Get material layers mask.
+		// 29
 		virtual uint8_t GetMaterialLayers() const = 0;
 
 		//! Get physical entity.
@@ -384,9 +415,6 @@ namespace big
 		//virtual struct IFoliage *GetFoliage(int nSlot = 0) = 0;
 		virtual void *GetFoliage(int nSlot = 0) = 0;
 
-		//! Make sure I3DEngine::FreeRenderNodeState(this) is called in destructor of derived class.
-		virtual ~IRenderNode() = 0;
-
 		//! Set override material for this instance.
 		virtual void SetMaterial(void *pMat) = 0;
 
@@ -406,8 +434,6 @@ namespace big
 		virtual uint16_t GetLayerId() const = 0;
 
 		virtual float GetMaxViewDist() const = 0;
-
-		virtual EERType GetRenderNodeType() const = 0;
 
 		virtual bool IsAllocatedOutsideOf3DEngineDLL() = 0;
 
@@ -491,8 +517,11 @@ namespace big
 		//! Current objects tree cell.
 		IOctreeNode *m_pOcNode;
 
+	public:
 		//! Render flags (@see ERenderNodeFlags)
 		RenderFlagsType m_dwRndFlags;
+
+	protected:
 
 		//! Hides/shows node in renderer.
 		virtual void Hide(bool bHide) = 0;
@@ -625,6 +654,10 @@ namespace big
 		uint64_t m_unk5;
 		uint64_t m_unk6;
 	};
+
+	inline void (*g_CBrush_SetStatObj)(CBrush *this_, void *new_stat_obj) = nullptr;
+
+	inline void (*g_CStatObj_ctor)(uintptr_t this_) = nullptr;
 
 #pragma pack(push, 1)
 
@@ -770,11 +803,20 @@ namespace big
 
 	inline std::vector<CEntity *> g_entities;
 
-	inline toml_v2::config_file::config_entry<bool> *g_show_entity_inspector           = nullptr;
-	inline toml_v2::config_file::config_entry<bool> *g_show_entity_metadata_inspector  = nullptr;
-	inline toml_v2::config_file::config_entry<bool> *g_show_entity_xml_infos_inspector = nullptr;
-	inline toml_v2::config_file::config_entry<bool> *g_show_cbrush_inspector           = nullptr;
-	inline toml_v2::config_file::config_entry<bool> *g_show_ptf_inspector              = nullptr;
+	inline std::vector<uintptr_t> g_cstatobjs;
+
+	inline std::vector<IRenderNode *> g_CGeomCacheRenderNodes;
+
+	inline std::vector<IRenderNode *> g_CVegetations;
+
+	inline std::vector<IRenderNode *> g_CMergedMeshRenderNodes;
+
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_inspector                = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_metadata_inspector       = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_entity_xml_infos_inspector      = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_cbrush_inspector                = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_CMergedMeshRenderNode_inspector = nullptr;
+	inline toml_v2::config_file::config_entry<bool> *g_show_ptf_inspector                   = nullptr;
 
 	inline hotkey g_target_entity_on_crosshair("target_entity_on_crosshair", 0);
 
@@ -924,17 +966,19 @@ namespace big
 		std::string guid;
 	};
 
-	inline std::unordered_map<CEntity *, EntityInfo> g_entity_infos;
+	inline ankerl::unordered_dense::map<CEntity *, EntityInfo> g_entity_infos;
 	inline std::vector<CBrush *> g_cbrushes;
 
 	inline std::recursive_mutex g_xml_info_mutex;
 	inline std::map<decltype(xml_node_metadata_t::m_id), xml_node_metadata_t> g_entity_xml_metadata;
-	inline std::unordered_map<std::string, entity_xml_info_t *> g_entity_guid_to_xml_infos;
+	inline ankerl::unordered_dense::map<std::string, entity_xml_info_t *> g_entity_guid_to_xml_infos;
 	inline std::vector<entity_xml_info_t *> g_entity_xml_infos;
 
 	inline std::vector<int> g_entities_filtered;
 
 	inline uintptr_t g_CD3D9Renderer = 0;
+
+	inline uintptr_t g_CTerrain = 0;
 
 	using CD3D9Renderer_ProjectToScreen_t = bool (*)(uintptr_t this_, float ptx, float pty, float ptz, float *sx, float *sy, float *sz);
 	/*
@@ -959,20 +1003,259 @@ namespace big
 	*/
 	inline CD3D9Renderer_UnProjectFromScreen_t g_CD3D9Renderer_UnProjectFromScreen = nullptr;
 
+	enum pe_type
+	{
+		PE_NONE           = 0,
+		PE_STATIC         = 1,
+		PE_RIGID          = 2,
+		PE_WHEELEDVEHICLE = 3,
+		PE_LIVING         = 4,
+		PE_PARTICLE       = 5,
+		PE_ARTICULATED    = 6,
+		PE_ROPE           = 7,
+		PE_SOFT           = 8,
+		PE_AREA           = 9,
+		PE_GRID           = 10,
+		PE_WALKINGRIGID   = 11
+	};
+
+	struct pe_params
+	{
+		int type;
+	};
+
+	enum EPE_Params
+	{
+		ePE_params_pos                         = 0,
+		ePE_player_dimensions                  = 1,
+		ePE_params_car                         = 2,
+		ePE_params_particle                    = 3,
+		ePE_player_dynamics                    = 4,
+		ePE_params_joint                       = 5,
+		ePE_params_part                        = 6,
+		ePE_params_sensors                     = 7,
+		ePE_params_articulated_body            = 8,
+		ePE_params_outer_entity                = 9,
+		ePE_simulation_params                  = 10,
+		ePE_params_foreign_data                = 11,
+		ePE_params_buoyancy                    = 12,
+		ePE_params_rope                        = 13,
+		ePE_params_bbox                        = 14,
+		ePE_params_flags                       = 15,
+		ePE_params_wheel                       = 16,
+		ePE_params_softbody                    = 17,
+		ePE_params_area                        = 18,
+		ePE_tetrlattice_params                 = 19,
+		ePE_params_ground_plane                = 20,
+		ePE_params_structural_joint            = 21,
+		ePE_params_waterman                    = 22,
+		ePE_params_timeout                     = 23,
+		ePE_params_skeleton                    = 24,
+		ePE_params_structural_initial_velocity = 25,
+		ePE_params_collision_class             = 26,
+		ePE_params_walking_rigid               = 27,
+
+		ePE_Params_Count
+	};
+
+	struct pe_params_part : pe_params
+	{
+		enum entype
+		{
+			type_id = ePE_params_part
+		};
+
+		pe_params_part()
+		{
+			type         = type_id;
+			pMtx3x4      = 0;
+			pMtx3x3      = 0;
+			bRecalcBBox  = 1;
+			bAddrefGeoms = 0;
+			flagsOR = flagsColliderOR = 0;
+			flagsAND = flagsColliderAND = (unsigned)-1;
+		}
+
+		int partid;      //!< Identifier of part.
+		int ipart;       //!< Optionally, internal part slot number.
+		int bRecalcBBox; //!< Whether entity's bounding box should be recalculated.
+		Vec3 pos;
+		float q[4];
+		float scale;
+		void *pMtx3x4;                  //!< Optional position+orientation.
+		void *pMtx3x3;                  //!< Optional orientation via 3x3 matrix.
+		unsigned int flagsCond;         //!< If partid and ipart are not specified, check for parts with flagsCond set.
+		unsigned int flagsOR, flagsAND; //!< New flags = (flags & flagsAND) | flagsOR.
+		unsigned int flagsColliderOR, flagsColliderAND;
+		float mass; //!< Either mass of density should be set; mass = density*volume.
+		float density;
+		float minContactDist;                             //!< Threshold for contact points generation.
+		struct phys_geometry *pPhysGeom, *pPhysGeomProxy; //!< If present and different from pPhysGeomProxy, pPhysGeom is used for raytracing.
+		int idmatBreakable; //!< If >=0, the part is procedurally breakable with this mat_id (see AddExplosionShape).
+		void *pLattice;     //!< Lattice is used for soft bodies and procedural structural breaking.
+		int idSkeleton;     //!< Part with this id becomes this part's deformation skeleton.
+		int *pMatMapping;   //!< Material mapping table for this part.
+		int nMats;          //!< Number of pMatMapping entries.
+		float invTimeStep;  //!< 1.0f/time_step, ragdolls will compute joint's velocity if this and position is set.
+		int bAddrefGeoms;   //!< AddRef returned geometries if used in GetParams.
+		int idParent; //!< Parent for hierarchical breaking; it hides all children until at least one of them breaks off.
+	};
+
+	struct pe_params_pos : pe_params
+	{
+		enum entype
+		{
+			type_id = ePE_params_pos
+		};
+
+		pe_params_pos()
+		{
+			type           = type_id;
+			pMtx3x4        = 0;
+			pMtx3x3        = 0;
+			bRecalcBounds  = 1;
+			bEntGridUseOBB = 0;
+		}
+
+		Vec3 pos;
+		float q[4];
+		float scale;   //!< Note that since there's no per-entity scale, it gets 'baked' into individual parts' scales.
+		void *pMtx3x4; //!< Optional position+orientation.
+		void *pMtx3x3; //!< Optional orientation via 3x3 matrix.
+		int iSimClass; //!< See the sim_class enum.
+		int bRecalcBounds; //!< Tells to recompute the bounding boxes.
+		bool bEntGridUseOBB; //!< Whether or not to use part OBBs rather than object AABB when registering in the entity grid.
+		bool doubleBufCoords; //!< Maintain pos and q from the last poststep sync, which can be used in world queries and pe_status_pos
+
+		const IPhysicalEntity *pGridRefEnt; //!< New grid (set via a reference entity)
+	};
+
+	//! Sets or gets the bounding box of a physical entity
+	struct pe_params_bbox : pe_params
+	{
+		enum entype
+		{
+			type_id = ePE_params_bbox
+		};
+
+		pe_params_bbox()
+		{
+			type = type_id;
+		}
+
+		AABB BBox; //!< Force this bounding box (note that if the entity recomputes it later, it will override this).
+	};
+
+	struct pe_params_outer_entity : pe_params
+	{
+		enum entype
+		{
+			type_id = ePE_params_outer_entity
+		};
+
+		IPhysicalEntity *pOuterEntity; //!< Outer entity is used to group together SC_INDEPENDENT entities (example: ropes on a tree trunk) and order their updates.
+	};
+
+	struct pe_status
+	{
+		int type;
+	};
+
+	//! IDs that can be used for foreign id.
+	enum EPhysicsForeignIds
+	{
+		PHYS_FOREIGN_ID_TERRAIN                  = 0,
+		PHYS_FOREIGN_ID_STATIC                   = 1,
+		PHYS_FOREIGN_ID_ENTITY                   = 2,
+		PHYS_FOREIGN_ID_FOLIAGE                  = 3,
+		PHYS_FOREIGN_ID_ROPE                     = 4,
+		PHYS_FOREIGN_ID_SOUND_OBSTRUCTION        = 5,
+		PHYS_FOREIGN_ID_SOUND_PROXY_OBSTRUCTION  = 6,
+		PHYS_FOREIGN_ID_SOUND_REVERB_OBSTRUCTION = 7,
+		PHYS_FOREIGN_ID_WATERVOLUME              = 8,
+		PHYS_FOREIGN_ID_BREAKABLE_GLASS          = 9,
+		PHYS_FOREIGN_ID_BREAKABLE_GLASS_FRAGMENT = 10,
+		PHYS_FOREIGN_ID_RIGID_PARTICLE           = 11,
+		PHYS_FOREIGN_ID_RESERVED1                = 12,
+		PHYS_FOREIGN_ID_RAGDOLL                  = 13,
+
+		PHYS_FOREIGN_ID_USER = 100, //!< All user defined foreign ids should start from this enum.
+	};
+
 	struct IPhysicalEntity
 	{
-		virtual ~IPhysicalEntity()                              = default;
-		virtual void Pad1()                                     = 0;
-		virtual void Pad2()                                     = 0;
-		virtual void Pad3()                                     = 0;
-		virtual void Pad4()                                     = 0;
-		virtual void Pad5()                                     = 0;
-		virtual void Pad6()                                     = 0;
-		virtual void Pad7()                                     = 0;
-		virtual void Pad8()                                     = 0;
-		virtual void Pad9()                                     = 0;
-		virtual CEntity *GetForeignData(long long foreign_id)   = 0;
-		virtual long long GetiForeignData(long long foreign_id) = 0;
+		virtual ~IPhysicalEntity()                                                            = default;
+		virtual pe_type GetType()                                                             = 0;
+		virtual int AddRef()                                                                  = 0;
+		virtual int Release()                                                                 = 0;
+		virtual int SetParams(pe_params *params, int bThreadSafe = 0)                         = 0;
+		virtual int GetParams(pe_params *params)                                              = 0;
+		virtual void GetStatus(pe_status *status)                                             = 0;
+		virtual void Action(void *, int bThreadSafe = 0)                                      = 0;
+		virtual void AddGeometry(void *pgeom, void *params, int id = -1, int bThreadSafe = 0) = 0;
+		virtual void RemoveGeometry(int id, int bThreadSafe = 0)                              = 0;
+
+		// returns entity's pForeignData if itype matches iForeignData, 0 otherwise
+		virtual void *GetForeignData(int itype) = 0;
+		virtual int GetiForeignData()           = 0;
+
+		virtual void GetStateSnapshot()    = 0;
+		virtual void Pad13()               = 0;
+		virtual void Pad14()               = 0;
+		virtual void Pad15()               = 0;
+		virtual void Pad16()               = 0;
+		virtual void Pad17()               = 0;
+		virtual void Pad18()               = 0;
+		virtual void Pad19()               = 0;
+		virtual void Pad20()               = 0;
+		virtual void Pad21()               = 0;
+		virtual void Pad22()               = 0;
+		virtual void Pad23()               = 0;
+		virtual void Pad24()               = 0;
+		virtual void Pad25()               = 0;
+		virtual void Pad26()               = 0;
+		virtual void Pad27()               = 0;
+		virtual void Pad28()               = 0;
+		virtual void Pad29()               = 0;
+		virtual void Pad30()               = 0;
+		virtual void Pad31()               = 0;
+		virtual void Pad32()               = 0;
+		virtual void Pad33()               = 0;
+		virtual void Pad34()               = 0;
+		virtual void Pad35()               = 0;
+		virtual void Pad36()               = 0;
+		virtual void Pad37()               = 0;
+		virtual void Pad38()               = 0;
+		virtual void Pad39()               = 0;
+		virtual void Pad40()               = 0;
+		virtual void Pad41()               = 0;
+		virtual void Pad42()               = 0;
+		virtual void Pad43()               = 0;
+		virtual void Pad44()               = 0;
+		virtual void Pad45()               = 0;
+		virtual void Pad46()               = 0;
+		virtual void Pad47()               = 0;
+		virtual void Pad48()               = 0;
+		virtual void Pad49()               = 0;
+		virtual void Pad50()               = 0;
+		virtual void Pad51()               = 0;
+		virtual void Pad52()               = 0;
+		virtual void Pad53()               = 0;
+		virtual void Pad54()               = 0;
+		virtual void Pad55()               = 0;
+		virtual void Pad56()               = 0;
+		virtual void Pad57()               = 0;
+		virtual void Pad58()               = 0;
+		virtual void Pad59()               = 0;
+		virtual void Pad60()               = 0;
+		virtual void Pad61()               = 0;
+		virtual void Pad62()               = 0;
+		virtual void Pad63()               = 0;
+		virtual void Pad64()               = 0;
+		virtual void Pad65()               = 0;
+		virtual void Pad66()               = 0;
+		virtual void Pad67()               = 0;
+		virtual int IsPointInside(Vec3 pt) = 0;
 	};
 
 	struct ray_hit_t
@@ -1175,8 +1458,34 @@ namespace big
 	void target_entity_on_crosshair();
 	void target_entity_on_crosshair_include_cbrush();
 	void target_entity_on_screen_cursor();
-	inline int g_selected_index_entity_detail_inspector = -1;
-	inline int g_selected_cbrush_detail_inspector       = -1;
+	inline int g_selected_index_entity_detail_inspector          = -1;
+	inline int g_selected_cbrush_detail_inspector                = -1;
+	inline int g_selected_CMergedMeshRenderNode_detail_inspector = -1;
+	inline int g_imguizmo_editor_local_or_world                  = ImGuizmo::WORLD;
+
+	void offset_every_object_around();
+
+	inline uintptr_t g_C3DEngine = 0;
+
+	inline std::vector<IRenderNode *> g_rendernodes;
+
+	inline std::vector<IPhysicalEntity *> g_physicalentities;
+
+	inline void C3DEngine_UnRegisterEntityDirect(IRenderNode *node)
+	{
+		// For finding the offset, look for string usage of "I3DEngine::DeleteVisArea: Invalid VisArea pointer"
+		auto func = (*reinterpret_cast<void ***>(g_C3DEngine))[46];
+
+		((void (*)(uintptr_t, IRenderNode *))func)(g_C3DEngine, node);
+	}
+
+	inline void C3DEngine_RegisterEntity(IRenderNode *node)
+	{
+		// For finding the offset, look for string usage of "I3DEngine::DeleteVisArea: Invalid VisArea pointer"
+		auto func = (*reinterpret_cast<void ***>(g_C3DEngine))[38];
+
+		((void (*)(uintptr_t, IRenderNode *))func)(g_C3DEngine, node);
+	}
 
 	inline uintptr_t g_ISystem         = 0;
 	inline uintptr_t *g_gEnv_pGame_ptr = 0;
@@ -1189,7 +1498,7 @@ namespace big
 
 	inline int RayWorldIntersection(const Vec3 &source, const Vec3 &direction, unsigned int iEntTypes, unsigned int flags, ray_hit_t *hits, int nmaxhits, void **pSkipEnts = 0, int nSkipEnts = 0, __int64 pForeignData = 0, int iForeignData = 0, const char *pNameTag = "RayWorldIntersection(Physics)")
 	{
-		// ISystem_GetIPhysicalWorld_func vtable offset found in the function that call RayWorldIntersection and use RayWorldIntersection(Script) as parameter
+		// ISystem_GetIPhysicalWorld_func vtable offset found in the function that call RayWorldIntersection and use "RayWorldIntersection(Script)" as parameter
 		const auto ISystem_GetIPhysicalWorld_func = (*reinterpret_cast<void ***>(g_ISystem))[74];
 		const auto IPhysicalWorld_instance        = ((__int64 (*)(uint64_t))ISystem_GetIPhysicalWorld_func)(g_ISystem);
 		return g_RayWorldIntersection(IPhysicalWorld_instance, (Vec3 *)&source, (Vec3 *)&direction, iEntTypes, flags, hits, nmaxhits, pSkipEnts, nSkipEnts, pForeignData, iForeignData, pNameTag);
@@ -1200,7 +1509,7 @@ namespace big
 	void CEntitySystem_DumpEntity(CEntitySystem *entity_system, CEntity *entity);
 	void CEntitySystem_DumpEntities(CEntitySystem *CEntitySystem_ptr);
 
-	inline std::unordered_set<std::string> g_fmod_events;
+	inline ankerl::unordered_dense::set<std::string> g_fmod_events;
 
 	using fmodstudio_loadbankfile_t = __int64 (*)(void *this_, const char *filename, __int64 fmod_studio_load_bank_flags, void **bank);
 	inline fmodstudio_loadbankfile_t fmodstudio_loadbankfile_orig = nullptr;
