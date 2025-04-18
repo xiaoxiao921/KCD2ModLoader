@@ -82,78 +82,77 @@ namespace big
 		return res;
 	}
 
+	static kcd2_address game_lua_call;
 	static void hook_lua_call(lua_State *L, int nargs, int nresults)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 		std::scoped_lock l2(g_lua_manager->m_module_lock);
 
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call().as_func<decltype(lua_call)>();
-		return game_func(L, nargs, nresults);
+		return game_lua_call.as_func<decltype(lua_call)>()(L, nargs, nresults);
 	}
 
+	static kcd2_address game_lua_checkstack;
 	static int hook_lua_checkstack(lua_State *L, int extra)
 	{
-		static auto game_func =
-		    kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 48 8D 15 ? ? ? ? 48 8B CF E8 ? ? ? ? 80 7B").get_call().as_func<decltype(lua_checkstack)>();
-		return game_func(L, extra);
+		return game_lua_checkstack.as_func<decltype(lua_checkstack)>()(L, extra);
 	}
 
+	static kcd2_address game_lua_concat;
 	static void hook_lua_concat(lua_State *L, int n)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 2B DF").get_call().as_func<decltype(lua_concat)>();
-		return game_func(L, n);
+		return game_lua_concat.as_func<decltype(lua_concat)>()(L, n);
 	}
 
+	static kcd2_address game_lua_createtable;
 	static void hook_lua_createtable(lua_State *L, int narr, int nrec)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 48 8B 5F ? 48 8B CF 48 2B 5F").get_call().as_func<decltype(lua_createtable)>();
-		return game_func(L, narr, nrec);
+		return game_lua_createtable.as_func<decltype(lua_createtable)>()(L, narr, nrec);
 	}
 
+	static kcd2_address game_lua_error;
 	static int hook_lua_error(lua_State *L)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 41 83 C8 ? 33 D2").get_call().as_func<decltype(lua_error)>();
-		return game_func(L);
+		return game_lua_error.as_func<decltype(lua_error)>()(L);
 	}
 
+	static kcd2_address game_lua_gc;
 	static int hook_lua_gc(lua_State *L, int what, int data)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 41 83 3C 9E").get_call().as_func<decltype(lua_gc)>();
-		return game_func(L, what, data);
+		return game_lua_gc.as_func<decltype(lua_gc)>()(L, what, data);
 	}
 
+	static kcd2_address game_lua_getfenv;
 	static void hook_lua_getfenv(lua_State *L, int index)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 41 8B C3 48 83 C4").get_call().as_func<decltype(lua_getfenv)>();
-		return game_func(L, index);
+		return game_lua_getfenv.as_func<decltype(lua_getfenv)>()(L, index);
 	}
 
+	static kcd2_address game_lua_getfield;
 	static void hook_lua_getfield(lua_State *L, int index, const char *k)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 44 8D 7D").get_call().as_func<decltype(lua_getfield)>();
-		return game_func(L, index, k);
+		return game_lua_getfield.as_func<decltype(lua_getfield)>()(L, index, k);
 	}
 
+	static kcd2_address game_lua_getmetatable;
 	static int hook_lua_getmetatable(lua_State *L, int index)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 33 D2 44 8D 40").get_call().as_func<decltype(lua_getmetatable)>();
-		return game_func(L, index);
+		return game_lua_getmetatable.as_func<decltype(lua_getmetatable)>()(L, index);
 	}
 
+	static kcd2_address game_lua_gettable;
 	static void hook_lua_gettable(lua_State *L, int index)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 41 83 CB").get_call().as_func<decltype(lua_gettable)>();
-		return game_func(L, index);
+		return game_lua_gettable.as_func<decltype(lua_gettable)>()(L, index);
 	}
 
+	static kcd2_address game_lua_insert;
 	static void hook_lua_insert(lua_State *L, int index)
 	{
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 8B 56 ? 44 8B CF").get_call().as_func<decltype(lua_insert)>();
-		return game_func(L, index);
+		return game_lua_insert.as_func<decltype(lua_insert)>()(L, index);
 	}
 
 	static sol::optional<sol::environment> env_to_add;
-	static kcd2_address game_lua_pcall;
+	static kcd2_address game_lua_pcall, game_lua_setmetatable, CScriptableBase_Init_func, lua_custom_alloc;
 
 	//static ankerl::unordered_dense::set<size_t> g_lua_different_threads;
 
@@ -182,21 +181,20 @@ namespace big
 		return game_lua_pcall.as_func<decltype(lua_pcall)>()(L, nargs, nresults, errfunc);
 	}
 
+	static kcd2_address game_luaV_execute;
 	static void hook_luaV_execute(lua_State *L, int nexeccalls)
 	{
 		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		static auto game_func =
-		    kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC").as_func<decltype(luaV_execute)>();
-		return game_func(L, nexeccalls);
+		return game_luaV_execute.as_func<decltype(luaV_execute)>()(L, nexeccalls);
 	}
 
+	static kcd2_address game_lua_load;
 	static int hook_lua_load(lua_State *L, lua_Reader reader, void *dt, const char *chunkname)
 	{
 		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		static auto game_func = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call().as_func<decltype(lua_load)>();
-		return game_func(L, reader, dt, chunkname);
+		return game_lua_load.as_func<decltype(lua_load)>()(L, reader, dt, chunkname);
 	}
 
 	static void CScriptTable_PushRef_def(void *a1, void *a2)
@@ -220,12 +218,12 @@ namespace big
 	};
 
 	static ankerl::unordered_dense::map<void *, CScriptableBase_info> g_metatable_ptr_to_CScriptable;
-
+	static kcd2_address game_pushref;
 	static void hook_CScriptTable_SetMetatable(void *this_, void *pMetatable)
 	{
 		big::g_hooking->get_original<hook_CScriptTable_SetMetatable>()(this_, pMetatable);
 
-		static auto PushRef = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call().as_func<decltype(CScriptTable_PushRef_def)>();
+		static auto PushRef = game_pushref.as_func<decltype(CScriptTable_PushRef_def)>();
 
 		auto L = g_lua_manager->lua_state();
 		sol::state_view state_view(L);
@@ -320,18 +318,12 @@ namespace big
 		big::hooking::detour_hook_helper::add_queue<hook_lua_getmetatable>("", &lua_getmetatable);
 		big::hooking::detour_hook_helper::add_queue<hook_lua_gettable>("", &lua_gettable);
 		big::hooking::detour_hook_helper::add_queue<hook_lua_insert>("", &lua_insert);
-		game_lua_pcall = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
 		big::hooking::detour_hook_helper::add_queue<hook_game_lua_pcall>("", game_lua_pcall);
 		big::hooking::detour_hook_helper::add_queue<hook_lua_pcall>("", &lua_pcall);
-		big::hooking::detour_hook_helper::add_queue<hook_lua_load>("lua_load hook", &lua_load);
-		const auto game_lua_setmetatable =
-		    kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
+		big::hooking::detour_hook_helper::add_queue<hook_lua_load>("lua_load_hook", &lua_load);
 		big::hooking::detour_hook_helper::add_queue<hook_CScriptTable_SetMetatable>("hook_CScriptTable_SetMetatable", game_lua_setmetatable);
-		const auto CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D");
-		big::hooking::detour_hook_helper::add_queue<hook_CScriptableBase_Init>("hook_CScriptableBase_Init",
-		                                                                       CScriptableBase_Init_func.get_call());
-		const auto lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88");
-		big::hooking::detour_hook_helper::add_queue<hook_lua_mimalloc>("hook_lua_custom_alloc", lua_custom_alloc.get_call());
+		big::hooking::detour_hook_helper::add_queue<hook_CScriptableBase_Init>("hook_CScriptableBase_Init", CScriptableBase_Init_func);
+		big::hooking::detour_hook_helper::add_queue<hook_lua_mimalloc>("hook_lua_custom_alloc", lua_custom_alloc);
 		big::hooking::detour_hook_helper::execute_queue();
 
 		LOG(INFO) << "Ending hook queue";
@@ -420,6 +412,8 @@ namespace big
 		big::g_hooking->get_original<hook_CLog_LogV>()(this_, a2, a3, elogtype, a5, szFormat, args);
 	}
 
+	static kcd2_address game_index2adr;
+	static kcd2_address game_luaH_new;
 	bool __fastcall hook_CScriptSystem_ExecuteBuffer(__int64 this_, const char *sBuffer, __int64 size, const char *sBufferDescription, __int64 pEnvironmentLua)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -432,14 +426,10 @@ namespace big
 
 			// must ensure dummynode / luaO_nilobject from the game WHGame.dll is used and not ours.
 			{
-				static auto game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr").as_func<intptr_t(lua_State *, int)>();
-				luaO_nilobject_external_address = game_index2adr(L, 999'999);
-				static auto game_luaH_new =
-				    kcd2_address::scan(
-				        "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0",
-				        "game luaH_new")
-				        .as_func<Table *(lua_State *, int, int)>();
-				auto game_table            = game_luaH_new(L, 0, 0);
+				static auto __index2adr          = game_index2adr.as_func<intptr_t(lua_State *, int)>();
+				luaO_nilobject_external_address = __index2adr(L, 999'999);
+				static auto __luaH_new = game_luaH_new.as_func<Table *(lua_State *, int, int)>();
+				auto game_table = __luaH_new(L, 0, 0);
 				dummynode_external_address = (intptr_t)game_table->node;
 			}
 
@@ -1263,7 +1253,7 @@ namespace big
 	}
 
 	std::recursive_mutex g_rendernodes_mutex;
-
+	static kcd2_address g_C3DEngine_UnRegisterEntityImpl_ptr;
 	inline void hook_C3DEngine_UnRegisterEntityImpl(uintptr_t this_, IRenderNode *node)
 	{
 		big::g_hooking->get_original<hook_C3DEngine_UnRegisterEntityImpl>()(this_, node);
@@ -1311,11 +1301,8 @@ namespace big
 
 		const auto res = big::g_hooking->get_original<hook_C3DEngine_ctor>()(a1);
 
-		static auto hook_register =
-		    big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", (*reinterpret_cast<void ***>(a1))[38]);
-		static auto hook_unregister = big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>(
-		    "hook_C3DEngine_UnRegisterEntityImpl",
-		    kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call());
+		static auto hook_register = big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", (*reinterpret_cast<void ***>(a1))[38]);
+		static auto hook_unregister = big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>("hook_C3DEngine_UnRegisterEntityImpl", g_C3DEngine_UnRegisterEntityImpl_ptr);
 
 		return res;
 	}
@@ -2174,6 +2161,35 @@ namespace big
 
 	void kcd2_init()
 	{
+
+		auto scan_addresses_and_set_ptr = []() -> void
+		{
+			game_lua_call = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call();
+			game_lua_checkstack = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 48 8D 15 ? ? ? ? 48 8B CF E8 ? ? ? ? 80 7B").get_call();
+			game_lua_concat = kcd2_address::scan("E8 ? ? ? ? 2B DF").get_call();
+			game_lua_createtable = kcd2_address::scan("E8 ? ? ? ? 48 8B 5F ? 48 8B CF 48 2B 5F").get_call();
+			game_lua_error = kcd2_address::scan("E8 ? ? ? ? 41 83 C8 ? 33 D2").get_call();
+			game_lua_gc = kcd2_address::scan("E8 ? ? ? ? 41 83 3C 9E").get_call();
+			game_lua_getfenv = kcd2_address::scan("E8 ? ? ? ? 41 8B C3 48 83 C4").get_call();
+			game_lua_getfield = kcd2_address::scan("E8 ? ? ? ? 44 8D 7D").get_call();
+			game_lua_getmetatable = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 33 D2 44 8D 40").get_call();
+			game_lua_gettable = kcd2_address::scan("E8 ? ? ? ? 41 83 CB").get_call();
+			game_lua_insert = kcd2_address::scan("E8 ? ? ? ? 8B 56 ? 44 8B CF").get_call();
+			game_lua_pcall = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
+			game_luaV_execute = kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC");
+			game_lua_load = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call();
+			CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D").get_call();
+			game_lua_setmetatable = kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
+			lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88").get_call();
+			game_pushref  = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call();
+			game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr");
+			game_luaH_new = kcd2_address::scan("48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0", "game luaH_new");
+			g_C3DEngine_UnRegisterEntityImpl_ptr = kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call();
+			
+		};
+
+		scan_addresses_and_set_ptr();
+
 		{
 			const auto cryengine_attachVariable =
 			    kcd2_address::scan("E8 ? ? ? ? 4C 8D 0D ? ? ? ? 4C 8D 05 ? ? ? ? 48 8B CB");
