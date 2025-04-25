@@ -1467,7 +1467,7 @@ namespace big
 
 	inline uintptr_t g_C3DEngine = 0;
 
-	inline std::vector<IRenderNode *> g_rendernodes;
+	inline ankerl::unordered_dense::set<IRenderNode *> g_rendernodes;
 
 	inline std::vector<IPhysicalEntity *> g_physicalentities;
 
