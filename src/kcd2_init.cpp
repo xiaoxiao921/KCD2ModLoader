@@ -1015,12 +1015,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CStatObj_dctor>()(this_, a2);
 
-		const auto it = std::find(g_cstatobjs.begin(), g_cstatobjs.end(), this_);
-		if (it != g_cstatobjs.end())
-		{
-			*it = g_cstatobjs.back();
-			g_cstatobjs.pop_back();
-		}
+		g_cstatobjs.erase(this_);
 
 		return res;
 	}
@@ -1029,7 +1024,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CStatObj_ctor>()(this_);
 
-		g_cstatobjs.push_back(this_);
+		g_cstatobjs.insert(this_);
 
 		return res;
 	}
@@ -1038,12 +1033,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CGeomCacheRenderNode_dctor>()(this_, a2);
 
-		const auto it = std::find(g_CGeomCacheRenderNodes.begin(), g_CGeomCacheRenderNodes.end(), this_);
-		if (it != g_CGeomCacheRenderNodes.end())
-		{
-			*it = g_CGeomCacheRenderNodes.back();
-			g_CGeomCacheRenderNodes.pop_back();
-		}
+		g_CGeomCacheRenderNodes.erase(this_);
 
 		return res;
 	}
@@ -1052,7 +1042,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CGeomCacheRenderNode_ctor>()(this_);
 
-		g_CGeomCacheRenderNodes.push_back(this_);
+		g_CGeomCacheRenderNodes.insert(this_);
 
 		return res;
 	}
@@ -1061,12 +1051,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CVegetation_dctor>()(this_, a2);
 
-		const auto it = std::find(g_CVegetations.begin(), g_CVegetations.end(), this_);
-		if (it != g_CVegetations.end())
-		{
-			*it = g_CVegetations.back();
-			g_CVegetations.pop_back();
-		}
+		g_CVegetations.erase(this_);
 
 		return res;
 	}
@@ -1075,7 +1060,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CVegetation_ctor>()(this_);
 
-		g_CVegetations.push_back(this_);
+		g_CVegetations.insert(this_);
 
 		return res;
 	}
@@ -1234,7 +1219,7 @@ namespace big
 		return res;
 	}
 
-	std::mutex g_rendernodes_mutex;
+	std::recursive_mutex g_rendernodes_mutex;
 	static kcd2_address g_C3DEngine_UnRegisterEntityImpl_ptr;
 	inline void hook_C3DEngine_UnRegisterEntityImpl(uintptr_t this_, IRenderNode *node)
 	{
@@ -1246,11 +1231,6 @@ namespace big
 
 	bool is_render_node_valid(IRenderNode *node)
 	{
-		if (!node)
-		{
-			return false;
-		}
-
 		__try
 		{
 			node->GetPhysics();
@@ -2113,12 +2093,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CPhysicalEntity_dctor>()(inst, a2);
 
-		const auto it = std::find(g_physicalentities.begin(), g_physicalentities.end(), inst);
-		if (it != g_physicalentities.end())
-		{
-			*it = g_physicalentities.back();
-			g_physicalentities.pop_back();
-		}
+		g_physicalentities.erase(inst);
 
 		return res;
 	}
@@ -2129,7 +2104,7 @@ namespace big
 
 		std::scoped_lock l(g_cphysicalentity_mutex);
 
-		g_physicalentities.push_back(a1);
+		g_physicalentities.insert(a1);
 
 		return res;
 	}

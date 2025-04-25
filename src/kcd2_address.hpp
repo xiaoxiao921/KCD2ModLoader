@@ -41,7 +41,7 @@ private:
 		// Convert string pattern into byte array form
 		int16_t pattern[256];
 		uint8_t pattern_size = 0;
-		for (size_t i = 0; i < strlen(pattern_str); i += 3)
+		for (size_t i = 0; i < std::char_traits<char>::length(pattern_str); i += 3)
 		{
 			const char* cursor = pattern_str + i;
 
@@ -51,7 +51,9 @@ private:
 			}
 			else
 			{
-				pattern[pattern_size] = static_cast<int16_t>(strtol(cursor, nullptr, 16));
+				int16_t buffer = 0;
+				std::from_chars(cursor, cursor + 2, buffer, 16);
+				pattern[pattern_size] = buffer;
 			}
 
 			// Support single '?' (we're incrementing by 3 expecting ?? and space, but with ? we must increment by 2)
@@ -64,15 +66,7 @@ private:
 		}
 
 		// In two-end comparison we approach from both sides (left & right) so size is twice smaller
-		uint8_t scan_size = pattern_size;
-		if (scan_size % 2 == 0)
-		{
-			scan_size /= 2;
-		}
-		else
-		{
-			scan_size = pattern_size / 2 + 1;
-		}
+		uint8_t scan_size = (pattern_size >> 1) + (pattern_size & 1);
 
 		// Search for string through whole module
 		// We use two-end comparison, nothing fancy but better than just brute force
