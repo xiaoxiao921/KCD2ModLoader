@@ -968,11 +968,6 @@ namespace big
 
 		g_CXConsole = a1;
 
-		static auto hook1 =
-		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandScript>("hook_CXConsole_AddCommandScript", (*reinterpret_cast<void ***>(a1))[32]);
-		static auto hook2 =
-		    big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandCommand>("hook_CXConsole_AddCommandCommand", (*reinterpret_cast<void ***>(a1))[33]);
-
 		return res;
 	}
 
@@ -1013,8 +1008,6 @@ namespace big
 			LOG(INFO) << "Player entity found";
 		}
 
-		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CEntity_dctor>("hook_CEntity_dctor", (*reinterpret_cast<void ***>(a1))[0]);
-
 		return res;
 	}
 
@@ -1037,8 +1030,6 @@ namespace big
 		const auto res = big::g_hooking->get_original<hook_CStatObj_ctor>()(this_);
 
 		g_cstatobjs.push_back(this_);
-
-		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CStatObj_dctor>("hook_CStatObj_dctor", (*reinterpret_cast<void ***>(this_))[0]);
 
 		return res;
 	}
@@ -1063,9 +1054,6 @@ namespace big
 
 		g_CGeomCacheRenderNodes.push_back(this_);
 
-		static auto hook_dctor =
-		    big::hooking::detour_hook_helper::add<hook_CGeomCacheRenderNode_dctor>("hook_CGeomCacheRenderNode_dctor", (*reinterpret_cast<void ***>(this_))[0]);
-
 		return res;
 	}
 
@@ -1089,8 +1077,6 @@ namespace big
 
 		g_CVegetations.push_back(this_);
 
-		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CVegetation_dctor>("hook_CVegetation_dctor", (*reinterpret_cast<void ***>(this_))[0]);
-
 		return res;
 	}
 
@@ -1112,10 +1098,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CMergedMeshRenderNode_ctor>()(this_);
 
-		g_CMergedMeshRenderNodes.push_back(this_);
-
-		static auto hook_dctor =
-		    big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_dctor>("hook_CMergedMeshRenderNode_dctor", (*reinterpret_cast<void ***>(this_))[0]);
+		g_CMergedMeshRenderNodes.push_back(this_);  
 
 		return res;
 	}
@@ -1187,7 +1170,7 @@ namespace big
 
 	static __int64 hook_CBrush_ctor(CBrush *a1, __int64 a2)
 	{
-		const auto ret_address = _ReturnAddress();
+		//const auto ret_address = _ReturnAddress();
 
 		//if (!g_CBrush_callers.contains(ret_address))
 		//{
@@ -1203,7 +1186,6 @@ namespace big
 		//const auto res = big::g_hooking->get_original<hook_CMovableBrush_ctor>()((uintptr_t)a1);
 		const auto res = big::g_hooking->get_original<hook_CBrush_ctor>()(a1, a2);
 
-		static auto hook_dctor = big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", (*reinterpret_cast<void ***>(a1))[0]);
 		//static auto hook_vtable_once = true;
 		//if (hook_vtable_once)
 		//{
@@ -1252,24 +1234,23 @@ namespace big
 		return res;
 	}
 
-	std::recursive_mutex g_rendernodes_mutex;
+	std::mutex g_rendernodes_mutex;
 	static kcd2_address g_C3DEngine_UnRegisterEntityImpl_ptr;
 	inline void hook_C3DEngine_UnRegisterEntityImpl(uintptr_t this_, IRenderNode *node)
 	{
 		big::g_hooking->get_original<hook_C3DEngine_UnRegisterEntityImpl>()(this_, node);
 
 		std::scoped_lock l(g_rendernodes_mutex);
-
-		const auto it = std::find(g_rendernodes.begin(), g_rendernodes.end(), node);
-		if (it != g_rendernodes.end())
-		{
-			*it = g_rendernodes.back();
-			g_rendernodes.pop_back();
-		}
+		g_rendernodes.erase(node);
 	}
 
 	bool is_render_node_valid(IRenderNode *node)
 	{
+		if (!node)
+		{
+			return false;
+		}
+
 		__try
 		{
 			node->GetPhysics();
@@ -1291,18 +1272,15 @@ namespace big
 
 		if (is_render_node_valid(node))
 		{
-			g_rendernodes.push_back(node);
+			g_rendernodes.insert(node);
 		}
 	}
 
-	__int64 hook_C3DEngine_ctor(__int64 a1)
+	__int64 hook_C3DEngine_ctor(__int64 a1, __int64 a2)
 	{
 		g_C3DEngine = a1;
 
-		const auto res = big::g_hooking->get_original<hook_C3DEngine_ctor>()(a1);
-
-		static auto hook_register = big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", (*reinterpret_cast<void ***>(a1))[38]);
-		static auto hook_unregister = big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>("hook_C3DEngine_UnRegisterEntityImpl", g_C3DEngine_UnRegisterEntityImpl_ptr);
+		const auto res = big::g_hooking->get_original<hook_C3DEngine_ctor>()(a1, a2);
 
 		return res;
 	}
@@ -1882,7 +1860,7 @@ namespace big
 						}
 					}
 
-					std::scoped_lock ll(g_rendernodes_mutex);
+					//std::scoped_lock ll(g_rendernodes_mutex);
 					//unregister_all_rendernode();
 
 					std::scoped_lock l(g_cphysicalentity_mutex);
@@ -2153,16 +2131,26 @@ namespace big
 
 		g_physicalentities.push_back(a1);
 
-		static auto hook_dctor =
-		    big::hooking::detour_hook_helper::add<hook_CPhysicalEntity_dctor>("hook_CPhysicalEntity_dctor", (*reinterpret_cast<void ***>(a1))[0]);
-
 		return res;
 	}
 
 	void kcd2_init()
 	{
+		static kcd2_address CVegetations_Ctor;
+		static kcd2_address CMergedMeshRenderNode_Ctor;
+		static kcd2_address CXConsole_Ctor;
+	//	static kcd2_address m_p3DEngine;
+		void **CentityVFTable = nullptr;
+		void **CStatObjVFTable = nullptr;
+		void **CGeomCacheRenderNodeVFTable = nullptr;
+		void **CVegetationsVFTable = nullptr;
+		void **CMergedMeshRenderNode_VFTable = nullptr;
+		void **CBrush_VFTable = nullptr;
+		void **CPhysicalEntityVFTable = nullptr;
+		void **CXConsoleVFTable = nullptr;
+		void **C3DEngine_VFTable = nullptr;
 
-		auto scan_addresses_and_set_ptr = []() -> void
+		auto scan_addresses_and_set_ptr = [&]() -> void
 		{
 			game_lua_call = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call();
 			game_lua_checkstack = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 48 8D 15 ? ? ? ? 48 8B CF E8 ? ? ? ? 80 7B").get_call();
@@ -2185,6 +2173,19 @@ namespace big
 			game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr");
 			game_luaH_new = kcd2_address::scan("48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0", "game luaH_new");
 			g_C3DEngine_UnRegisterEntityImpl_ptr = kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call();
+		//	m_p3DEngine = kcd2_address::scan("48 8B 0D ? ? ? ? 48 89 5F 28").offset(3).rip();
+			CXConsole_Ctor = kcd2_address::scan("E8 ? ? ? ? 48 8B C8 EB 03 49 8B CF 48 8B 46 20 48 89 88 A8 00 00 00").get_call();
+			CXConsoleVFTable = CXConsole_Ctor.offset(0x12).rip().as<void**>();
+			CentityVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 01 4C 89 A1 A0 00 00 00").offset(3).rip().as<void**>();
+			CStatObjVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 77 58 48 89 07").offset(3).rip().as<void**>();
+			CGeomCacheRenderNodeVFTable = kcd2_address::scan("48 8B F9 4C 89 71 20").offset(0x31).rip().as<void**>();
+			CVegetations_Ctor = kcd2_address::scan("E8 ? ? ? ? 48 8B D0 F2 0F 10 43").get_call();
+			CVegetationsVFTable = CVegetations_Ctor.offset(0x3D).rip().as<void**>();
+			CMergedMeshRenderNode_Ctor = kcd2_address::scan("B9 E0 02 00 00 E8").offset(0x18).get_call();
+			CMergedMeshRenderNode_VFTable = CMergedMeshRenderNode_Ctor.offset(0x95).rip().as<void**>();
+			CBrush_VFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 83 A1 B0 00 00 00 F8").offset(3).rip().as<void**>();
+			CPhysicalEntityVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 06 48 8D 05 ? ? ? ? 88 4E 47").offset(3).rip().as<void**>();
+			C3DEngine_VFTable = kcd2_address::scan("48 8D 0D ? ? ? ? 48 89 0E 48 8D 4E 10").offset(3).rip().as<void **>();
 			
 		};
 
@@ -2219,6 +2220,7 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CPhysicalEntity_ctor>("hook_CPhysicalEntity_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CPhysicalEntity_dctor>("hook_CPhysicalEntity_dctor", CPhysicalEntityVFTable[0]);
 		}
 
 		{
@@ -2392,13 +2394,15 @@ namespace big
 		}
 
 		{
-			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B C8 EB ? 49 8B CF 48 8B 46 ? 48 89 88");
+			const auto ptr = CXConsole_Ctor;
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find CXConsole_Ctor";
 				return;
 			}
-			big::hooking::detour_hook_helper::add<hook_CXConsole_Ctor>("hook_CXConsole_Ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CXConsole_Ctor>("hook_CXConsole_Ctor", ptr);
+			big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandScript>("hook_CXConsole_AddCommandScript", CXConsoleVFTable[32]);
+			big::hooking::detour_hook_helper::add<hook_CXConsole_AddCommandCommand>("hook_CXConsole_AddCommandCommand", CXConsoleVFTable[33]);
 		}
 
 		{
@@ -2419,6 +2423,7 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CEntity_ctor>("hook_CEntity_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CEntity_dctor>("hook_CEntity_dctor", CentityVFTable[0]);
 		}
 
 		{
@@ -2429,6 +2434,7 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_CBrush_ctor>("hook_CBrush_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CBrush_dctor>("hook_CBrush_dctor", CBrush_VFTable[0]);
 		}
 
 		//{
@@ -2533,6 +2539,7 @@ namespace big
 			g_CStatObj_ctor = ptr.get_call().as<decltype(g_CStatObj_ctor)>();
 
 			big::hooking::detour_hook_helper::add<hook_CStatObj_ctor>("hook_CStatObj_ctor", g_CStatObj_ctor);
+			big::hooking::detour_hook_helper::add<hook_CStatObj_dctor>("hook_CStatObj_dctor", CStatObjVFTable[0]);
 		}
 
 		{
@@ -2545,28 +2552,31 @@ namespace big
 			}
 
 			big::hooking::detour_hook_helper::add<hook_CGeomCacheRenderNode_ctor>("hook_CGeomCacheRenderNode_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CGeomCacheRenderNode_dctor>("hook_CGeomCacheRenderNode_dctor", CGeomCacheRenderNodeVFTable[0]);
 		}
 
 		{
-			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 48 8B D0 F2 0F 10 43");
+			const auto ptr = CVegetations_Ctor;
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find CVegetation_ctor";
 				return;
 			}
 
-			big::hooking::detour_hook_helper::add<hook_CVegetation_ctor>("hook_CVegetation_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CVegetation_ctor>("hook_CVegetation_ctor", ptr);
+			big::hooking::detour_hook_helper::add<hook_CVegetation_dctor>("hook_CVegetation_dctor", CVegetationsVFTable[0]);
 		}
 
 		{
-			const auto ptr = kcd2_address::scan("E8 ? ? ? ? 4C 8B D0 EB ? 4C 8B D3 48 8B 57");
+			const auto ptr = CMergedMeshRenderNode_Ctor;
 			if (!ptr)
 			{
 				LOG(ERROR) << "Failed to find CMergedMeshRenderNode_ctor";
 				return;
 			}
 
-			big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_ctor>("hook_CMergedMeshRenderNode_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_ctor>("hook_CMergedMeshRenderNode_ctor", ptr);
+			big::hooking::detour_hook_helper::add<hook_CMergedMeshRenderNode_dctor>("hook_CMergedMeshRenderNode_dctor", CMergedMeshRenderNode_VFTable[0]);
 		}
 
 		{
@@ -2599,6 +2609,8 @@ namespace big
 				return;
 			}
 			big::hooking::detour_hook_helper::add<hook_C3DEngine_ctor>("hook_C3DEngine_ctor", ptr.get_call());
+			big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", C3DEngine_VFTable[38]);
+			big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>("hook_C3DEngine_UnRegisterEntityImpl", g_C3DEngine_UnRegisterEntityImpl_ptr);
 		}
 
 		{
