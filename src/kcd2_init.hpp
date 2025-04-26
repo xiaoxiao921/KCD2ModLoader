@@ -803,11 +803,11 @@ namespace big
 
 	inline std::vector<CEntity *> g_entities;
 
-	inline std::vector<uintptr_t> g_cstatobjs;
+	inline ankerl::unordered_dense::set<uintptr_t> g_cstatobjs;
 
-	inline std::vector<IRenderNode *> g_CGeomCacheRenderNodes;
+	inline ankerl::unordered_dense::set<IRenderNode *> g_CGeomCacheRenderNodes;
 
-	inline std::vector<IRenderNode *> g_CVegetations;
+	inline ankerl::unordered_dense::set<IRenderNode *> g_CVegetations;
 
 	inline std::vector<IRenderNode *> g_CMergedMeshRenderNodes;
 
@@ -1469,7 +1469,7 @@ namespace big
 
 	inline ankerl::unordered_dense::set<IRenderNode *> g_rendernodes;
 
-	inline std::vector<IPhysicalEntity *> g_physicalentities;
+	inline ankerl::unordered_dense::set<IPhysicalEntity *> g_physicalentities;
 
 	inline void C3DEngine_UnRegisterEntityDirect(IRenderNode *node)
 	{
