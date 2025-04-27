@@ -83,6 +83,7 @@ namespace big
 	}
 
 	static kcd2_address game_lua_call;
+
 	static void hook_lua_call(lua_State *L, int nargs, int nresults)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -92,60 +93,70 @@ namespace big
 	}
 
 	static kcd2_address game_lua_checkstack;
+
 	static int hook_lua_checkstack(lua_State *L, int extra)
 	{
 		return game_lua_checkstack.as_func<decltype(lua_checkstack)>()(L, extra);
 	}
 
 	static kcd2_address game_lua_concat;
+
 	static void hook_lua_concat(lua_State *L, int n)
 	{
 		return game_lua_concat.as_func<decltype(lua_concat)>()(L, n);
 	}
 
 	static kcd2_address game_lua_createtable;
+
 	static void hook_lua_createtable(lua_State *L, int narr, int nrec)
 	{
 		return game_lua_createtable.as_func<decltype(lua_createtable)>()(L, narr, nrec);
 	}
 
 	static kcd2_address game_lua_error;
+
 	static int hook_lua_error(lua_State *L)
 	{
 		return game_lua_error.as_func<decltype(lua_error)>()(L);
 	}
 
 	static kcd2_address game_lua_gc;
+
 	static int hook_lua_gc(lua_State *L, int what, int data)
 	{
 		return game_lua_gc.as_func<decltype(lua_gc)>()(L, what, data);
 	}
 
 	static kcd2_address game_lua_getfenv;
+
 	static void hook_lua_getfenv(lua_State *L, int index)
 	{
 		return game_lua_getfenv.as_func<decltype(lua_getfenv)>()(L, index);
 	}
 
 	static kcd2_address game_lua_getfield;
+
 	static void hook_lua_getfield(lua_State *L, int index, const char *k)
 	{
 		return game_lua_getfield.as_func<decltype(lua_getfield)>()(L, index, k);
 	}
 
 	static kcd2_address game_lua_getmetatable;
+
 	static int hook_lua_getmetatable(lua_State *L, int index)
 	{
 		return game_lua_getmetatable.as_func<decltype(lua_getmetatable)>()(L, index);
 	}
 
 	static kcd2_address game_lua_gettable;
+
 	static void hook_lua_gettable(lua_State *L, int index)
 	{
 		return game_lua_gettable.as_func<decltype(lua_gettable)>()(L, index);
 	}
 
 	static kcd2_address game_lua_insert;
+
 	static void hook_lua_insert(lua_State *L, int index)
 	{
 		return game_lua_insert.as_func<decltype(lua_insert)>()(L, index);
@@ -182,6 +193,7 @@ namespace big
 	}
 
 	static kcd2_address game_luaV_execute;
+
 	static void hook_luaV_execute(lua_State *L, int nexeccalls)
 	{
 		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -190,6 +202,7 @@ namespace big
 	}
 
 	static kcd2_address game_lua_load;
+
 	static int hook_lua_load(lua_State *L, lua_Reader reader, void *dt, const char *chunkname)
 	{
 		//std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -219,6 +232,7 @@ namespace big
 
 	static ankerl::unordered_dense::map<void *, CScriptableBase_info> g_metatable_ptr_to_CScriptable;
 	static kcd2_address game_pushref;
+
 	static void hook_CScriptTable_SetMetatable(void *this_, void *pMetatable)
 	{
 		big::g_hooking->get_original<hook_CScriptTable_SetMetatable>()(this_, pMetatable);
@@ -414,6 +428,7 @@ namespace big
 
 	static kcd2_address game_index2adr;
 	static kcd2_address game_luaH_new;
+
 	bool __fastcall hook_CScriptSystem_ExecuteBuffer(__int64 this_, const char *sBuffer, __int64 size, const char *sBufferDescription, __int64 pEnvironmentLua)
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
@@ -426,11 +441,11 @@ namespace big
 
 			// must ensure dummynode / luaO_nilobject from the game WHGame.dll is used and not ours.
 			{
-				static auto __index2adr          = game_index2adr.as_func<intptr_t(lua_State *, int)>();
+				static auto __index2adr         = game_index2adr.as_func<intptr_t(lua_State *, int)>();
 				luaO_nilobject_external_address = __index2adr(L, 999'999);
-				static auto __luaH_new = game_luaH_new.as_func<Table *(lua_State *, int, int)>();
-				auto game_table = __luaH_new(L, 0, 0);
-				dummynode_external_address = (intptr_t)game_table->node;
+				static auto __luaH_new          = game_luaH_new.as_func<Table *(lua_State *, int, int)>();
+				auto game_table                 = __luaH_new(L, 0, 0);
+				dummynode_external_address      = (intptr_t)game_table->node;
 			}
 
 			// https://github.com/lp249839965/CryEngine-5.2.3/blob/ef4f45fe2ff05ad788fec1dd6ac56c038731e29d/Code/CryEngine/CryScriptSystem/ScriptSystem.cpp#L747
@@ -1083,7 +1098,7 @@ namespace big
 	{
 		const auto res = big::g_hooking->get_original<hook_CMergedMeshRenderNode_ctor>()(this_);
 
-		g_CMergedMeshRenderNodes.push_back(this_);  
+		g_CMergedMeshRenderNodes.push_back(this_);
 
 		return res;
 	}
@@ -1221,6 +1236,7 @@ namespace big
 
 	std::recursive_mutex g_rendernodes_mutex;
 	static kcd2_address g_C3DEngine_UnRegisterEntityImpl_ptr;
+
 	inline void hook_C3DEngine_UnRegisterEntityImpl(uintptr_t this_, IRenderNode *node)
 	{
 		big::g_hooking->get_original<hook_C3DEngine_UnRegisterEntityImpl>()(this_, node);
@@ -2043,11 +2059,17 @@ namespace big
 
 	__int64 __fastcall hook_REGISTER_CVAR(const char *a1, int *a2, int a3, int a4, __int64 a5, __int64 a6)
 	{
-		if (strcmp(a1, "e_TerrainIntegrateObjectsMaxVertices") == 0)
-		{
-			LOG(INFO) << "e_TerrainIntegrateObjectsMaxVertices intercepted. Setting to 0.";
-			*a2 = 0;
-		}
+		// This doesn't seem to do anything
+		// Context: CBrush / Existing Level Modifications
+		// Was trying to see if disabling that would fix some CBrush not having actual collision thought it was directly baked into the terrain data
+		// Which is probably true in some cases,
+		// but it seems CryEngine has another optimisation and it was related to unlinked
+		// (understand not linked to a CBrush directly) CPhysicalEntity.
+		//if (strcmp(a1, "e_TerrainIntegrateObjectsMaxVertices") == 0)
+		//{
+		//LOG(INFO) << "e_TerrainIntegrateObjectsMaxVertices intercepted. Setting to 0.";
+		//*a2 = 0;
+		//}
 
 		const auto res = big::g_hooking->get_original<hook_REGISTER_CVAR>()(a1, a2, a3, a4, a5, a6);
 
@@ -2114,54 +2136,58 @@ namespace big
 		static kcd2_address CVegetations_Ctor;
 		static kcd2_address CMergedMeshRenderNode_Ctor;
 		static kcd2_address CXConsole_Ctor;
-	//	static kcd2_address m_p3DEngine;
-		void **CentityVFTable = nullptr;
-		void **CStatObjVFTable = nullptr;
-		void **CGeomCacheRenderNodeVFTable = nullptr;
-		void **CVegetationsVFTable = nullptr;
+		//	static kcd2_address m_p3DEngine;
+		void **CentityVFTable                = nullptr;
+		void **CStatObjVFTable               = nullptr;
+		void **CGeomCacheRenderNodeVFTable   = nullptr;
+		void **CVegetationsVFTable           = nullptr;
 		void **CMergedMeshRenderNode_VFTable = nullptr;
-		void **CBrush_VFTable = nullptr;
-		void **CPhysicalEntityVFTable = nullptr;
-		void **CXConsoleVFTable = nullptr;
-		void **C3DEngine_VFTable = nullptr;
+		void **CBrush_VFTable                = nullptr;
+		void **CPhysicalEntityVFTable        = nullptr;
+		void **CXConsoleVFTable              = nullptr;
+		void **C3DEngine_VFTable             = nullptr;
 
 		auto scan_addresses_and_set_ptr = [&]() -> void
 		{
 			game_lua_call = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call();
 			game_lua_checkstack = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 48 8D 15 ? ? ? ? 48 8B CF E8 ? ? ? ? 80 7B").get_call();
-			game_lua_concat = kcd2_address::scan("E8 ? ? ? ? 2B DF").get_call();
-			game_lua_createtable = kcd2_address::scan("E8 ? ? ? ? 48 8B 5F ? 48 8B CF 48 2B 5F").get_call();
-			game_lua_error = kcd2_address::scan("E8 ? ? ? ? 41 83 C8 ? 33 D2").get_call();
-			game_lua_gc = kcd2_address::scan("E8 ? ? ? ? 41 83 3C 9E").get_call();
-			game_lua_getfenv = kcd2_address::scan("E8 ? ? ? ? 41 8B C3 48 83 C4").get_call();
-			game_lua_getfield = kcd2_address::scan("E8 ? ? ? ? 44 8D 7D").get_call();
+			game_lua_concat       = kcd2_address::scan("E8 ? ? ? ? 2B DF").get_call();
+			game_lua_createtable  = kcd2_address::scan("E8 ? ? ? ? 48 8B 5F ? 48 8B CF 48 2B 5F").get_call();
+			game_lua_error        = kcd2_address::scan("E8 ? ? ? ? 41 83 C8 ? 33 D2").get_call();
+			game_lua_gc           = kcd2_address::scan("E8 ? ? ? ? 41 83 3C 9E").get_call();
+			game_lua_getfenv      = kcd2_address::scan("E8 ? ? ? ? 41 8B C3 48 83 C4").get_call();
+			game_lua_getfield     = kcd2_address::scan("E8 ? ? ? ? 44 8D 7D").get_call();
 			game_lua_getmetatable = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 33 D2 44 8D 40").get_call();
-			game_lua_gettable = kcd2_address::scan("E8 ? ? ? ? 41 83 CB").get_call();
-			game_lua_insert = kcd2_address::scan("E8 ? ? ? ? 8B 56 ? 44 8B CF").get_call();
-			game_lua_pcall = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
-			game_luaV_execute = kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC");
-			game_lua_load = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call();
+			game_lua_gettable     = kcd2_address::scan("E8 ? ? ? ? 41 83 CB").get_call();
+			game_lua_insert       = kcd2_address::scan("E8 ? ? ? ? 8B 56 ? 44 8B CF").get_call();
+			game_lua_pcall        = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
+			game_luaV_execute =
+			    kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC");
+			game_lua_load             = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call();
 			CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D").get_call();
-			game_lua_setmetatable = kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
+			game_lua_setmetatable =
+			    kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
 			lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88").get_call();
-			game_pushref  = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call();
+			game_pushref   = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call();
 			game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr");
-			game_luaH_new = kcd2_address::scan("48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0", "game luaH_new");
-			g_C3DEngine_UnRegisterEntityImpl_ptr = kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call();
-		//	m_p3DEngine = kcd2_address::scan("48 8B 0D ? ? ? ? 48 89 5F 28").offset(3).rip();
+			game_luaH_new =
+			    kcd2_address::scan("48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 41 8B F0 8B DA 45 33 C0", "game luaH_new");
+			g_C3DEngine_UnRegisterEntityImpl_ptr =
+			    kcd2_address::scan("E8 ? ? ? ? 49 8D 8E ? ? ? ? 48 8B D7 4C 8D 5C 24").get_call();
+			//	m_p3DEngine = kcd2_address::scan("48 8B 0D ? ? ? ? 48 89 5F 28").offset(3).rip();
 			CXConsole_Ctor = kcd2_address::scan("E8 ? ? ? ? 48 8B C8 EB 03 49 8B CF 48 8B 46 20 48 89 88 A8 00 00 00").get_call();
-			CXConsoleVFTable = CXConsole_Ctor.offset(0x12).rip().as<void**>();
-			CentityVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 01 4C 89 A1 A0 00 00 00").offset(3).rip().as<void**>();
-			CStatObjVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 77 58 48 89 07").offset(3).rip().as<void**>();
-			CGeomCacheRenderNodeVFTable = kcd2_address::scan("48 8B F9 4C 89 71 20").offset(0x31).rip().as<void**>();
-			CVegetations_Ctor = kcd2_address::scan("E8 ? ? ? ? 48 8B D0 F2 0F 10 43").get_call();
-			CVegetationsVFTable = CVegetations_Ctor.offset(0x3D).rip().as<void**>();
-			CMergedMeshRenderNode_Ctor = kcd2_address::scan("B9 E0 02 00 00 E8").offset(0x18).get_call();
-			CMergedMeshRenderNode_VFTable = CMergedMeshRenderNode_Ctor.offset(0x95).rip().as<void**>();
-			CBrush_VFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 83 A1 B0 00 00 00 F8").offset(3).rip().as<void**>();
-			CPhysicalEntityVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 06 48 8D 05 ? ? ? ? 88 4E 47").offset(3).rip().as<void**>();
+			CXConsoleVFTable = CXConsole_Ctor.offset(0x12).rip().as<void **>();
+			CentityVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 01 4C 89 A1 A0 00 00 00").offset(3).rip().as<void **>();
+			CStatObjVFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 77 58 48 89 07").offset(3).rip().as<void **>();
+			CGeomCacheRenderNodeVFTable   = kcd2_address::scan("48 8B F9 4C 89 71 20").offset(0x31).rip().as<void **>();
+			CVegetations_Ctor             = kcd2_address::scan("E8 ? ? ? ? 48 8B D0 F2 0F 10 43").get_call();
+			CVegetationsVFTable           = CVegetations_Ctor.offset(0x3D).rip().as<void **>();
+			CMergedMeshRenderNode_Ctor    = kcd2_address::scan("B9 E0 02 00 00 E8").offset(0x18).get_call();
+			CMergedMeshRenderNode_VFTable = CMergedMeshRenderNode_Ctor.offset(0x95).rip().as<void **>();
+			CBrush_VFTable = kcd2_address::scan("48 8D 05 ? ? ? ? 83 A1 B0 00 00 00 F8").offset(3).rip().as<void **>();
+			CPhysicalEntityVFTable =
+			    kcd2_address::scan("48 8D 05 ? ? ? ? 48 89 06 48 8D 05 ? ? ? ? 88 4E 47").offset(3).rip().as<void **>();
 			C3DEngine_VFTable = kcd2_address::scan("48 8D 0D ? ? ? ? 48 89 0E 48 8D 4E 10").offset(3).rip().as<void **>();
-			
 		};
 
 		scan_addresses_and_set_ptr();
@@ -2585,7 +2611,9 @@ namespace big
 			}
 			big::hooking::detour_hook_helper::add<hook_C3DEngine_ctor>("hook_C3DEngine_ctor", ptr.get_call());
 			big::hooking::detour_hook_helper::add<hook_C3DEngine_RegisterEntity>("hook_C3DEngine_RegisterEntity", C3DEngine_VFTable[38]);
-			big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>("hook_C3DEngine_UnRegisterEntityImpl", g_C3DEngine_UnRegisterEntityImpl_ptr);
+			big::hooking::detour_hook_helper::add<hook_C3DEngine_UnRegisterEntityImpl>(
+			    "hook_C3DEngine_UnRegisterEntityImpl",
+			    g_C3DEngine_UnRegisterEntityImpl_ptr);
 		}
 
 		{
