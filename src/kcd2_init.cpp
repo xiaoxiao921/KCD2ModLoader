@@ -465,6 +465,8 @@ namespace big
 			    },
 			    [](sol::state_view &state) -> sol::environment
 			    {
+				    // Cleanup the Global table for ReturnOfModding lua mods.
+
 				    // rom.game = _G
 				    state[rom::g_lua_api_namespace]["game"] = state["_G"];
 
@@ -478,6 +480,8 @@ namespace big
 					    {
 						    auto key_str = k.as<const char *>();
 						    // Bad heuristic for filtering out native functions from the game code
+						    // This heuristic was for hades 2
+						    // todo: check for kcd2
 						    if (!std::isupper(static_cast<unsigned char>(key_str[0])))
 						    {
 							    plugin_G[k] = v;
@@ -754,7 +758,7 @@ namespace big
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		// useful for finding xref across data, wh_data however doesn't seem to get parsed here?
+		// Test code just below useful for finding xref across data, wh_data level files however doesn't seem to get parsed here?
 		/*if (new_file_content.contains("a659399b-8517-4cc7") || new_file_content.contains("3a7fb2dc-9118-418a-bb5c-c8db913467ed")
 		    || new_file_content.contains("763db0bb-4469-497d-bdc9-712b3df91b5a") || new_file_content.contains("ksta_additive_man_18"))
 		{
@@ -873,8 +877,8 @@ namespace big
 		return is_safe_ptr(ptr) ? std::string(ptr) : std::to_string((uintptr_t)ptr);
 	}
 
-	// Returns true if parsed successfully
-	// Returns true and skip orig call for skipping xml parsing of a given file
+	// Original function returns true if xml is parsed successfully.
+	// Hook: Returns true and skip orig call for skipping xml parsing of a given file
 	static bool hook_XmlParserReadOnly_Read_caller(__int64 a1, const char **ptr_to_filename, char a3)
 	{
 		if (ptr_to_filename && *ptr_to_filename)
