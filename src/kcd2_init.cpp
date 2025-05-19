@@ -1669,7 +1669,6 @@ namespace big
 
 		auto camera_pos_and_dir = get_camera_position_and_direction();
 
-		// Extend the max range distance to 1000
 		Vec3 ray_dir_range = camera_pos_and_dir.second * 100000.0f;
 
 		void *pSkipEnts[1];
@@ -1936,6 +1935,21 @@ namespace big
 				LOG(INFO) << "Found collider " << typeid(*ray_hit.pCollider).name() << " " << HEX_TO_UPPER(ray_hit.pCollider);
 
 				LOG(INFO) << "is ray hit point inside: " << ray_hit.pCollider->IsPointInside(ray_hit.pt);
+
+				const auto collider_cbrush = ray_hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC);
+
+				size_t i = 0;
+				for (const auto &cbrush : g_cbrushes)
+				{
+					if (cbrush == collider_cbrush)
+					{
+						g_selected_cbrush_detail_inspector = i;
+						LOG(INFO) << "Found cbrush: " << cbrush->GetName() << " " << HEX_TO_UPPER(cbrush);
+						break;
+					}
+
+					i++;
+				}
 
 				if (strstr(typeid(*ray_hit.pCollider).name(), "CPhysicalEntity"))
 				{

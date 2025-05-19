@@ -274,7 +274,8 @@ namespace big
 		void *m_unk;
 	};
 
-#define BIT8(x) ((static_cast<uint8_t>(1)) << (x))
+#define BIT8(x)  ((static_cast<uint8_t>(1)) << (x))
+#define BIT32(x) ((static_cast<uint32_t>(1)) << (x))
 
 	struct IRenderNode : public IShadowCaster
 	{
@@ -659,89 +660,135 @@ namespace big
 
 	inline void (*g_CStatObj_ctor)(uintptr_t this_) = nullptr;
 
+	//! Each entity instance holds flags that indicate special behavior within the system
+	//! These can be set with IEntity::SetFlags, and retrieved with IEntity::GetFlags
+	enum EEntityFlags : uint32_t
+	{
+		//////////////////////////////////////////////////////////////////////////
+		// Persistent flags (can be set from the editor).
+		ENTITY_FLAG_CASTSHADOW = BIT32(0), //!< Indicates that the entity can cast shadows.
+		ENTITY_FLAG_UNREMOVABLE = BIT32(1), //!< This entity cannot be removed using IEntitySystem::RemoveEntity until this flag is cleared.
+		ENTITY_FLAG_GOOD_OCCLUDER = BIT32(2),       //!< Indicates that the entity can be very effective as an occluder.
+		ENTITY_FLAG_NO_DECALNODE_DECALS = BIT32(3), //!< Indicates that the entity can't receive static decal projections.
+		//////////////////////////////////////////////////////////////////////////
+
+		ENTITY_FLAG_CLONED                  = BIT32(4), //!< Entity was cloned from another
+		ENTITY_FLAG_NOT_REGISTER_IN_SECTORS = BIT32(5),
+		ENTITY_FLAG_CALC_PHYSICS            = BIT32(6),
+		//! Entity should only be present on the client, and not server.
+		ENTITY_FLAG_CLIENT_ONLY = BIT32(7),
+		//! Entity should only be present on the server, and not clients.
+		ENTITY_FLAG_SERVER_ONLY = BIT32(8),
+		ENTITY_FLAG_CUSTOM_VIEWDIST_RATIO = BIT32(9), //!< This entity has a special custom view distance ratio (AI/Vehicles require it).
+		ENTITY_FLAG_CALCBBOX_USEALL = BIT32(10), //!< Use character and objects in BBox calculations.
+		ENTITY_FLAG_VOLUME_SOUND  = BIT32(11), //!< Entity is a volume sound (will get moved around by the sound proxy).
+		ENTITY_FLAG_HAS_AI        = BIT32(12), //!< Entity has an AI object.
+		ENTITY_FLAG_TRIGGER_AREAS = BIT32(13), //!< This entity will trigger areas when it enters them.
+		ENTITY_FLAG_NO_SAVE       = BIT32(14), //!< This entity will not be saved.
+		ENTITY_FLAG_CAMERA_SOURCE = BIT32(15), //!< This entity is a camera source.
+		ENTITY_FLAG_CLIENTSIDE_STATE = BIT32(16), //!< Prevents error when state changes on the client and does not sync state changes to the client.
+		ENTITY_FLAG_SEND_RENDER_EVENT = BIT32(17), //!< When set entity will send ENTITY_EVENT_RENDER_VISIBILITY_CHANGE when starts or stop actual rendering.
+		ENTITY_FLAG_NO_PROXIMITY = BIT32(18), //!< Entity will not be registered in the partition grid and can not be found by proximity queries.
+		ENTITY_FLAG_PROCEDURAL = BIT32(19),    //!< Entity has been generated at runtime.
+		ENTITY_FLAG_UPDATE_HIDDEN = BIT32(20), //!< Whether update of game logic should be skipped when the entity is hidden. This does *not* disable update of components unless they specifically request it.
+		ENTITY_FLAG_IGNORE_PHYSICS_UPDATE = BIT32(21), //!< Used by the Editor only, don't set.
+		ENTITY_FLAG_SPAWNED               = BIT32(22), //!< Entity was spawned dynamically without a class.
+		ENTITY_FLAG_SLOTS_CHANGED         = BIT32(23), //!< Entity's slots were changed dynamically.
+		ENTITY_FLAG_MODIFIED_BY_PHYSICS   = BIT32(24), //!< Entity was procedurally modified by physics.
+		ENTITY_FLAG_OUTDOORONLY           = BIT32(25), //!< Same as Brush->Outdoor only.
+
+		ENTITY_FLAG_RECVWIND     = BIT32(26), //!< Receives wind.
+		ENTITY_FLAG_LOCAL_PLAYER = BIT32(27), //!< Indicates the entity is a local player.
+		ENTITY_FLAG_AI_HIDEABLE  = BIT32(28), //!< AI can use the object to calculate automatic hide points.
+
+		ENTITY_FLAG_DYNAMIC_DISTANCE_SHADOWS = BIT32(29),
+	};
+
 #pragma pack(push, 1)
 
 	struct CEntity
 	{
-		virtual ~CEntity()              = default; // offset 0
-		virtual uint32_t GetId()        = 0;       // offset 8
-		virtual __int64 GetGuid()       = 0;       // offset 16
-		virtual EntityClass *GetClass() = 0;       // offset 24
-		virtual void Pad4()             = 0;
-		virtual void Pad5()             = 0;
-		virtual void Pad6()             = 0;
-		virtual void Pad7()             = 0;
-		virtual void Pad8()             = 0;
-		virtual void Pad9()             = 0;
-		virtual void Pad10()            = 0;
-		virtual void Pad11()            = 0;
-		virtual void Pad12()            = 0;
-		virtual void Pad13()            = 0;
-		virtual void Pad14()            = 0;
-		virtual void Pad15()            = 0;
-		virtual void Pad16()            = 0;
-		virtual void Pad17()            = 0;
-		virtual const char *GetName()   = 0; // offset 144
-		virtual void Pad19()            = 0;
-		virtual void Pad20()            = 0;
-		virtual void Pad21()            = 0;
-		virtual void Pad22()            = 0;
-		virtual void Pad23()            = 0;
-		virtual void Pad24()            = 0;
-		virtual void Pad25()            = 0;
-		virtual void Pad26()            = 0;
-		virtual void Pad27()            = 0;
-		virtual void Pad28()            = 0;
-		virtual void Pad29()            = 0;
-		virtual void Pad30()            = 0;
-		virtual void Pad31()            = 0;
-		virtual void Pad32()            = 0;
-		virtual void Pad33()            = 0;
-		virtual void Pad34()            = 0;
-		virtual void Pad35()            = 0;
-		virtual void Pad36()            = 0;
-		virtual void Pad37()            = 0;
-		virtual void Pad38()            = 0;
-		virtual void Pad39()            = 0;
-		virtual void Pad40()            = 0;
-		virtual void Pad41()            = 0;
-		virtual void Pad42()            = 0;
-		virtual void Pad43()            = 0;
-		virtual void Pad44()            = 0;
-		virtual void Pad45()            = 0;
-		virtual void GetPos(Vec3 &pos)  = 0; // offset 368
-		virtual void Pad47()            = 0;
-		virtual void Pad48()            = 0;
-		virtual void Pad49()            = 0;
-		virtual void Pad50()            = 0;
-		virtual void Pad51()            = 0;
-		virtual void Pad52()            = 0;
-		virtual bool IsActive()         = 0; // offset 424
-		virtual void Pad54()            = 0;
-		virtual void Pad55()            = 0;
-		virtual void Pad56()            = 0;
-		virtual void Pad57()            = 0;
-		virtual void Pad58()            = 0;
-		virtual void Pad59()            = 0;
-		virtual void Pad60()            = 0;
-		virtual void Pad61()            = 0;
-		virtual void Pad62()            = 0;
-		virtual bool IsHidden()         = 0; // offset 504
-		virtual void Pad64()            = 0;
-		virtual void Pad65()            = 0;
-		virtual void Pad66()            = 0;
-		virtual void Pad67()            = 0;
-		virtual void Pad68()            = 0;
-		virtual void Pad69()            = 0;
-		virtual void Pad70()            = 0;
-		virtual void Pad71()            = 0;
-		virtual void Pad72()            = 0;
-		virtual void Pad73()            = 0;
-		virtual void Pad74()            = 0;
-		virtual void Pad75()            = 0;
-		virtual void Pad76()            = 0;
-		virtual void Pad77()            = 0;
-		virtual void *GetPhysics()      = 0;
+		virtual ~CEntity()                      = default; // offset 0
+		virtual uint32_t GetId()                = 0;       // offset 8
+		virtual __int64 GetGuid()               = 0;       // offset 16
+		virtual EntityClass *GetClass()         = 0;       // offset 24
+		virtual void GetArchetype()             = 0;
+		virtual void SetFlags(uint32_t flags)   = 0;
+		virtual uint32_t GetFlags()             = 0;
+		virtual void AddFlags()                 = 0;
+		virtual void ClearFlags()               = 0;
+		virtual void CheckFlags()               = 0;
+		virtual void SetFlagsExtended()         = 0;
+		virtual void GetFlagsExtended()         = 0;
+		virtual void IsGarbage()                = 0;
+		virtual void Pad13()                    = 0;
+		virtual void Pad14()                    = 0;
+		virtual void Pad15()                    = 0;
+		virtual void Pad16()                    = 0;
+		virtual void SetName()                  = 0;
+		virtual const char *GetName()           = 0; // offset 144
+		virtual void GetEntityTextDescription() = 0;
+		virtual void Pad20()                    = 0;
+		virtual void Pad21()                    = 0;
+		virtual void Pad22()                    = 0;
+		virtual void Pad23()                    = 0;
+		virtual void Pad24()                    = 0;
+		virtual void Pad25()                    = 0;
+		virtual void Pad26()                    = 0;
+		virtual void Pad27()                    = 0;
+		virtual void Pad28()                    = 0;
+		virtual void Pad29()                    = 0;
+		virtual void Pad30()                    = 0;
+		virtual void Pad31()                    = 0;
+		virtual void Pad32()                    = 0;
+		virtual void Pad33()                    = 0;
+		virtual void Pad34()                    = 0;
+		virtual void Pad35()                    = 0;
+		virtual void Pad36()                    = 0;
+		virtual void Pad37()                    = 0;
+		virtual void Pad38()                    = 0;
+		virtual void Pad39()                    = 0;
+		virtual void Pad40()                    = 0;
+		virtual void Pad41()                    = 0;
+		virtual void Pad42()                    = 0;
+		virtual void Pad43()                    = 0;
+		virtual void Pad44()                    = 0;
+		virtual void SetPos()                   = 0;
+		virtual void GetPos(Vec3 &pos)          = 0; // offset 368
+		virtual void Pad47()                    = 0;
+		virtual void Pad48()                    = 0;
+		virtual void Pad49()                    = 0;
+		virtual void Pad50()                    = 0;
+		virtual void Pad51()                    = 0;
+		virtual void Activate()                 = 0;
+		virtual bool IsActive()                 = 0; // offset 424
+		virtual void Pad54()                    = 0;
+		virtual void Pad55()                    = 0;
+		virtual void Pad56()                    = 0;
+		virtual void Serialize()                = 0;
+		virtual void Pad58()                    = 0;
+		virtual void SetGeometry()              = 0;
+		virtual void Pad60()                    = 0;
+		virtual void Pad61()                    = 0;
+		virtual void Pad62()                    = 0;
+		virtual void Hide()                     = 0;
+		virtual bool IsHidden()                 = 0; // offset 512 - Pad64
+		virtual void Invisible()                = 0;
+		virtual void IsInvisible()              = 0;
+		virtual void GetAI()                    = 0;
+		virtual void HasAI()                    = 0;
+		virtual void GetAIObjectID()            = 0;
+		virtual void SetAIObjectID()            = 0;
+		virtual void RegisterInAISystem()       = 0;
+		virtual void SetUpdatePolicy()          = 0;
+		virtual void GetUpdatePolicy()          = 0;
+		virtual void GetProxy()                 = 0;
+		virtual void SetProxy()                 = 0;
+		virtual void CreateProxy()              = 0;
+		virtual void RegisterComponent()        = 0;
+		virtual void Physicalize()              = 0;
+		// The offset of this one can be found through the usage of CScriptBind_Physics::RayWorldIntersection(IFunctionHandler* pH)
+		virtual void *GetPhysics() = 0; // offset 632 - Function Number 79
 
 		uint64_t unk_1;
 		uint64_t unk_2;
