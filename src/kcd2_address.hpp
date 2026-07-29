@@ -110,13 +110,29 @@ public:
 		return scan_internal(pattern_str, debug_name, s_module_base_default_module, s_module_size_default_module);
 	}
 
+	// These three accessors propagate zero instead of dereferencing.
+	//
+	// scan() returns {0} when the pattern is not found. rip() used to do
+	// *(int32_t*)(m_value + offset) unchecked, so a missing signature was
+	// read as memory at address 1 and killed the process during init,
+	// before the logger had flushed anything -- hence the 0-byte
+	// LogOutput.log reported in issue #15 on game version 1.5.
+	//
+	// By propagating zero, a broken signature leaves a null pointer that
+	// can be detected and logged, and the rest of the loader stays alive.
+	// This is what lets a game patch degrade specific features instead of
+	// preventing startup entirely.
 	kcd2_address offset(int32_t offset) const
 	{
-		return m_value + offset;
+		return m_value ? kcd2_address(m_value + offset) : kcd2_address(0);
 	}
 
 	kcd2_address rip(int32_t offset = 0) const
 	{
+		if (!m_value)
+		{
+			return kcd2_address(0);
+		}
 		return m_value + offset + 4 + *(int32_t*)(m_value + offset);
 	}
 

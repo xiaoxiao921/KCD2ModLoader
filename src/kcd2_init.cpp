@@ -313,10 +313,29 @@ namespace big
 	{
 		std::scoped_lock l(lua_manager_extension::g_manager_mutex);
 
-		const auto early_main_state = lua_manager_extension::g_lua_manager_instance->lua_state();
-		lua_manager_extension::g_lua_manager_instance.reset();
-		LOG(INFO) << "Lua manager early main reset";
-		lua_close(early_main_state);
+		// The early main manager may not exist.
+		//
+		// This hook assumed g_lua_manager_instance already pointed at the
+		// early-main VM manager and dereferenced it directly. If that VM was
+		// never created the unique_ptr is null, and the dereference kills the
+		// process during CryScriptSystem::Init, with the stack trace pointing
+		// inside d3d12.dll and RAX=0.
+		//
+		// This was invisible on release_1_5 because init aborted before this
+		// hook was ever registered; once the script-system hook block was
+		// moved earlier the hook started running and the bug surfaced. Not
+		// closing a VM that does not exist is correct, so a check suffices.
+		if (lua_manager_extension::g_lua_manager_instance)
+		{
+			const auto early_main_state = lua_manager_extension::g_lua_manager_instance->lua_state();
+			lua_manager_extension::g_lua_manager_instance.reset();
+			LOG(INFO) << "Lua manager early main reset";
+			lua_close(early_main_state);
+		}
+		else
+		{
+			LOG(INFO) << "no habia gestor de early main que cerrar";
+		}
 
 		LOG(INFO) << "Starting hook queue";
 
@@ -2169,23 +2188,23 @@ namespace big
 		{
 			game_lua_call = kcd2_address::scan("E8 ? ? ? ? FF C3 3B DF 7E").get_call();
 			game_lua_checkstack = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 48 8D 15 ? ? ? ? 48 8B CF E8 ? ? ? ? 80 7B").get_call();
-			game_lua_concat       = kcd2_address::scan("E8 ? ? ? ? 2B DF").get_call();
+			game_lua_concat       = kcd2_address::scan("48 89 5C 24 08 57 48 83 EC 20 48 63 DA 48 8B F9 83", "lua_concat");
 			game_lua_createtable  = kcd2_address::scan("E8 ? ? ? ? 48 8B 5F ? 48 8B CF 48 2B 5F").get_call();
 			game_lua_error        = kcd2_address::scan("E8 ? ? ? ? 41 83 C8 ? 33 D2").get_call();
 			game_lua_gc           = kcd2_address::scan("E8 ? ? ? ? 41 83 3C 9E").get_call();
 			game_lua_getfenv      = kcd2_address::scan("E8 ? ? ? ? 41 8B C3 48 83 C4").get_call();
 			game_lua_getfield     = kcd2_address::scan("E8 ? ? ? ? 44 8D 7D").get_call();
 			game_lua_getmetatable = kcd2_address::scan("E8 ? ? ? ? 85 C0 75 ? 33 D2 44 8D 40").get_call();
-			game_lua_gettable     = kcd2_address::scan("E8 ? ? ? ? 41 83 CB").get_call();
+			game_lua_gettable     = kcd2_address::scan("48 83 EC 28 4C 8B D1 E8 ? ? ? ? 4D 8B 42 10 48 8B D0", "lua_gettable");
 			game_lua_insert       = kcd2_address::scan("E8 ? ? ? ? 8B 56 ? 44 8B CF").get_call();
 			game_lua_pcall        = kcd2_address::scan("E8 ? ? ? ? 48 8B 4E ? 8B D7 8B D8").get_call();
 			game_luaV_execute =
-			    kcd2_address::scan("48 8B C4 48 89 58 ? 89 50 ? 55 56 57 41 54 41 55 41 56 41 57 48 81 EC");
+			    kcd2_address::scan("48 8B C4 89 50 10 53 55 56 57 41 54", "luaV_execute");
 			game_lua_load             = kcd2_address::scan("E8 ? ? ? ? 48 83 CE ? 85 C0").get_call();
 			CScriptableBase_Init_func = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 39 3D").get_call();
 			game_lua_setmetatable =
 			    kcd2_address::scan("40 53 48 83 EC ? 48 8B DA E8 ? ? ? ? 48 8B D3 E8 ? ? ? ? 48 8B 0D");
-			lua_custom_alloc = kcd2_address::scan("E8 ? ? ? ? 33 FF 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8D 88").get_call();
+			lua_custom_alloc = kcd2_address::scan("48 89 5C 24 08 48 89 6C 24 18 48 89 74 24 20 57 48 83 EC 20 33 DB 49", "lua_custom_alloc");
 			game_pushref   = kcd2_address::scan("E8 ? ? ? ? 48 8B CB E8 ? ? ? ? 8D 4E ? 8D 56").get_call();
 			game_index2adr = kcd2_address::scan("85 D2 7F ? B8", "game index2adr");
 			game_luaH_new =
@@ -2209,6 +2228,92 @@ namespace big
 		};
 
 		scan_addresses_and_set_ptr();
+
+		// With the accessors propagating zero, a missing signature no longer
+		// kills the process -- it leaves a null. But a silent null is just as
+		// hard to diagnose, so report which ones failed to resolve. When the
+		// game gets patched and something stops working, this list says
+		// exactly which signature needs redoing.
+		{
+			const std::pair<const char*, uint64_t> checked[] = {
+			    {"lua_call", (uint64_t)game_lua_call},
+			    {"lua_checkstack", (uint64_t)game_lua_checkstack},
+			    {"lua_concat", (uint64_t)game_lua_concat},
+			    {"lua_createtable", (uint64_t)game_lua_createtable},
+			    {"lua_error", (uint64_t)game_lua_error},
+			    {"lua_gc", (uint64_t)game_lua_gc},
+			    {"lua_getfenv", (uint64_t)game_lua_getfenv},
+			    {"lua_getfield", (uint64_t)game_lua_getfield},
+			    {"lua_getmetatable", (uint64_t)game_lua_getmetatable},
+			    {"lua_gettable", (uint64_t)game_lua_gettable},
+			    {"lua_insert", (uint64_t)game_lua_insert},
+			    {"lua_pcall", (uint64_t)game_lua_pcall},
+			    {"luaV_execute", (uint64_t)game_luaV_execute},
+			    {"lua_load", (uint64_t)game_lua_load},
+			    {"lua_setmetatable", (uint64_t)game_lua_setmetatable},
+			    {"lua_custom_alloc", (uint64_t)lua_custom_alloc},
+			    {"pushref", (uint64_t)game_pushref},
+			    {"index2adr", (uint64_t)game_index2adr},
+			    {"luaH_new", (uint64_t)game_luaH_new},
+			};
+			int missing = 0;
+			for (const auto& [name, value] : checked)
+			{
+				if (!value)
+				{
+					LOG(ERROR) << "firma sin resolver: " << name;
+					++missing;
+				}
+			}
+			LOG(INFO) << "escaneo de firmas de Lua: " << (int)(std::size(checked) - missing)
+			          << "/" << (int)std::size(checked) << " resueltas";
+		}
+
+		// ---- Script system hooks, deliberately moved up here ----
+		//
+		// This block used to sit ~500 lines further down. The problem: the
+		// blocks in between handle a missing signature with
+		//     if (!ptr) { LOG(ERROR) << "Failed to find X"; return; }
+		// and that return exits kcd2_init ENTIRELY. On release_1_5 the
+		// CPhysicalEntity_ctor signature is broken, so init aborted there and
+		// the ExecuteBuffer hook -- the one that creates the Lua manager --
+		// was never registered. Result: no plugin loaded at all, and nothing
+		// in the log hinted that the two were related.
+		//
+		// Moving the block was chosen over making all 35 blocks independent:
+		// that was tried and left the game hanging, because it installed hooks
+		// that had never run on this version and which index vtables that are
+		// null here. Moving the block keeps the rest of the loader in the same
+		// state its author tested, and only advances what is needed.
+		{
+			const auto cryscriptsystem_init = kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? E8 ? ? ? ? 41 38 BE");
+			if (!cryscriptsystem_init)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::Init";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CryScriptSystem_Init>("hook_CryScriptSystem_Init",
+			                                                                 cryscriptsystem_init.get_call());
+
+			const auto lua_system_update_tick =
+			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B 3D ? ? ? ? 48 8B F1 33 D2");
+			if (!lua_system_update_tick)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::Update";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CScriptSystem_Update>("hook_lua_system_update_tick", lua_system_update_tick);
+
+			const auto lua_execute_buffer = kcd2_address::scan(
+			    "48 8B C4 48 89 58 ? 48 89 68 ? 48 89 70 ? 48 89 78 ? 41 56 48 83 EC ? 48 8B F9 48 89 50");
+			if (!lua_execute_buffer)
+			{
+				LOG(ERROR) << "Failed to find CryScriptSystem::ExecuteBuffer";
+				return;
+			}
+			big::hooking::detour_hook_helper::add<hook_CScriptSystem_ExecuteBuffer>("hook_lua_execute_buffer", lua_execute_buffer);
+		}
+
 
 		{
 			const auto cryengine_attachVariable =
@@ -2701,34 +2806,6 @@ namespace big
 			lua_manager_extension::g_lua_manager_instance->init<lua_module_ext>(false);
 		}
 
-		{
-			const auto cryscriptsystem_init = kcd2_address::scan("E8 ? ? ? ? 84 C0 74 ? E8 ? ? ? ? 41 38 BE");
-			if (!cryscriptsystem_init)
-			{
-				LOG(ERROR) << "Failed to find CryScriptSystem::Init";
-				return;
-			}
-			big::hooking::detour_hook_helper::add<hook_CryScriptSystem_Init>("hook_CryScriptSystem_Init",
-			                                                                 cryscriptsystem_init.get_call());
-
-			const auto lua_system_update_tick =
-			    kcd2_address::scan("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B 3D ? ? ? ? 48 8B F1 33 D2");
-			if (!lua_system_update_tick)
-			{
-				LOG(ERROR) << "Failed to find CryScriptSystem::Update";
-				return;
-			}
-			big::hooking::detour_hook_helper::add<hook_CScriptSystem_Update>("hook_lua_system_update_tick", lua_system_update_tick);
-
-			const auto lua_execute_buffer = kcd2_address::scan(
-			    "48 8B C4 48 89 58 ? 48 89 68 ? 48 89 70 ? 48 89 78 ? 41 56 48 83 EC ? 48 8B F9 48 89 50");
-			if (!lua_execute_buffer)
-			{
-				LOG(ERROR) << "Failed to find CryScriptSystem::ExecuteBuffer";
-				return;
-			}
-			big::hooking::detour_hook_helper::add<hook_CScriptSystem_ExecuteBuffer>("hook_lua_execute_buffer", lua_execute_buffer);
-		}
 
 		//parse_xml_objects_file("", 0);
 
